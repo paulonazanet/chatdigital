@@ -152,7 +152,7 @@ html.menu-recolhido .barra-lateral { width: 64px; }
   font-size: 1.05rem;
 }
 
-.marca-logo { height: 28px; width: auto; flex-shrink: 0; }
+.marca-logo { height: 40px; width: auto; flex-shrink: 0; }
 .marca-icone { height: 26px; width: 26px; flex-shrink: 0; display: none; }
 
 .botao-recolher {
