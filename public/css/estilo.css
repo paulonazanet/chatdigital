@@ -508,6 +508,8 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
   fill: none;
   stroke: var(--azul-destaque);
   stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
   pointer-events: stroke;
   cursor: pointer;
 }

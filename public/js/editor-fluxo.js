@@ -143,10 +143,31 @@
 
   // ---- desenho ----
 
+  function gerarCaminhoOrtogonal(p1, p2) {
+    var folga = 28;
+
+    if (p2.x - p1.x >= folga * 2) {
+      var meioX = (p1.x + p2.x) / 2;
+      return 'M ' + p1.x + ' ' + p1.y + ' L ' + meioX + ' ' + p1.y + ' L ' + meioX + ' ' + p2.y + ' L ' + p2.x + ' ' + p2.y;
+    }
+
+    // destino atrás (ou muito perto) da origem: contorna por baixo do ponto mais baixo dos dois
+    var saidaX = p1.x + folga;
+    var entradaX = p2.x - folga;
+    var meioY = Math.max(p1.y, p2.y) + 45;
+    return (
+      'M ' + p1.x + ' ' + p1.y +
+      ' L ' + saidaX + ' ' + p1.y +
+      ' L ' + saidaX + ' ' + meioY +
+      ' L ' + entradaX + ' ' + meioY +
+      ' L ' + entradaX + ' ' + p2.y +
+      ' L ' + p2.x + ' ' + p2.y
+    );
+  }
+
   function desenharLinha(classe, p1, p2, dadosExtra) {
-    var dx = Math.max(40, Math.abs(p2.x - p1.x) / 2);
     var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M ' + p1.x + ' ' + p1.y + ' C ' + (p1.x + dx) + ' ' + p1.y + ', ' + (p2.x - dx) + ' ' + p2.y + ', ' + p2.x + ' ' + p2.y);
+    path.setAttribute('d', gerarCaminhoOrtogonal(p1, p2));
     path.setAttribute('class', classe);
     if (dadosExtra) {
       Object.keys(dadosExtra).forEach(function (k) { path.dataset[k] = dadosExtra[k]; });
