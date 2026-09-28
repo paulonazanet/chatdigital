@@ -284,9 +284,22 @@ resposta.
   antes.
 - ✅ **Botão de gravar áudio** (🎤) — grava direto do microfone do navegador com a API nativa
   `MediaRecorder` (sem lib nova), reaproveita o mesmo campo de anexo pra mandar (via
-  `DataTransfer`). Fica escondido sozinho se o navegador não suportar. **Não testável por mim**
-  (preciso de um microfone de verdade, que não tenho no ambiente onde rodei os testes) — o Paulo
-  precisa confirmar se grava/envia certinho.
+  `DataTransfer`). Fica escondido sozinho se o navegador não suportar.
+- ⚠️ **Bug encontrado ao testar**: o Paulo gravou um áudio de verdade e ele não chegou no
+  destino, mesmo o envio "funcionando" sem erro nenhum do nosso lado — igual ao caso da imagem de
+  teste que não gerou miniatura (Fase 5). **Causa**: o navegador grava em `webm`, formato que o
+  WhatsApp não reproduz de verdade em mensagem de áudio (só ogg/opus, o formato que o próprio
+  WhatsApp usa nas mensagens de voz). **Corrigido**: `src/midia.js` ganhou
+  `converterParaOggOpus(buffer)`, que chama o `ffmpeg` do sistema (o Baileys já depende dele por
+  fora pra miniatura de vídeo, então já era esperado estar instalado — confirmado no `PATH` do
+  Paulo) pra converter qualquer áudio que não seja ogg (webm gravado, mp3, m4a, wav anexados)
+  antes de mandar pro WhatsApp. Se o ffmpeg não estiver disponível ou a conversão falhar, cai pro
+  buffer original em vez de travar o envio inteiro (`src/routes/fila.js`). **Testado de ponta a
+  ponta com um arquivo de áudio de verdade** (gerado com `ffmpeg -f lavfi`, senoide de 1s): mandei
+  pelo painel via requisição real, conferi que o arquivo salvo (`.ogg`) é opus válido de verdade
+  (`ffprobe` confirmou: `Audio: opus, 48000 Hz, mono`) e o envio pro Baileys não deu erro nenhum.
+  **Ainda preciso que o Paulo confirme no celular** se agora chega e toca normal — essa é a parte
+  que só dá pra saber testando no destino de verdade.
 
 ## Como testar localmente
 

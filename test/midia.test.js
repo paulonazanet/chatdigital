@@ -5,7 +5,7 @@ const path = require('node:path');
 
 // src/midia.js grava sempre em public/uploads (sem variável de ambiente pra apontar noutro
 // lugar em teste) — os testes abaixo limpam os arquivos que criam logo depois de conferir.
-const { tipoPorMimetype, salvarBufferDeMidia, DIRETORIO_UPLOADS } = require('../src/midia');
+const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, DIRETORIO_UPLOADS } = require('../src/midia');
 
 test('tipoPorMimetype reconhece imagem/vídeo/áudio e rejeita o resto', () => {
   assert.strictEqual(tipoPorMimetype('image/jpeg'), 'imagem');
@@ -44,4 +44,17 @@ test('salvarBufferDeMidia nunca usa nome vindo de fora — dois arquivos do mesm
   fs.unlinkSync(path.join(DIRETORIO_UPLOADS, path.basename(url1)));
   fs.unlinkSync(path.join(DIRETORIO_UPLOADS, path.basename(url2)));
   console.log('OK: nomes de arquivo gerados nunca colidem');
+});
+
+test('converterParaOggOpus nunca rejeita — sem ffmpeg ou com áudio inválido, cai pro buffer original', async () => {
+  const original = Buffer.from('não é um áudio de verdade, só bytes de teste');
+  const resultado = await converterParaOggOpus(original);
+
+  assert.ok(Buffer.isBuffer(resultado), 'sempre devolve um Buffer, nunca lança erro');
+  // com bytes inválidos o ffmpeg (se existir) não consegue decodificar e a função cai pro
+  // original — o importante aqui é não travar o envio, não garantir conversão de verdade
+  // (isso exigiria um arquivo de áudio real de fixture, o que não vale o custo neste teste).
+  assert.deepStrictEqual(resultado, original);
+
+  console.log('OK: converterParaOggOpus nunca trava o envio, mesmo sem ffmpeg ou áudio inválido');
 });

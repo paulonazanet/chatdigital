@@ -20,7 +20,7 @@ const { carregarNegocio } = require('../negocio');
 const { encerrarAtendimento, transferirParaHumano, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
-const { tipoPorMimetype, salvarBufferDeMidia } = require('../midia');
+const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus } = require('../midia');
 
 const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
@@ -205,17 +205,29 @@ router.post('/:id/responder', (req, res) => {
         const ehPdf = arquivo.mimetype === 'application/pdf';
         if (!tipo && !ehPdf) return reexibirComErro('Só dá pra mandar imagem, vídeo, áudio ou PDF por aqui.');
 
+        let bufferParaEnviar = arquivo.buffer;
+        let mimetypeParaEnviar = arquivo.mimetype;
+        if (tipo === 'audio' && !arquivo.mimetype.startsWith('audio/ogg')) {
+          // O WhatsApp só reproduz áudio de verdade em ogg/opus — outros formatos (webm gravado
+          // no navegador, mp3, m4a...) às vezes "enviam" sem erro nenhum aqui, mas não chegam no
+          // destinatário. converterParaOggOpus nunca rejeita: se o ffmpeg falhar/não existir,
+          // cai pro buffer original (ver midia.js) — mandar do jeito que veio ainda é melhor que
+          // travar o envio inteiro por causa da conversão.
+          bufferParaEnviar = await converterParaOggOpus(arquivo.buffer);
+          mimetypeParaEnviar = 'audio/ogg; codecs=opus';
+        }
+
         const conteudo =
           tipo === 'imagem'
-            ? { image: arquivo.buffer, caption: texto || undefined }
+            ? { image: bufferParaEnviar, caption: texto || undefined }
             : tipo === 'video'
-              ? { video: arquivo.buffer, caption: texto || undefined }
+              ? { video: bufferParaEnviar, caption: texto || undefined }
               : tipo === 'audio'
-                ? { audio: arquivo.buffer, mimetype: arquivo.mimetype }
-                : { document: arquivo.buffer, mimetype: 'application/pdf', fileName: arquivo.originalname || 'documento.pdf', caption: texto || undefined };
+                ? { audio: bufferParaEnviar, mimetype: mimetypeParaEnviar }
+                : { document: bufferParaEnviar, mimetype: 'application/pdf', fileName: arquivo.originalname || 'documento.pdf', caption: texto || undefined };
 
         await sock.sendMessage(conversa.numero, conteudo);
-        const url = salvarBufferDeMidia(arquivo.buffer, arquivo.mimetype);
+        const url = salvarBufferDeMidia(bufferParaEnviar, mimetypeParaEnviar);
         // PDF fica com midia_tipo nulo (a coluna só aceita imagem/video/audio) — o link genérico
         // de download na tela usa midia_url mesmo sem tipo, ver fila/lista.ejs.
         registrarMensagem(conversa.numero, 'atendente', texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]'), { tipo, url });
