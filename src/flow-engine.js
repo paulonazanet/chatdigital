@@ -70,7 +70,9 @@ function montarTexto(no, contexto, { invalido = false } = {}) {
 }
 
 function tratarResposta(no, msg, contexto) {
-  if (no.opcao_extra && msg === no.opcao_extra.quando) {
+  const msgComparavel = msg.toLowerCase();
+
+  if (no.opcao_extra && msgComparavel === String(no.opcao_extra.quando).toLowerCase()) {
     return { ok: true, proximo: no.opcao_extra.proximo };
   }
 
@@ -83,7 +85,7 @@ function tratarResposta(no, msg, contexto) {
   }
 
   if (no.opcoes) {
-    const escolhida = no.opcoes.find((o) => o.quando === msg);
+    const escolhida = no.opcoes.find((o) => String(o.quando).toLowerCase() === msgComparavel);
     if (!escolhida) {
       if (no.padrao) return { ok: true, proximo: no.padrao };
       return { ok: false };

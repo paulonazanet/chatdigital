@@ -104,11 +104,36 @@ async function testarTransferenciaParaAtendente() {
   console.log('OK: transferência para atendente silencia o bot e "menu" retoma');
 }
 
+async function testarOpcaoDeTextoIgnoraMaiusculaMinuscula() {
+  const fluxo = {
+    inicio: 'pergunta',
+    nos: {
+      pergunta: {
+        tipo: 'pergunta',
+        texto: 'Confirma o pedido? (sim/não)',
+        opcoes: [
+          { quando: 'sim', proximo: 'fim' },
+          { quando: 'não', proximo: 'fim' },
+        ],
+      },
+      fim: { tipo: 'fim', texto: 'Combinado!' },
+    },
+  };
+  const numero = 'cliente-sim-nao';
+
+  await enviar(numero, 'oi', fluxo); // entra no fluxo, cai na pergunta
+  const resp = await enviar(numero, 'Sim', fluxo); // maiúscula de propósito
+  assert.match(resp, /Combinado/, 'deve aceitar "Sim" como equivalente a "sim"');
+
+  console.log('OK: opção de texto (sim/não) ignora maiúscula/minúscula');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
   await testarFaq();
   await testarTransferenciaParaAtendente();
+  await testarOpcaoDeTextoIgnoraMaiusculaMinuscula();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 
