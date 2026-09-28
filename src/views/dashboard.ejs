@@ -4,7 +4,7 @@
   <h1>Olá, <%= atendenteLogado.nome %></h1>
 
   <% if (!whatsappConectado) { %>
-    <p class="erro">⚠️ WhatsApp desconectado agora — o bot não está recebendo nem enviando mensagens. Reconecte pelo terminal do servidor (QR Code).</p>
+    <p class="erro">⚠️ WhatsApp desconectado agora — o bot não está recebendo nem enviando mensagens. Reconecte em <a href="/painel/configuracoes/whatsapp">Configurações &gt; WhatsApp</a> (QR Code).</p>
   <% } %>
 
   <div class="cartoes">

@@ -126,19 +126,32 @@ git pull origin main
 
 ## O que falta (do card do Trello, por fase)
 
-**Fase 5 — parcial (feito o barato, falta o caro)**
-- ✅ **Feito**: Painel do admin com resumo (aguardando/atendendo/paradas no fluxo, registros
-  salvos hoje, total de atendentes/setores), status da conexão do WhatsApp (aviso vermelho
-  quando desconectado), lista de atendentes online agora. `src/routes/painel.js` +
+**Fase 5 — completa**
+- ✅ Painel do admin com resumo (aguardando/atendendo/paradas no fluxo, registros salvos hoje,
+  total de atendentes/setores), status da conexão do WhatsApp (aviso vermelho quando
+  desconectado), lista de atendentes online agora. `src/routes/painel.js` +
   `src/views/dashboard.ejs`. Sem custo de integração nova — só juntou dados que já existiam
   (`listarFila`, `listarConversasComBot`, `presenca.listarOnline`, `registros.contarRegistrosHoje`
   — essa função é nova, conta tudo que o fluxo salvou hoje independente do nome da coleção, já
   que isso muda de negócio pra negócio).
-- ⬜ **Falta**: Tela Configurações > WhatsApp com **QR Code como imagem na tela** (hoje só
-  aparece no terminal do servidor) — essa é a parte mais cara/arriscada da fase (mexe direto no
-  `bot.js`/Baileys pra capturar o evento do QR e servir pra o navegador), ficou de fora por causa
-  do orçamento. Faixa vermelha fixa + alerta sonoro/notificação quando desconecta também ficou de
-  fora (hoje só tem o aviso estático no Painel, sem tempo real).
+- ✅ **Tela Configurações > WhatsApp com QR Code como imagem** (`src/routes/configuracoes.js`,
+  `src/views/configuracoes/whatsapp.ejs`) — novo módulo `src/whatsapp-status.js` guarda o estado
+  atual da conexão (desconectado / QR disponível / conectado), atualizado pelo `bot.js` nos
+  eventos `qr`, `connection === 'open'` e `connection === 'close'` do Baileys. A imagem do QR é
+  gerada com o pacote `qrcode` (`GET /painel/configuracoes/whatsapp/qr.png`, sem cache — o
+  WhatsApp roda o QR a cada ~20-60s). A página escuta o evento SSE novo `whatsapp-status` (mesmo
+  canal `/painel/eventos` que já existia pro alerta sonoro e presença) e recarrega sozinha quando
+  o status muda, sem precisar apertar F5. De quebra, `whatsappConectado` no Painel (que antes
+  usava `!!obterSocket()`, verdadeiro assim que o socket é criado, não quando conecta de verdade)
+  passou a usar esse mesmo estado — mais preciso. **Testado de ponta a ponta**: rodei o servidor
+  local de verdade (Baileys gerando QR real), abri a tela no navegador, confirmei a imagem
+  renderizando e a página recarregando sozinha a cada rotação do QR (7 recargas observadas via
+  SSE). Teste de regressão em `test/whatsapp.test.js` (desconectado → QR → conectado → permissão).
+  `npm test` passando (16 testes).
+- ⬜ **Ainda fora do escopo** (não pedido nesta rodada): faixa vermelha fixa + alerta
+  sonoro/notificação quando desconecta em tempo real fora da tela de WhatsApp — hoje o aviso no
+  Painel já é preciso (usa o estado real da conexão), mas só atualiza ao recarregar a página do
+  Painel, não via SSE.
 
 **Fase 6 — fluxo avançado**
 - Bloco "Horário" (dias/horas por ramo do fluxo). Mensagem "sem atendente disponível" na

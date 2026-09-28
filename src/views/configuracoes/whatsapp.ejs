@@ -1,0 +1,31 @@
+<%- include('../partials/inicio', { titulo: 'Configurações · WhatsApp' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <p><a href="/painel/configuracoes">&larr; Configurações</a></p>
+  <h1>WhatsApp</h1>
+
+  <% if (conectado) { %>
+    <p class="sucesso">✅ WhatsApp conectado. O bot está recebendo e enviando mensagens normalmente.</p>
+  <% } else if (temQr) { %>
+    <p class="dica">Abra o WhatsApp do número RESERVA no celular → <strong>Aparelhos conectados</strong> →
+      <strong>Conectar um aparelho</strong> → aponte a câmera pra este QR Code.</p>
+    <p class="qr-codigo">
+      <img src="/painel/configuracoes/whatsapp/qr.png" alt="QR Code para conectar o WhatsApp" width="320" height="320">
+    </p>
+    <p class="dica">O código expira sozinho e é substituído por um novo em alguns segundos — esta
+      página atualiza a imagem automaticamente, não precisa recarregar.</p>
+  <% } else { %>
+    <p class="erro">⚠️ WhatsApp desconectado e nenhum QR Code disponível ainda. Se o servidor
+      acabou de iniciar, aguarde alguns segundos e esta página atualiza sozinha.</p>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>
+<script>
+  (function () {
+    if (!('EventSource' in window)) return;
+    var origem = new EventSource('/painel/eventos');
+    origem.addEventListener('whatsapp-status', function () {
+      window.location.reload();
+    });
+  })();
+</script>

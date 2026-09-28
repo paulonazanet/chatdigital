@@ -7,6 +7,9 @@
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
   <% if (salvo) { %><p class="sucesso">Configurações salvas.</p><% } %>
 
+  <p class="dica">Ver status da conexão do WhatsApp e escanear o QR Code:
+    <a href="/painel/configuracoes/whatsapp">Configurações &gt; WhatsApp</a></p>
+
   <form method="post" action="/painel/configuracoes">
     <fieldset>
       <legend>Dados do negócio</legend>

@@ -6,7 +6,7 @@ const { listarSetores } = require('../setores');
 const { listarFila, listarConversasComBot } = require('../conversas');
 const { contarRegistrosHoje } = require('../registros');
 const { carregarFluxo } = require('../fluxo');
-const { obterSocket } = require('../socket-atual');
+const whatsappStatus = require('../whatsapp-status');
 const { listarOnline } = require('../presenca');
 const { temPermissao } = require('../permissoes');
 
@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
     atendendo: fila.filter((c) => c.status === 'atendendo').length,
     paradas: paradas.length,
     registrosHoje: contarRegistrosHoje(),
-    whatsappConectado: !!obterSocket(),
+    whatsappConectado: whatsappStatus.obterEstado().conectado,
     atendentesOnline: atendentes.filter((a) => a.ativo && idsOnline.has(a.id)),
   });
 });

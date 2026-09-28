@@ -144,6 +144,14 @@ button:hover { background: var(--azul-destaque); }
 
 .dica { color: #8a97a3; font-size: 0.85rem; }
 
+.qr-codigo { text-align: center; }
+.qr-codigo img {
+  border: 1px solid var(--cinza-borda);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #fff;
+}
+
 /* Painel interno: menu na lateral esquerda */
 
 .app-shell {

@@ -10,6 +10,7 @@ const {
 const { processarMensagem, transferirParaHumano } = require('./flow-engine');
 const { registrarMensagem, sincronizarConversa } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
+const whatsappStatus = require('./whatsapp-status');
 
 const AUTH_DIR = path.join(__dirname, '..', 'auth');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
@@ -53,17 +54,20 @@ async function iniciarBot(negocio, fluxo) {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log('\nEscaneie este QR Code no WhatsApp do número RESERVA (Aparelhos conectados > Conectar):\n');
+      console.log('\nEscaneie este QR Code no WhatsApp do número RESERVA (Aparelhos conectados > Conectar) — ou pela tela Configurações > WhatsApp do painel:\n');
       qrcode.generate(qr, { small: true });
+      whatsappStatus.definirQr(qr);
     }
 
     if (connection === 'close') {
       const deveReconectar =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       console.log('Conexão do WhatsApp fechada.', deveReconectar ? 'Reconectando...' : 'Sessão encerrada (escaneie o QR de novo).');
+      whatsappStatus.definirDesconectado();
       if (deveReconectar) iniciarBot(negocio, fluxo);
     } else if (connection === 'open') {
       console.log(`Bot da ${negocio.nome} conectado e pronto para atender.`);
+      whatsappStatus.definirConectado();
     }
   });
 
