@@ -8,6 +8,8 @@
   --verde-ativo: #1f7a4d;
   --vermelho-erro: #a4222c;
   --branco: #ffffff;
+  --marca-laranja: #ed813b;
+  --marca-cinza-azulado-claro: #c9cde0;
 }
 
 * { box-sizing: border-box; }
@@ -145,15 +147,31 @@ html.menu-recolhido .barra-lateral { width: 64px; }
 .barra-lateral .marca {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1.1rem 1.25rem;
+  gap: 0.6rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   font-weight: 700;
   font-size: 1.05rem;
 }
 
-.marca-logo { height: 40px; width: auto; flex-shrink: 0; }
-.marca-icone { height: 26px; width: 26px; flex-shrink: 0; display: none; }
+.marca-icone { height: 34px; width: 34px; flex-shrink: 0; }
+
+.marca-nome { line-height: 1.2; min-width: 0; }
+.marca-nome-linha {
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+.marca-chat { color: var(--branco); }
+.marca-digital { color: var(--marca-laranja); }
+.marca-slogan {
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
+  font-weight: 500;
+  font-size: 0.62rem;
+  color: var(--marca-cinza-azulado-claro);
+  white-space: normal;
+}
 
 .botao-recolher {
   background: transparent;
@@ -222,7 +240,6 @@ html.menu-recolhido .sair { align-items: center; padding: 1rem 0.5rem; }
 .sair button:hover { background: var(--azul-destaque); }
 
 html.menu-recolhido .recolhivel { display: none; }
-html.menu-recolhido .somente-recolhido { display: block; }
 
 .area-principal {
   flex: 1;
