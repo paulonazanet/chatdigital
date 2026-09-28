@@ -83,4 +83,4 @@ if (!colunaExiste('conversas', 'lembrete_inatividade_em')) {
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');
 
-module.exports = { db };
+module.exports = { db, ARQUIVO_DB };

@@ -124,7 +124,10 @@ git pull origin main
      mesma cara dos outros botões. `npm test` passando (15 testes, já contando a correção da
      persistência do "parado no fluxo" logo abaixo).
 
-## O que falta (do card do Trello, por fase)
+## Status por fase (do card do Trello) — todas completas
+
+Fases 1 a 7 implementadas. O que resta é o que cada fase abaixo listou como limitação conhecida
+(fora do escopo original ou decisão pendente), não tarefa esquecida.
 
 **Fase 5 — completa**
 - ✅ Painel do admin com resumo (aguardando/atendendo/paradas no fluxo, registros salvos hoje,
@@ -183,9 +186,30 @@ git pull origin main
   aparece na paleta, painel de edição, cor própria, duas saídas nomeadas) e na tela de
   Configurações (os dois campos novos salvam e voltam certo). `npm test` passando (19 testes).
 
-**Fase 7 — segurança/LGPD (já decididos com o Paulo, só implementar)**
-- Backup diário local do banco. Rate limit de login (5 tentativas / 15 min). Retenção de dados:
-  12 meses de inatividade apaga mensagens/dados pessoais, mantendo estatística anônima.
+**Fase 7 — completa (segurança/LGPD, já decididos com o Paulo)**
+- ✅ **Backup diário local do banco** (`src/backup.js`, novo) — usa `VACUUM INTO` do próprio
+  SQLite (cópia consistente mesmo com o processo rodando, diferente de copiar o arquivo .db na
+  mão) pra `data/backups/chatdigital-AAAA-MM-DD.db`, um por dia (idempotente — rodar de novo no
+  mesmo dia não faz nada), com 30 dias de retenção (limpa os mais velhos a cada passada). Roda ao
+  iniciar o processo e depois 1x por hora (só age quando o dia mudou). Off-site fica pra uma fase
+  futura, como já estava decidido.
+- ✅ **Rate limit de login** (`src/limite-login.js`, novo) — 5 tentativas erradas por e-mail
+  bloqueiam por 15 minutos (em memória, como `presenca.js`; zera se o processo reiniciar, o que é
+  aceitável aqui). `routes/auth.js` devolve HTTP 429 com quantos minutos faltam. Acertar a senha
+  limpa o contador; e-mails diferentes não se afetam.
+- ✅ **Retenção de dados (LGPD)** (`src/retencao.js`, novo) — 1x por dia, conversa sem nenhuma
+  atividade há 12 meses tem as mensagens apagadas e o número do WhatsApp trocado por um hash
+  (`anonimizado-...`), mas a linha de `conversas` continua existindo (status, setor, datas) pra
+  estatística agregada não pessoal. Idempotente (não reprocessa quem já foi anonimizado).
+  **Limitação conhecida**: só cobre `conversas`/`mensagens` (existem em toda instalação); a
+  tabela `registros` (produzida pelo nó "salvar" do fluxo — ex.: pedidos com endereço) tem campos
+  que mudam de negócio pra negócio e não foi incluída — decisão de como anonimizar isso
+  genericamente ficou pendente, avisar o Paulo se for preciso.
+- Teste de regressão novo em `test/seguranca.test.js` (rate limit via HTTP de verdade — 5
+  tentativas bloqueiam, 6ª dá 429, outro e-mail não é afetado, acertar destrava; backup cria
+  arquivo de verdade, é idempotente no mesmo dia, limpa backup mais velho que a retenção;
+  retenção anonimiza só quem está inativo há 12+ meses, sem mexer em conversa recente).
+  `npm test` passando (22 testes).
 
 ## Como testar localmente
 

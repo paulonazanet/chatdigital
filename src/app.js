@@ -5,6 +5,8 @@ const { carregarNegocio } = require('./negocio');
 const { carregarFluxo } = require('./fluxo');
 const { iniciarBot } = require('./bot');
 const { iniciarChecagemInatividade } = require('./inatividade');
+const { iniciarBackupDiario } = require('./backup');
+const { iniciarRetencaoDiaria } = require('./retencao');
 
 async function iniciar() {
   const negocio = carregarNegocio();
@@ -18,6 +20,8 @@ async function iniciar() {
 
   await iniciarBot(negocio, fluxo);
   iniciarChecagemInatividade();
+  iniciarBackupDiario();
+  iniciarRetencaoDiaria();
 }
 
 iniciar().catch((erro) => {

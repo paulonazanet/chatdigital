@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { contarAtendentes, criarAtendente, autenticar, registrarUltimoLogin } = require('../atendentes');
 const { definirSessao, limparSessao } = require('../sessao');
+const limiteLogin = require('../limite-login');
 
 router.get('/setup', (req, res) => {
   if (contarAtendentes() > 0) return res.redirect('/login');
@@ -29,8 +30,20 @@ router.get('/login', (req, res) => {
 
 router.post('/login', (req, res) => {
   const { email, senha } = req.body;
+
+  if (limiteLogin.bloqueado(email)) {
+    return res.status(429).render('login', {
+      erro: `Muitas tentativas erradas. Aguarde ${limiteLogin.minutosParaTentarDeNovo(email)} minuto(s) e tente de novo.`,
+    });
+  }
+
   const atendente = autenticar(email || '', senha || '');
-  if (!atendente) return res.render('login', { erro: 'E-mail ou senha inválidos.' });
+  if (!atendente) {
+    limiteLogin.registrarFalha(email);
+    return res.render('login', { erro: 'E-mail ou senha inválidos.' });
+  }
+
+  limiteLogin.registrarSucesso(email);
   registrarUltimoLogin(atendente.id);
   definirSessao(res, atendente.id);
   res.redirect('/painel');
