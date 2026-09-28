@@ -165,13 +165,6 @@ html.menu-recolhido .barra-lateral { width: 64px; }
 }
 .marca-chat { color: var(--branco); }
 .marca-digital { color: var(--marca-laranja); }
-.marca-slogan {
-  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
-  font-weight: 500;
-  font-size: 0.62rem;
-  color: var(--marca-cinza-azulado-claro);
-  text-align: center;
-}
 
 .botao-recolher {
   background: transparent;
