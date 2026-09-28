@@ -1,4 +1,3 @@
-require('dotenv').config();
 const path = require('path');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
@@ -8,21 +7,14 @@ const {
   DisconnectReason,
 } = require('@whiskeysockets/baileys');
 
-const { carregarNegocio } = require('./negocio');
-const { carregarFluxo } = require('./fluxo');
 const { processarMensagem } = require('./flow-engine');
 const { registrarMensagem, sincronizarConversa } = require('./conversas');
+const { definirSocket } = require('./socket-atual');
 
 const AUTH_DIR = path.join(__dirname, '..', 'auth');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 
-async function iniciar() {
-  const negocio = carregarNegocio();
-  const fluxo = carregarFluxo();
-  if (process.env.NUMERO_ATENDENTE) {
-    negocio.numero_atendente_legivel = process.env.NUMERO_ATENDENTE;
-  }
-
+async function iniciarBot(negocio, fluxo) {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   const sock = makeWASocket({
@@ -30,6 +22,7 @@ async function iniciar() {
     logger,
     printQRInTerminal: false,
   });
+  definirSocket(sock);
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -44,8 +37,8 @@ async function iniciar() {
     if (connection === 'close') {
       const deveReconectar =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Conexão fechada.', deveReconectar ? 'Reconectando...' : 'Sessão encerrada (faça login de novo).');
-      if (deveReconectar) iniciar();
+      console.log('Conexão do WhatsApp fechada.', deveReconectar ? 'Reconectando...' : 'Sessão encerrada (escaneie o QR de novo).');
+      if (deveReconectar) iniciarBot(negocio, fluxo);
     } else if (connection === 'open') {
       console.log(`Bot da ${negocio.nome} conectado e pronto para atender.`);
     }
@@ -74,9 +67,8 @@ async function iniciar() {
       }
     }
   });
+
+  return sock;
 }
 
-iniciar().catch((err) => {
-  console.error('Erro ao iniciar o bot:', err);
-  process.exit(1);
-});
+module.exports = { iniciarBot };

@@ -91,6 +91,17 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   corpo = await resp.text();
   assert.match(corpo, /Paulo Admin/, 'atendente que assumiu deve aparecer no detalhe');
   assert.match(corpo, /atendendo/);
+  assert.match(corpo, /<textarea name="texto"/, 'conversa assumida deve mostrar o formulário de resposta');
+
+  // sem o bot conectado (não há WhatsApp real neste teste), responder deve falhar com aviso claro,
+  // não travar nem enviar silenciosamente
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ texto: 'Já estou verificando seu pedido' }),
+  });
+  corpo = await resp.text();
+  assert.match(corpo, /não está conectado ao WhatsApp/);
 
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/finalizar`, {
     method: 'POST',

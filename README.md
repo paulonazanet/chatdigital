@@ -27,15 +27,14 @@ instalação em servidor próprio simples — não exige configurar um servidor 
   motor de fluxo a um número de WhatsApp, e registra toda mensagem (cliente e bot) no banco.
 - **Painel web** (`src/server.js`): login, cadastro de atendentes com papéis (administrador /
   atendente) e setores, e a **fila de atendimento** — conversas que o nó "transferir" do fluxo
-  passou pra um humano aparecem lá, com histórico completo; o atendente pode "Assumir" e
-  "Finalizar".
+  passou pra um humano aparecem lá, com histórico completo; o atendente pode "Assumir",
+  **responder direto pela tela** e "Finalizar".
+- **Processo único** (`src/app.js`): painel e bot rodam juntos, compartilhando a mesma conexão do
+  WhatsApp (`src/socket-atual.js`) — é isso que permite mandar a resposta do atendente direto pra
+  quem está no WhatsApp.
 
 ## O que ainda falta (próximas etapas)
 
-- **Responder pelo painel**: hoje o atendente vê o histórico na fila, mas ainda precisa responder
-  pelo próprio WhatsApp — o painel (`npm run painel`) e o bot (`npm start`) rodam como processos
-  separados. Unificar os dois (mesmo processo, mesma conexão do WhatsApp) é o que falta pra dar
-  pra mandar mensagem direto da tela.
 - Atualização em tempo real da fila (WebSocket) — hoje precisa recarregar a página.
 - Editor visual do fluxo (hoje é só o arquivo `config/fluxo.json`).
 - Blocos prontos por ramo de negócio (agendamento pra clínica, catálogo pra revenda, chamado
@@ -52,24 +51,24 @@ Preencha `.env` (pelo menos `SESSION_SECRET`, um valor aleatório qualquer) e, n
 para um cliente de verdade, `config/negocio.json` com os dados reais do negócio (os campos `TODO`
 vêm em branco de propósito — é o que muda de cliente pra cliente).
 
-**Painel de atendimento:**
-
-```bash
-npm run painel
-```
-
-Abra `http://localhost:3000/setup` — como ainda não existe nenhum atendente cadastrado, essa tela
-cria o primeiro administrador. Depois disso `/setup` redireciona sozinho para `/login`.
-
-**Bot do WhatsApp:**
+**Rodar tudo (painel + bot do WhatsApp, o modo normal de uso):**
 
 ```bash
 npm start
 ```
 
-Escaneia o QR Code que aparece no terminal em **Configurações > Aparelhos conectados > Conectar**.
-Como a via é não oficial (Baileys), use sempre um número **reserva**, nunca o principal de vendas
-do cliente — o WhatsApp pode bloquear um número que detecte como automatizado.
+Abre o painel em `http://localhost:3000` e ao mesmo tempo tenta conectar o WhatsApp. Na primeira
+vez, como não existe nenhum atendente cadastrado, `/setup` cria o primeiro administrador
+(`/setup` redireciona sozinho pra `/login` depois disso). O bot mostra um QR Code no terminal em
+**Configurações > Aparelhos conectados > Conectar**. Como a via é não oficial (Baileys), use
+sempre um número **reserva**, nunca o principal de vendas do cliente — o WhatsApp pode bloquear um
+número que detecte como automatizado.
+
+**Só o painel, sem o WhatsApp** (útil pra mexer no visual sem precisar de um número pareado):
+
+```bash
+npm run painel
+```
 
 ## Testes
 
@@ -80,21 +79,24 @@ npm test
 Cobre o motor de fluxo (pedido completo, FAQ, transferência para atendente, entrada inválida,
 reinício), o painel (setup do primeiro admin, login, cadastro de setores/atendentes, permissões
 de admin vs. atendente comum) e a fila (conversa transferida aparece, histórico, assumir,
-finalizar) — tudo sem precisar de WhatsApp real nem navegador.
+responder — inclusive o aviso claro quando o WhatsApp não está conectado —, finalizar) — tudo sem
+precisar de WhatsApp real nem navegador.
 
 ## Estrutura
 
 ```
 src/
-  flow-engine.js     -> motor genérico que interpreta config/fluxo.json
-  bot.js              -> conecta no WhatsApp (Baileys), liga o motor de fluxo e registra tudo no banco
-  conversas.js         -> fila/histórico: camada de acesso às tabelas conversas e mensagens
+  app.js               -> processo único: sobe o painel e o bot juntos (é o que roda em produção)
+  flow-engine.js         -> motor genérico que interpreta config/fluxo.json
+  bot.js                  -> conecta no WhatsApp (Baileys), liga o motor de fluxo e registra tudo no banco
+  socket-atual.js         -> guarda a conexão ativa do WhatsApp pra rotas do painel poderem enviar mensagem
+  conversas.js            -> fila/histórico: camada de acesso às tabelas conversas e mensagens
   negocio.js, fluxo.js -> carregam config/negocio.json e config/fluxo.json
   registros.js         -> grava registros do fluxo (ex.: pedidos) na tabela `registros`
   db.js                -> abre/cria o banco SQLite e as tabelas
   auth.js, sessao.js    -> hash de senha e sessão via cookie assinado
   atendentes.js, setores.js -> cadastro de atendentes/setores e permissões
-  server.js             -> aplicativo Express do painel
+  server.js             -> aplicativo Express do painel (sem o bot — usado sozinho por npm run painel)
   routes/                -> rotas HTTP (auth, painel, atendentes, setores, fila)
   views/                  -> páginas EJS do painel
 config/

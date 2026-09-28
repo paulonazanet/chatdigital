@@ -30,7 +30,17 @@
         <button type="submit" class="botao-secundario">Finalizar</button>
       </form>
     </div>
-    <p class="aviso">Responder direto por aqui ainda não está pronto — por enquanto, responda pelo WhatsApp mesmo (o bot fica em silêncio enquanto a conversa está transferida).</p>
+
+    <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+    <% if (conversa.status === 'atendendo') { %>
+      <form method="post" action="/painel/fila/<%= conversa.id %>/responder" class="form-responder">
+        <textarea name="texto" placeholder="Escreva a resposta para o cliente..." required></textarea>
+        <button type="submit">Enviar</button>
+      </form>
+    <% } else { %>
+      <p class="aviso">Assuma a conversa para poder responder direto por aqui.</p>
+    <% } %>
   <% } %>
 </main>
 <%- include('../partials/fim-painel') %>

@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const { listarFila, obterConversaPorId, listarMensagens, assumirConversa, finalizarConversa } = require('../conversas');
+const {
+  listarFila,
+  obterConversaPorId,
+  listarMensagens,
+  assumirConversa,
+  finalizarConversa,
+  registrarMensagem,
+} = require('../conversas');
+const { obterSocket } = require('../socket-atual');
 
 router.get('/', (req, res) => {
   res.render('fila/lista', { atendenteLogado: req.atendente, conversas: listarFila() });
@@ -14,6 +22,7 @@ router.get('/:id', (req, res) => {
     atendenteLogado: req.atendente,
     conversa,
     mensagens: listarMensagens(conversa.id),
+    erro: null,
   });
 });
 
@@ -25,6 +34,38 @@ router.post('/:id/assumir', (req, res) => {
 router.post('/:id/finalizar', (req, res) => {
   finalizarConversa(Number(req.params.id));
   res.redirect('/painel/fila');
+});
+
+router.post('/:id/responder', async (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa) return res.redirect('/painel/fila');
+
+  const texto = (req.body.texto || '').trim();
+  const sock = obterSocket();
+
+  function reexibirComErro(erro) {
+    res.render('fila/detalhe', {
+      atendenteLogado: req.atendente,
+      conversa,
+      mensagens: listarMensagens(conversa.id),
+      erro,
+    });
+  }
+
+  if (!sock) {
+    return reexibirComErro('O bot não está conectado ao WhatsApp agora — não dá pra enviar por aqui.');
+  }
+  if (!texto) {
+    return reexibirComErro('Escreva alguma coisa antes de enviar.');
+  }
+
+  try {
+    await sock.sendMessage(conversa.numero, { text: texto });
+    registrarMensagem(conversa.numero, 'atendente', texto);
+    res.redirect(`/painel/fila/${conversa.id}`);
+  } catch (erro) {
+    reexibirComErro('Não consegui enviar pelo WhatsApp agora. Tente de novo em instantes.');
+  }
 });
 
 module.exports = router;
