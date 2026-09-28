@@ -153,9 +153,35 @@ git pull origin main
   Painel já é preciso (usa o estado real da conexão), mas só atualiza ao recarregar a página do
   Painel, não via SSE.
 
-**Fase 6 — fluxo avançado**
-- Bloco "Horário" (dias/horas por ramo do fluxo). Mensagem "sem atendente disponível" na
-  transferência. Inatividade do cliente.
+**Fase 6 — completa (fluxo avançado)**
+- ✅ **Bloco "Horário"** novo tipo de nó no editor de fluxo (`src/fluxo.js`, `src/flow-engine.js`,
+  `public/js/editor-fluxo.js`) — decide entre dois ramos ("dentro"/"fora", igual ao "sucesso"/
+  "erro" do bloco Chamar API) com base em janelas configuráveis por linha, formato `"dias
+  HH:MM-HH:MM"` (dias: 0=domingo…6=sábado, separados por vírgula), ex.: `"1,2,3,4,5 08:00-18:00"`.
+  `estaDentroDoHorario(no, agora)` aceita `agora` injetável, testado pra segunda/sábado/domingo.
+- ✅ **Mensagem "sem atendente disponível"** — nova config `mensagem_sem_atendente_disponivel`
+  (deixe em branco pra não mandar). Nova `atendentes.haAtendenteDisponivel(setorId)` combina quem
+  está ativo + online (`presenca`) + com a permissão `responder_conversas` + apto a ver aquele
+  setor (mesma regra do `podeVerConversa` da fila). `conversas.sincronizarConversa` agora devolve
+  `{ semAtendenteDisponivel }` (true só no instante em que a conversa acabou de entrar na fila e
+  ninguém pode atendê-la); `bot.js` manda a mensagem extra nesse caso, tanto na transferência via
+  fluxo quanto no aviso automático de mídia não suportada.
+- ✅ **Inatividade do cliente** (`src/inatividade.js`, novo) — reaproveita a mesma detecção de
+  "parado no fluxo" da Fase 4 (`no_fluxo_atual` salvo no banco): a cada 60s, checagem em memória
+  varre conversas com bot há mais de 10 min sem resposta e manda `mensagem_inatividade` (config
+  nova, deixe em branco pra não mandar) **uma única vez**; se passarem mais 20 min sem o cliente
+  responder (30 min desde a última mensagem dele), a conversa é resetada de volta pro início do
+  fluxo silenciosamente — sem isso ela ficaria "parada" pra sempre até um atendente notar e puxar
+  manualmente. Cliente responder a qualquer momento cancela o lembrete pendente
+  (`conversas.registrarMensagem`). Coluna nova `lembrete_inatividade_em` em `conversas`, migração
+  automática em `src/db.js`. Os limites de tempo (10min/30min) ficaram fixos no código por
+  enquanto — não estavam especificados, só a mensagem é editável; ajustar se o Paulo quiser outro
+  tempo.
+- Teste de regressão novo em `test/atendimento-avancado.test.js` (aviso muda com quem está
+  online/no setor certo; lembrete único + reset por inatividade; responder cancela o lembrete) e
+  em `test/flow-engine.test.js` (bloco Horário). Testado visualmente no editor de fluxo (bloco
+  aparece na paleta, painel de edição, cor própria, duas saídas nomeadas) e na tela de
+  Configurações (os dois campos novos salvam e voltam certo). `npm test` passando (19 testes).
 
 **Fase 7 — segurança/LGPD (já decididos com o Paulo, só implementar)**
 - Backup diário local do banco. Rate limit de login (5 tentativas / 15 min). Retenção de dados:

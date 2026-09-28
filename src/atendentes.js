@@ -1,6 +1,7 @@
 const { db } = require('./db');
 const { gerarHashSenha, conferirSenha } = require('./auth');
-const { permissoesParaSalvar } = require('./permissoes');
+const { permissoesParaSalvar, temPermissao } = require('./permissoes');
+const { listarOnline } = require('./presenca');
 
 function normalizarEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -90,8 +91,27 @@ function listarSetoresDoAtendente(atendenteId) {
     .all(atendenteId);
 }
 
+/**
+ * Existe alguém ativo, online (painel aberto) e apto a responder esse setor agora? Usado pra
+ * decidir se manda a mensagem "sem atendente disponível" quando uma conversa é transferida pro
+ * humano — mesma regra de quem "pode ver" a conversa na fila (routes/fila.js podeVerConversa):
+ * quem tem ver_fila_outros_setores vê/atende qualquer setor; sem isso, só o(s) setor(es) dele
+ * (ou setorId nulo, que aparece pra todo mundo).
+ */
+function haAtendenteDisponivel(setorId) {
+  const online = new Set(listarOnline());
+  return listarAtendentes()
+    .filter((a) => a.ativo && online.has(a.id) && temPermissao(a, 'responder_conversas'))
+    .some((a) => {
+      if (!setorId) return true;
+      if (temPermissao(a, 'ver_fila_outros_setores')) return true;
+      return listarSetoresDoAtendente(a.id).some((s) => s.id === setorId);
+    });
+}
+
 module.exports = {
   listarAtendentes,
+  haAtendenteDisponivel,
   obterAtendentePorId,
   obterAtendentePorEmail,
   contarAtendentes,

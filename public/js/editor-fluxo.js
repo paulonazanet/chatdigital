@@ -16,6 +16,7 @@
     mensagem: 'Mensagem',
     pergunta: 'Pergunta',
     condicao: 'Condição',
+    horario: 'Horário',
     salvar: 'Salvar registro',
     api: 'Chamar API',
     transferir: 'Transferir',
@@ -107,6 +108,13 @@
       ];
     }
 
+    if (no.tipo === 'horario') {
+      return [
+        { id: 'dentro', rotulo: 'dentro', obter: function () { return no.dentro; }, definir: function (v) { no.dentro = v; } },
+        { id: 'fora', rotulo: 'fora', obter: function () { return no.fora; }, definir: function (v) { no.fora = v; } },
+      ];
+    }
+
     if (no.tipo === 'transferir' || no.tipo === 'fim') return [];
 
     return [{ id: 'proximo', rotulo: '', obter: function () { return no.proximo; }, definir: function (v) { no.proximo = v; } }];
@@ -114,6 +122,7 @@
 
   function resumoNo(no) {
     if (no.tipo === 'condicao') return 'variável: ' + (no.variavel || '—');
+    if (no.tipo === 'horario') return (no.janelas || []).length + ' janela(s) de funcionamento';
     if (no.tipo === 'transferir') return 'setor: ' + (no.setor || '—');
     if (no.tipo === 'salvar') return 'coleção: ' + (no.colecao || '—');
     if (no.tipo === 'api') return (no.metodo || 'GET') + ' ' + (no.url || '—');
@@ -406,6 +415,33 @@
       );
     }
 
+    if (no.tipo === 'horario') {
+      var dicaHorario = document.createElement('p');
+      dicaHorario.className = 'dica';
+      dicaHorario.textContent = 'Uma janela por linha: dias (0=domingo…6=sábado, separados por vírgula) e horário. Ex.: "1,2,3,4,5 08:00-18:00".';
+      painel.appendChild(dicaHorario);
+
+      if (!no.janelas) no.janelas = [];
+      painel.appendChild(
+        campoListaSimples(
+          'Janelas de funcionamento (conecte as saídas "dentro"/"fora" no quadro)',
+          no.janelas,
+          function (janela, i) {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.value = janela;
+            input.addEventListener('input', function () {
+              no.janelas[i] = input.value;
+              renderizarNo(id);
+            });
+            return input;
+          },
+          function () { no.janelas.push('1,2,3,4,5 08:00-18:00'); },
+          function (i) { no.janelas.splice(i, 1); },
+        ),
+      );
+    }
+
     if (no.tipo === 'salvar') {
       painel.appendChild(campoTexto('Coleção', no.colecao, function (v) { no.colecao = v; renderizarNo(id); }));
 
@@ -517,6 +553,7 @@
       case 'mensagem': return { tipo: tipo, texto: 'Escreva a mensagem aqui...' };
       case 'pergunta': return { tipo: tipo, texto: 'Escreva a pergunta aqui...', opcoes: [] };
       case 'condicao': return { tipo: tipo, variavel: '', casos: [] };
+      case 'horario': return { tipo: tipo, janelas: ['1,2,3,4,5 08:00-18:00'] };
       case 'transferir': return { tipo: tipo, texto: 'Encaminhando para um atendente humano.', setor: 'Geral' };
       case 'salvar': return { tipo: tipo, colecao: 'registros', campos: {} };
       case 'api': return { tipo: tipo, url: '', metodo: 'GET' };

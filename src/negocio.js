@@ -24,6 +24,8 @@ function salvarConfiguracoes(campos) {
     mensagem_boas_vindas_atendente: campos.mensagem_boas_vindas_atendente,
     mensagem_encerramento: campos.mensagem_encerramento,
     pesquisa_satisfacao: campos.pesquisa_satisfacao,
+    mensagem_sem_atendente_disponivel: campos.mensagem_sem_atendente_disponivel,
+    mensagem_inatividade: campos.mensagem_inatividade,
   };
   fs.writeFileSync(caminhoArquivo(), JSON.stringify(atualizado, null, 2) + '\n', 'utf8');
   return atualizado;

@@ -17,8 +17,17 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { nome, horario_funcionamento, endereco, formas_pagamento, mensagem_boas_vindas_atendente, mensagem_encerramento, pesquisa_satisfacao } =
-    req.body;
+  const {
+    nome,
+    horario_funcionamento,
+    endereco,
+    formas_pagamento,
+    mensagem_boas_vindas_atendente,
+    mensagem_encerramento,
+    pesquisa_satisfacao,
+    mensagem_sem_atendente_disponivel,
+    mensagem_inatividade,
+  } = req.body;
 
   if (!nome || !nome.trim()) {
     return res.render('configuracoes/editar', {
@@ -37,6 +46,8 @@ router.post('/', (req, res) => {
     mensagem_boas_vindas_atendente: (mensagem_boas_vindas_atendente || '').trim(),
     mensagem_encerramento: (mensagem_encerramento || '').trim(),
     pesquisa_satisfacao: (pesquisa_satisfacao || '').trim(),
+    mensagem_sem_atendente_disponivel: (mensagem_sem_atendente_disponivel || '').trim(),
+    mensagem_inatividade: (mensagem_inatividade || '').trim(),
   });
 
   res.render('configuracoes/editar', { atendenteLogado: req.atendente, negocio, erro: null, salvo: true });

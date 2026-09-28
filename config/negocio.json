@@ -6,6 +6,8 @@
   "mensagem_boas_vindas_atendente": "Olá! Meu nome é {{atendente.nome}} e vou continuar seu atendimento a partir de agora.",
   "mensagem_encerramento": "Atendimento encerrado. Se precisar de mais alguma coisa, é só mandar uma mensagem por aqui. 👋",
   "pesquisa_satisfacao": "De 0 a 10, o quanto você recomendaria nosso atendimento a um amigo?",
+  "mensagem_sem_atendente_disponivel": "No momento não temos ninguém disponível, mas assim que possível alguém vai te responder por aqui. 🙏",
+  "mensagem_inatividade": "Ainda por aí? 🙂 Se quiser continuar de onde parou, é só responder. Se preferir recomeçar, digite *menu*.",
   "produtos": [
     { "id": "produto-1", "nome": "TODO: nome do produto 1", "preco": null },
     { "id": "produto-2", "nome": "TODO: nome do produto 2", "preco": null }

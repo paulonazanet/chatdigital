@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const TIPOS_VALIDOS = ['inicio', 'mensagem', 'pergunta', 'condicao', 'salvar', 'api', 'transferir', 'fim'];
+const TIPOS_VALIDOS = ['inicio', 'mensagem', 'pergunta', 'condicao', 'salvar', 'api', 'transferir', 'horario', 'fim'];
 
 function caminhoArquivo() {
   return process.env.CHATDIGITAL_FLUXO || path.join(__dirname, '..', 'config', 'fluxo.json');
@@ -16,6 +16,8 @@ function coletarReferencias(no) {
   if (no.proximo !== undefined) refs.push(no.proximo);
   if (no.proximo_erro !== undefined) refs.push(no.proximo_erro);
   if (no.padrao !== undefined) refs.push(no.padrao);
+  if (no.dentro !== undefined) refs.push(no.dentro);
+  if (no.fora !== undefined) refs.push(no.fora);
   if (Array.isArray(no.opcoes)) no.opcoes.forEach((o) => refs.push(o.proximo));
   if (Array.isArray(no.casos)) no.casos.forEach((c) => refs.push(c.proximo));
   if (no.opcao_extra) refs.push(no.opcao_extra.proximo);

@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { processarMensagem } = require('../src/flow-engine');
+const { processarMensagem, estaDentroDoHorario } = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
@@ -128,12 +128,41 @@ async function testarOpcaoDeTextoIgnoraMaiusculaMinuscula() {
   console.log('OK: opção de texto (sim/não) ignora maiúscula/minúscula');
 }
 
+async function testarBlocoHorario() {
+  const fluxo = {
+    inicio: 'checagem',
+    nos: {
+      checagem: { tipo: 'horario', janelas: ['1,2,3,4,5 08:00-18:00', '6 08:00-12:00'], dentro: 'aberto', fora: 'fechado' },
+      aberto: { tipo: 'fim', texto: 'Estamos abertos!' },
+      fechado: { tipo: 'fim', texto: 'Estamos fechados agora.' },
+    },
+  };
+
+  // segunda-feira (1) às 10:00 -> dentro da janela
+  assert.strictEqual(estaDentroDoHorario(fluxo.nos.checagem, new Date(2026, 8, 28, 10, 0)), true);
+  // segunda-feira às 19:00 -> fora
+  assert.strictEqual(estaDentroDoHorario(fluxo.nos.checagem, new Date(2026, 8, 28, 19, 0)), false);
+  // domingo (0) -> não tem janela nenhuma pro domingo
+  assert.strictEqual(estaDentroDoHorario(fluxo.nos.checagem, new Date(2026, 8, 27, 10, 0)), false);
+  // sábado (6) às 10:00 -> dentro da janela de sábado
+  assert.strictEqual(estaDentroDoHorario(fluxo.nos.checagem, new Date(2026, 8, 26, 10, 0)), true);
+  // sábado às 13:00 -> fora do horário de sábado
+  assert.strictEqual(estaDentroDoHorario(fluxo.nos.checagem, new Date(2026, 8, 26, 13, 0)), false);
+
+  const numero = 'cliente-horario';
+  const resp = await processarMensagem({ numero, texto: 'oi', negocio: {}, fluxo });
+  assert.match(resp, /Estamos (abertos|fechados)/, 'deve seguir pro ramo dentro ou fora conforme o horário real');
+
+  console.log('OK: bloco "Horário" segue o ramo certo conforme dia/hora');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
   await testarFaq();
   await testarTransferenciaParaAtendente();
   await testarOpcaoDeTextoIgnoraMaiusculaMinuscula();
+  await testarBlocoHorario();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 

@@ -611,6 +611,7 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
 .no-fluxo-transferir .no-cabecalho { background: #a4222c; }
 .no-fluxo-fim .no-cabecalho { background: #4d5b66; }
 .no-fluxo-condicao .no-cabecalho { background: #6a4c93; }
+.no-fluxo-horario .no-cabecalho { background: #b6851f; }
 
 .no-id { font-size: 0.68rem; color: #a3adb5; padding: 0.25rem 0.6rem 0; }
 .no-corpo { font-size: 0.78rem; padding: 0.3rem 0.6rem 0.6rem; color: var(--cinza-texto); line-height: 1.35; }

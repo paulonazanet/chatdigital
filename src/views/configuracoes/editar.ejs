@@ -32,6 +32,12 @@
       <label>Pesquisa de satisfação (mandada logo depois do encerramento — deixe em branco pra não mandar)
         <textarea name="pesquisa_satisfacao" rows="2"><%= negocio.pesquisa_satisfacao || '' %></textarea>
       </label>
+      <label>Sem atendente disponível (mandada quando o cliente é transferido pro humano e ninguém do setor está online — deixe em branco pra não mandar)
+        <textarea name="mensagem_sem_atendente_disponivel" rows="2"><%= negocio.mensagem_sem_atendente_disponivel || '' %></textarea>
+      </label>
+      <label>Inatividade do cliente (mandada uma vez quando o cliente para no meio de uma pergunta do fluxo e some — deixe em branco pra não mandar)
+        <textarea name="mensagem_inatividade" rows="2"><%= negocio.mensagem_inatividade || '' %></textarea>
+      </label>
     </fieldset>
 
     <button type="submit">Salvar</button>

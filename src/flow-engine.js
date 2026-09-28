@@ -69,6 +69,23 @@ function montarTexto(no, contexto, { invalido = false } = {}) {
   return texto;
 }
 
+// Cada janela é uma string "dias horaInicio-horaFim", ex.: "1,2,3,4,5 08:00-18:00" (dias:
+// 0=domingo … 6=sábado, separados por vírgula). `agora` é injetável pra dar pra testar sem
+// depender do relógio real.
+function estaDentroDoHorario(no, agora = new Date()) {
+  const dia = agora.getDay();
+  const hora = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+
+  return (no.janelas || []).some((janela) => {
+    const [diasStr, horasStr] = String(janela).trim().split(/\s+/);
+    if (!diasStr || !horasStr) return false;
+    const dias = diasStr.split(',').map((d) => Number(d.trim()));
+    if (!dias.includes(dia)) return false;
+    const [inicio, fim] = horasStr.split('-');
+    return Boolean(inicio) && Boolean(fim) && hora >= inicio && hora <= fim;
+  });
+}
+
 function tratarResposta(no, msg, contexto) {
   const msgComparavel = msg.toLowerCase();
 
@@ -162,6 +179,11 @@ async function executar(estado, contexto, fluxo) {
       continue;
     }
 
+    if (no.tipo === 'horario') {
+      estado.no = estaDentroDoHorario(no) ? no.dentro : no.fora;
+      continue;
+    }
+
     if (no.tipo === 'pergunta') {
       textos.push(montarTexto(no, contexto));
       estado.aguardando = true;
@@ -251,4 +273,5 @@ module.exports = {
   encerrarAtendimento,
   transferirParaHumano,
   substituirVariaveis: substituir,
+  estaDentroDoHorario,
 };

@@ -1,6 +1,7 @@
 const { db } = require('./db');
 const { obterEstadoConversa } = require('./flow-engine');
 const { barramento } = require('./eventos');
+const { haAtendenteDisponivel } = require('./atendentes');
 
 function obterOuCriarConversa(numero) {
   const existente = db.prepare('SELECT * FROM conversas WHERE numero = ?').get(numero);
@@ -23,6 +24,10 @@ function registrarMensagem(numero, remetente, texto) {
     agora,
   );
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
+  // Cliente voltou a escrever — se tinha lembrete de inatividade pendente, não faz mais sentido.
+  if (remetente === 'cliente') {
+    db.prepare('UPDATE conversas SET lembrete_inatividade_em = NULL WHERE id = ?').run(conversa.id);
+  }
 
   // Cliente escreveu de novo numa conversa que já está com um humano (não é a mensagem que
   // dispara a transferência em si — essa é avisada por sincronizarConversa logo abaixo).
@@ -63,6 +68,8 @@ function sincronizarConversa(numero, fluxo) {
   if (acabouDeEntrarNaFila) {
     barramento.emit('atencao', { motivo: 'novo-atendimento', numero });
   }
+
+  return { semAtendenteDisponivel: acabouDeEntrarNaFila && !haAtendenteDisponivel(setorId) };
 }
 
 function listarFila() {

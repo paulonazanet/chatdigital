@@ -73,6 +73,11 @@ if (!colunaExiste('conversas', 'no_fluxo_atual')) {
   // aqui é o que permite a seção "Parado no fluxo" sobreviver a um reinício do processo.
   db.exec('ALTER TABLE conversas ADD COLUMN no_fluxo_atual TEXT');
 }
+if (!colunaExiste('conversas', 'lembrete_inatividade_em')) {
+  // quando o lembrete de inatividade foi mandado (NULL = nenhum pendente) — usado por
+  // src/inatividade.js pra não repetir o lembrete e pra saber quando resetar a conversa parada.
+  db.exec('ALTER TABLE conversas ADD COLUMN lembrete_inatividade_em TEXT');
+}
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.

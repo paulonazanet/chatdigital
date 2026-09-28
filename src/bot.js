@@ -28,6 +28,13 @@ function descreverMidia(mensagem) {
   return null;
 }
 
+async function avisarSeSemAtendente(sock, numero, negocio, sincronizacao) {
+  if (!sincronizacao?.semAtendenteDisponivel || !negocio.mensagem_sem_atendente_disponivel) return;
+  if (await enviarComSeguranca(sock, numero, negocio.mensagem_sem_atendente_disponivel)) {
+    registrarMensagem(numero, 'bot', negocio.mensagem_sem_atendente_disponivel);
+  }
+}
+
 async function enviarComSeguranca(sock, numero, texto) {
   try {
     await sock.sendMessage(numero, { text: texto });
@@ -90,21 +97,23 @@ async function iniciarBot(negocio, fluxo) {
 
         registrarMensagem(numero, 'cliente', `[cliente enviou ${tipoMidia}]`);
         transferirParaHumano(numero, fluxo);
-        sincronizarConversa(numero, fluxo);
+        const sincronizacao = sincronizarConversa(numero, fluxo);
         const aviso = AVISO_MIDIA_NAO_SUPORTADA(tipoMidia);
         if (await enviarComSeguranca(sock, numero, aviso)) {
           registrarMensagem(numero, 'bot', aviso);
         }
+        await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
         continue;
       }
 
       registrarMensagem(numero, 'cliente', texto);
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
-      sincronizarConversa(numero, fluxo);
+      const sincronizacao = sincronizarConversa(numero, fluxo);
       if (resposta) {
         registrarMensagem(numero, 'bot', resposta);
         await enviarComSeguranca(sock, numero, resposta);
       }
+      await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
     }
   });
 
