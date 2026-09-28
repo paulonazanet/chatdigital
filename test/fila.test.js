@@ -168,3 +168,64 @@ test('conversa que ainda está com o bot não aparece na fila', async () => {
 
   console.log('OK: conversa ainda em atendimento automático não entra na fila');
 });
+
+test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transferir muda de setor', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+
+  resp = await fetch(`${baseUrl}/painel/setores`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ nome: 'Suporte' }),
+  });
+
+  const numeroParado = '5511988887777@s.whatsapp.net';
+  await simularMensagemDoCliente(numeroParado, 'oi'); // pergunta o menu e fica esperando — "parado no fluxo"
+
+  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  let corpo = await resp.text();
+  assert.match(corpo, /Parado no fluxo/);
+  assert.match(corpo, /5511988887777/, 'conversa parada no fluxo deve aparecer na lista');
+
+  const idParado = corpo.match(/href="\/painel\/fila\/(\d+)"[^>]*>\s*<span class="item-numero">5511988887777/)[1];
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idParado}/puxar`, {
+    method: 'POST',
+    headers: { cookie: cookieAdmin },
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idParado}`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  assert.match(corpo, /atendendo/, '"puxar pra mim" deve assumir a conversa direto');
+
+  // o bot não deve mais responder esse número (foi transferido manualmente)
+  const respostaAposPuxar = await simularMensagemDoCliente(numeroParado, 'oi de novo');
+  assert.strictEqual(respostaAposPuxar, null, 'bot deve ficar em silêncio depois do "puxar pra mim"');
+
+  // transferir pra outro setor
+  resp = await fetch(`${baseUrl}/painel/setores`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  const matchSetor = corpo.match(/action="\/painel\/setores\/(\d+)"[^>]*>\s*<input type="text" name="nome" value="Suporte"/);
+  const setorSuporteId = Number(matchSetor[1]);
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idParado}/transferir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ setor_id: String(setorSuporteId) }),
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idParado}`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  assert.match(corpo, /Setor: Suporte/, 'transferir deve mudar o setor da conversa');
+
+  console.log('OK: "parado no fluxo" aparece, "puxar pra mim" assume e silencia o bot, transferir muda o setor');
+});

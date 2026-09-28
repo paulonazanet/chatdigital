@@ -91,12 +91,37 @@ git pull origin main
      produtos/FAQ intactos) e `test/fila.test.js` estendido com um socket falso pra conferir o
      texto exato das 3 mensagens automáticas. `npm test` passando (13 testes).
 
-## O que falta (do card do Trello, por fase)
+6. **Fase 4 implementada** (fila redesenhada — a maior mudança visual, já aprovada em rascunho
+   antes da revisão menu por menu):
+   - **Tela dividida tipo WhatsApp Web**: `/painel/fila` e `/painel/fila/:id` agora renderizam o
+     MESMO template (`fila/lista.ejs` — `fila/detalhe.ejs` foi removida), lista sempre visível à
+     esquerda + conversa aberta à direita, sem sair da página. `routes/fila.js`
+     (`renderizarFila`) centraliza isso.
+   - **Lista agrupada por setor** (`<details>` recolhível, sem JS customizado) — dentro de cada
+     setor, duas pilhas independentes: 🔴 **Aguardando sua resposta** (não assumida, ou o cliente
+     acabou de escrever de novo) e 🟡 **Aguardando cliente responder** (atendente já respondeu).
+     A conta certa de vermelho/amarelo usa o remetente da última mensagem
+     (`conversas.js`, `listarFila` agora traz `ultima_mensagem_remetente`).
+   - **"Parado no fluxo"** (⚪, fora da árvore de setores): conversas que o cliente começou a
+     falar com o bot mas não terminaram (`listarConversasComBot` + o nó atual do fluxo, via
+     `obterEstadoConversa`, comparado ao nó inicial). Botão **"Puxar pra mim"** assume na hora
+     (`transferirParaHumano` do flow-engine, que já existia da Fase 1, + `assumirConversa`).
+     **Limitação conhecida**: o estado do fluxo é só em memória (não salvo no banco) — depois de
+     reiniciar o processo, uma conversa que estava parada some dessa lista até o cliente escrever
+     de novo. Isso é comportamento antigo do motor de fluxo, não uma regressão desta fase.
+   - **Transferir entre setores/atendentes**: botão "Transferir" abre um popover (setor
+     obrigatório + atendente específico opcional) — `conversas.js` (`transferirConversa`) +
+     dispara o alerta sonoro/notificação pra quem recebeu (`motivo: 'transferencia'`).
+   - **Alerta em tempo real ajustado** pra tela unificada: como a lista e a conversa estão na
+     mesma página agora, `public/js/notificacoes.js` só recarrega sozinho quando NENHUMA conversa
+     está aberta; com uma conversa aberta, sempre mostra o banner "Atualizar" em vez de recarregar
+     (evita perder rascunho de resposta, mesmo que o evento seja de outro número).
+   - Teste novo em `test/fila.test.js` cobrindo "parado no fluxo" aparecendo, "puxar pra mim"
+     assumindo e silenciando o bot, e transferir mudando o setor. Checagem visual feita com
+     Playwright (screenshot) antes de fechar — o botão "Transferir" foi ajustado pra ficar com a
+     mesma cara dos outros botões. `npm test` passando (14 testes).
 
-**Fase 4 — fila redesenhada (maior mudança visual, já aprovada em rascunho)**
-- Tela dividida tipo WhatsApp Web + árvore por setor/status (🔴 aguardando sua resposta / 🟡
-  aguardando cliente). "Conversas paradas no fluxo" + botão "Puxar pra mim". Transferir entre
-  setores/atendentes.
+## O que falta (do card do Trello, por fase)
 
 **Fase 5 — painel do admin + WhatsApp**
 - Painel completo (resumo fila, status conexão, pedidos, atividade). Alerta de WhatsApp

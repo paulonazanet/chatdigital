@@ -37,13 +37,12 @@
     }, 6000);
   }
 
-  function estaNaListaDaFila() {
-    return window.location.pathname === '/painel/fila';
+  function estaNaFila() {
+    return window.location.pathname.indexOf('/painel/fila') === 0;
   }
 
-  function numeroDaConversaAberta() {
-    var main = document.querySelector('main[data-conversa-numero]');
-    return main ? main.getAttribute('data-conversa-numero') : null;
+  function temConversaAberta() {
+    return !!document.querySelector('main[data-conversa-numero]');
   }
 
   function mostrarBannerAtualizar() {
@@ -121,7 +120,11 @@
     } catch (e) {}
 
     var numero = dados.numero ? dados.numero.replace('@s.whatsapp.net', '') : '';
-    var texto = dados.motivo === 'novo-atendimento' ? 'Nova conversa aguardando atendimento' : 'Nova mensagem do cliente';
+    var textos = {
+      'novo-atendimento': 'Nova conversa aguardando atendimento',
+      transferencia: 'Uma conversa foi transferida',
+    };
+    var texto = textos[dados.motivo] || 'Nova mensagem do cliente';
     if (numero) texto += ' — ' + numero;
 
     tocarBipe();
@@ -137,18 +140,16 @@
       };
     }
 
-    if (estaNaListaDaFila()) {
-      // Página só lista conversas, sem rascunho de resposta em andamento — seguro recarregar sozinho.
+    if (!estaNaFila()) return;
+
+    if (temConversaAberta()) {
+      // A tela de fila é uma só (lista + conversa aberta lado a lado) — recarregar perderia
+      // qualquer rascunho de resposta em andamento, então só avisa em vez de recarregar sozinho.
+      mostrarBannerAtualizar();
+    } else {
       setTimeout(function () {
         window.location.reload();
       }, 1500);
-    } else {
-      var numeroAberto = numeroDaConversaAberta();
-      if (numeroAberto && dados.numero === numeroAberto) {
-        // Está com essa conversa aberta: não recarrega sozinho (perderia o rascunho da resposta),
-        // só avisa que tem coisa nova pra atualizar quando quiser.
-        mostrarBannerAtualizar();
-      }
     }
   });
 })();

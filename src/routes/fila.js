@@ -3,18 +3,22 @@ const router = express.Router();
 
 const {
   listarFila,
+  listarConversasComBot,
   obterConversaPorId,
   listarMensagens,
   assumirConversa,
   finalizarConversa,
+  transferirConversa,
   registrarMensagem,
 } = require('../conversas');
-const { listarSetoresDoAtendente } = require('../atendentes');
+const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
+const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
-const { encerrarAtendimento, substituirVariaveis } = require('../flow-engine');
+const { encerrarAtendimento, transferirParaHumano, substituirVariaveis, obterEstadoConversa } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
+const { barramento } = require('../eventos');
 
 const MENSAGEM_ENCERRAMENTO_PADRAO =
   'Atendimento encerrado. Se precisar de mais alguma coisa, é só mandar uma mensagem por aqui. 👋';
@@ -40,20 +44,55 @@ function podeVerConversa(atendente, conversa) {
   return meusSetores.includes(conversa.setor_id);
 }
 
-router.get('/', (req, res) => {
+// Agrupa a fila (já transferida) por setor e, dentro de cada setor, em duas pilhas: 🔴 aguardando
+// sua resposta (ainda não assumida, ou o cliente acabou de escrever de novo) e 🟡 aguardando o
+// cliente responder (o atendente já respondeu e está esperando).
+function agruparPorSetor(conversas) {
+  const grupos = new Map();
+  for (const c of conversas) {
+    const chave = c.setor_id || 'sem-setor';
+    if (!grupos.has(chave)) {
+      grupos.set(chave, { chave, nome: c.setor_nome || 'Sem setor', vermelho: [], amarelo: [] });
+    }
+    const grupo = grupos.get(chave);
+    const aguardandoSuaResposta = c.status === 'aguardando' || c.ultima_mensagem_remetente === 'cliente';
+    (aguardandoSuaResposta ? grupo.vermelho : grupo.amarelo).push(c);
+  }
+  return [...grupos.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+// Conversas que o cliente começou a falar com o bot mas não terminaram no início do fluxo (ex.:
+// pararam de responder no meio de uma pergunta) — ninguém vê isso hoje a não ser por aqui.
+function listarParadasNoFluxo(atendente, fluxo) {
+  return listarConversasComBot()
+    .filter((c) => podeVerConversa(atendente, c))
+    .filter((c) => {
+      const estado = obterEstadoConversa(c.numero, fluxo);
+      return estado.no !== fluxo.inicio;
+    });
+}
+
+function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null } = {}) {
+  const fluxo = carregarFluxo();
   const conversas = listarFila().filter((c) => podeVerConversa(req.atendente, c));
-  res.render('fila/lista', { atendenteLogado: req.atendente, conversas });
-});
+  res.render('fila/lista', {
+    atendenteLogado: req.atendente,
+    grupos: agruparPorSetor(conversas),
+    paradas: listarParadasNoFluxo(req.atendente, fluxo),
+    conversaSelecionada,
+    mensagens,
+    erro,
+    setores: listarSetores(),
+    atendentes: listarAtendentes().filter((a) => a.ativo),
+  });
+}
+
+router.get('/', (req, res) => renderizarFila(req, res));
 
 router.get('/:id', (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
-  res.render('fila/detalhe', {
-    atendenteLogado: req.atendente,
-    conversa,
-    mensagens: listarMensagens(conversa.id),
-    erro: null,
-  });
+  renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id) });
 });
 
 router.post('/:id/assumir', async (req, res) => {
@@ -71,6 +110,35 @@ router.post('/:id/assumir', async (req, res) => {
     registrarMensagem(conversa.numero, 'bot', boasVindas);
   }
 
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// "Puxar pra mim": pra conversas paradas no fluxo (ainda com o bot) — assume manualmente e
+// silencia o bot pra esse número, igual uma transferência normal faria.
+router.post('/:id/puxar', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa) return res.redirect('/painel/fila');
+  transferirParaHumano(conversa.numero, carregarFluxo());
+  assumirConversa(conversa.id, req.atendente.id);
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+router.post('/:id/transferir', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+
+  const setorId = req.body.setor_id ? Number(req.body.setor_id) : null;
+  const atendenteId = req.body.atendente_id ? Number(req.body.atendente_id) : null;
+  if (!setorId) {
+    return renderizarFila(req, res, {
+      conversaSelecionada: conversa,
+      mensagens: listarMensagens(conversa.id),
+      erro: 'Escolha um setor para transferir.',
+    });
+  }
+
+  transferirConversa(conversa.id, { setorId, atendenteId });
+  barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero });
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 
@@ -110,12 +178,7 @@ router.post('/:id/responder', async (req, res) => {
   const sock = obterSocket();
 
   function reexibirComErro(erro) {
-    res.render('fila/detalhe', {
-      atendenteLogado: req.atendente,
-      conversa,
-      mensagens: listarMensagens(conversa.id),
-      erro,
-    });
+    renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
   }
 
   if (!sock) {

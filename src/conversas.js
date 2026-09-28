@@ -68,7 +68,8 @@ function listarFila() {
   return db
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
-              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
        LEFT JOIN atendentes a ON a.id = c.atendente_id
@@ -76,6 +77,33 @@ function listarFila() {
        ORDER BY c.atualizado_em DESC`,
     )
     .all();
+}
+
+/**
+ * Conversas ainda com o bot (não transferidas) que já têm pelo menos uma mensagem — candidatas a
+ * estar "paradas no fluxo" (o filtro por nó atual do fluxo é feito na rota, que tem acesso ao
+ * flow-engine). Ordenado da mais parada (atualizada há mais tempo) pra mais recente.
+ */
+function listarConversasComBot() {
+  return db
+    .prepare(
+      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem
+       FROM conversas c WHERE c.status = 'bot' ORDER BY c.atualizado_em ASC`,
+    )
+    .all();
+}
+
+function transferirConversa(id, { setorId, atendenteId }) {
+  // com atendente específico, já entra "atendendo" (foi endereçada); só o setor, volta pra fila
+  // desse setor esperando alguém assumir.
+  const status = atendenteId ? 'atendendo' : 'aguardando';
+  db.prepare('UPDATE conversas SET setor_id = ?, atendente_id = ?, status = ?, atualizado_em = ? WHERE id = ?').run(
+    setorId,
+    atendenteId || null,
+    status,
+    new Date().toISOString(),
+    id,
+  );
 }
 
 function obterConversaPorId(id) {
@@ -114,8 +142,10 @@ module.exports = {
   registrarMensagem,
   sincronizarConversa,
   listarFila,
+  listarConversasComBot,
   obterConversaPorId,
   listarMensagens,
   assumirConversa,
   finalizarConversa,
+  transferirConversa,
 };

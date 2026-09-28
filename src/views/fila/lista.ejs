@@ -1,26 +1,132 @@
 <%- include('../partials/inicio', { titulo: 'Fila de atendimento' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo">
-  <h1>Fila de atendimento</h1>
-  <table class="tabela">
-    <thead>
-      <tr><th>Cliente</th><th>Setor</th><th>Status</th><th>Atendente</th><th>Última mensagem</th><th></th></tr>
-    </thead>
-    <tbody>
-      <% conversas.forEach((c) => { %>
-        <tr>
-          <td><%= c.numero.replace('@s.whatsapp.net', '') %></td>
-          <td><%= c.setor_nome || '—' %></td>
-          <td><span class="selo <%= c.status === 'atendendo' ? 'ativo' : 'inativo' %>"><%= c.status === 'atendendo' ? 'Atendendo' : 'Aguardando' %></span></td>
-          <td><%= c.atendente_nome || '—' %></td>
-          <td class="celula-truncada"><%= c.ultima_mensagem %></td>
-          <td><a href="/painel/fila/<%= c.id %>">Abrir</a></td>
-        </tr>
+<main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
+  <div class="fila-cabecalho">
+    <h1>Fila de atendimento</h1>
+  </div>
+
+  <div class="fila-corpo">
+    <aside class="fila-lista">
+      <% grupos.forEach((grupo) => { %>
+        <details class="grupo-setor" open>
+          <summary><%= grupo.nome %> <span class="contador">(<%= grupo.vermelho.length + grupo.amarelo.length %>)</span></summary>
+
+          <% if (grupo.vermelho.length > 0) { %>
+            <details class="subgrupo subgrupo-vermelho" open>
+              <summary>🔴 Aguardando sua resposta (<%= grupo.vermelho.length %>)</summary>
+              <% grupo.vermelho.forEach((c) => { %>
+                <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
+                  <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+                  <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
+                </a>
+              <% }) %>
+            </details>
+          <% } %>
+
+          <% if (grupo.amarelo.length > 0) { %>
+            <details class="subgrupo subgrupo-amarelo">
+              <summary>🟡 Aguardando cliente responder (<%= grupo.amarelo.length %>)</summary>
+              <% grupo.amarelo.forEach((c) => { %>
+                <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
+                  <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+                  <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
+                </a>
+              <% }) %>
+            </details>
+          <% } %>
+        </details>
       <% }) %>
-      <% if (conversas.length === 0) { %>
-        <tr><td colspan="6" class="dica">Nenhuma conversa aguardando atendimento no momento.</td></tr>
+
+      <% if (grupos.length === 0) { %>
+        <p class="dica">Nenhuma conversa aguardando atendimento no momento.</p>
       <% } %>
-    </tbody>
-  </table>
+
+      <% if (paradas.length > 0) { %>
+        <details class="grupo-paradas">
+          <summary>⚪ Parado no fluxo (<%= paradas.length %>)</summary>
+          <p class="dica">O cliente começou a falar com o bot mas parou no meio — ainda não foi transferido pra ninguém.</p>
+          <% paradas.forEach((c) => { %>
+            <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
+              <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+              <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
+            </a>
+          <% }) %>
+        </details>
+      <% } %>
+    </aside>
+
+    <section class="fila-detalhe">
+      <% if (!conversaSelecionada) { %>
+        <div class="fila-detalhe-vazia"><p>Selecione uma conversa na lista ao lado.</p></div>
+      <% } else { %>
+        <h2><%= conversaSelecionada.numero.replace('@s.whatsapp.net', '') %></h2>
+        <p class="dica">
+          Setor: <%= conversaSelecionada.setor_nome || '—' %> ·
+          Status: <%= conversaSelecionada.status %> ·
+          Atendente: <%= conversaSelecionada.atendente_nome || '—' %>
+        </p>
+
+        <div class="historico">
+          <% mensagens.forEach((m) => { %>
+            <div class="mensagem mensagem-<%= m.remetente %>">
+              <span class="mensagem-remetente"><%= m.remetente %></span>
+              <p><%= m.texto %></p>
+            </div>
+          <% }) %>
+          <% if (mensagens.length === 0) { %><p class="dica">Nenhuma mensagem ainda.</p><% } %>
+        </div>
+
+        <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+        <% if (conversaSelecionada.status === 'bot') { %>
+          <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/puxar">
+            <button type="submit">Puxar pra mim</button>
+          </form>
+        <% } else if (conversaSelecionada.status !== 'finalizado') { %>
+          <div class="acoes-conversa">
+            <% if (conversaSelecionada.status === 'aguardando') { %>
+              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/assumir">
+                <button type="submit">Assumir conversa</button>
+              </form>
+            <% } %>
+            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar">
+              <button type="submit" class="botao-secundario">Finalizar</button>
+            </form>
+            <details class="transferir-popover">
+              <summary class="botao-secundario botao-como-summary">Transferir</summary>
+              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/transferir" class="form-transferir">
+                <label>Setor
+                  <select name="setor_id" required>
+                    <option value="">Escolha um setor</option>
+                    <% setores.forEach((s) => { %>
+                      <option value="<%= s.id %>" <%= conversaSelecionada.setor_id === s.id ? 'selected' : '' %>><%= s.nome %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <label>Atendente específico (opcional)
+                  <select name="atendente_id">
+                    <option value="">Deixar na fila do setor</option>
+                    <% atendentes.forEach((a) => { %>
+                      <option value="<%= a.id %>"><%= a.nome %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <button type="submit">Confirmar transferência</button>
+              </form>
+            </details>
+          </div>
+
+          <% if (conversaSelecionada.status === 'atendendo') { %>
+            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder">
+              <textarea name="texto" placeholder="Escreva a resposta para o cliente..." required></textarea>
+              <button type="submit">Enviar</button>
+            </form>
+          <% } else { %>
+            <p class="aviso">Assuma a conversa para poder responder direto por aqui.</p>
+          <% } %>
+        <% } %>
+      <% } %>
+    </section>
+  </div>
 </main>
 <%- include('../partials/fim-painel') %>
