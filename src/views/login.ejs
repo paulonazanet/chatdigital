@@ -1,0 +1,14 @@
+<%- include('partials/inicio', { titulo: 'Entrar' }) %>
+<main class="tela-cheia">
+  <div class="cartao-login">
+    <h1>ChatDigital</h1>
+    <p class="subtitulo">Entrar no painel</p>
+    <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+    <form method="post" action="/login">
+      <label>E-mail<input type="email" name="email" required autofocus></label>
+      <label>Senha<input type="password" name="senha" required></label>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</main>
+<%- include('partials/fim') %>

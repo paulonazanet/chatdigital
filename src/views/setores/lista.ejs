@@ -1,0 +1,27 @@
+<%- include('../partials/inicio', { titulo: 'Setores' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <h1>Setores</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <form method="post" action="/painel/setores" class="linha-form" id="form-novo-setor">
+    <input type="text" name="nome" placeholder="Nome do setor (ex.: Vendas)" required>
+    <button type="submit">Adicionar</button>
+  </form>
+  <table class="tabela">
+    <thead><tr><th>Nome</th><th></th></tr></thead>
+    <tbody>
+      <% setores.forEach((s) => { %>
+        <tr>
+          <td colspan="2">
+            <form method="post" action="/painel/setores/<%= s.id %>" class="linha-form linha-form-inline">
+              <input type="text" name="nome" value="<%= s.nome %>">
+              <button type="submit">Renomear</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (setores.length === 0) { %><tr><td colspan="2" class="dica">Nenhum setor cadastrado ainda.</td></tr><% } %>
+    </tbody>
+  </table>
+</main>
+<%- include('../partials/fim') %>

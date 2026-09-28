@@ -1,0 +1,37 @@
+<%- include('../partials/inicio', { titulo: alvo ? 'Editar atendente' : 'Novo atendente' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <h1><%= alvo ? 'Editar atendente' : 'Novo atendente' %></h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <form method="post" action="<%= alvo ? `/painel/atendentes/${alvo.id}` : '/painel/atendentes' %>">
+    <label>Nome<input type="text" name="nome" value="<%= alvo ? alvo.nome : '' %>" required></label>
+    <% if (!alvo) { %>
+      <label>E-mail<input type="email" name="email" required></label>
+      <label>Senha<input type="password" name="senha" required minlength="6"></label>
+    <% } else { %>
+      <p class="campo-fixo">E-mail: <%= alvo.email %></p>
+      <label>Nova senha (deixe em branco para manter a atual)<input type="password" name="senha" minlength="6"></label>
+    <% } %>
+    <label>Papel
+      <select name="papel">
+        <option value="atendente" <%= alvo && alvo.papel === 'atendente' ? 'selected' : '' %>>Atendente</option>
+        <option value="admin" <%= alvo && alvo.papel === 'admin' ? 'selected' : '' %>>Administrador</option>
+      </select>
+    </label>
+    <% if (alvo) { %>
+      <label class="linha"><input type="checkbox" name="ativo" <%= alvo.ativo ? 'checked' : '' %>> Ativo</label>
+    <% } %>
+    <fieldset>
+      <legend>Setores</legend>
+      <% setores.forEach((s) => { %>
+        <label class="linha">
+          <input type="checkbox" name="setores" value="<%= s.id %>" <%= setoresDoAlvo.includes(s.id) ? 'checked' : '' %>>
+          <%= s.nome %>
+        </label>
+      <% }) %>
+      <% if (setores.length === 0) { %><p class="dica">Nenhum setor cadastrado ainda.</p><% } %>
+    </fieldset>
+    <button type="submit"><%= alvo ? 'Salvar' : 'Criar atendente' %></button>
+  </form>
+</main>
+<%- include('../partials/fim') %>

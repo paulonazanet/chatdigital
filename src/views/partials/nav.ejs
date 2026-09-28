@@ -1,0 +1,14 @@
+<header class="topo">
+  <div class="marca">ChatDigital</div>
+  <nav>
+    <a href="/painel">Painel</a>
+    <% if (atendenteLogado.papel === 'admin') { %>
+      <a href="/painel/atendentes">Atendentes</a>
+      <a href="/painel/setores">Setores</a>
+    <% } %>
+  </nav>
+  <form method="post" action="/logout" class="sair">
+    <span class="usuario"><%= atendenteLogado.nome %></span>
+    <button type="submit">Sair</button>
+  </form>
+</header>

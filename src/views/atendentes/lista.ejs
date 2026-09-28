@@ -1,0 +1,23 @@
+<%- include('../partials/inicio', { titulo: 'Atendentes' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <div class="cabecalho-lista">
+    <h1>Atendentes</h1>
+    <a class="botao" href="/painel/atendentes/novo">+ Novo atendente</a>
+  </div>
+  <table class="tabela">
+    <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% atendentes.forEach((a) => { %>
+        <tr>
+          <td><%= a.nome %></td>
+          <td><%= a.email %></td>
+          <td><%= a.papel === 'admin' ? 'Administrador' : 'Atendente' %></td>
+          <td><span class="selo <%= a.ativo ? 'ativo' : 'inativo' %>"><%= a.ativo ? 'Ativo' : 'Inativo' %></span></td>
+          <td><a href="/painel/atendentes/<%= a.id %>/editar">Editar</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</main>
+<%- include('../partials/fim') %>

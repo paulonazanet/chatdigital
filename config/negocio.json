@@ -1,0 +1,24 @@
+{
+  "nome": "Naza Gás",
+  "horario_funcionamento": "TODO: preencher (ex.: Seg a Sáb, 8h às 18h)",
+  "endereco": "TODO: preencher",
+  "formas_pagamento": ["TODO: preencher (ex.: Dinheiro, Pix, Cartão na entrega)"],
+  "produtos": [
+    { "id": "p13", "nome": "Botijão 13kg", "preco": null },
+    { "id": "p45", "nome": "Botijão 45kg", "preco": null }
+  ],
+  "faq": [
+    {
+      "pergunta": "qual o preço do gás",
+      "resposta": "TODO: preencher preço atual (ver produtos acima)"
+    },
+    {
+      "pergunta": "qual o horário de funcionamento",
+      "resposta": "TODO: usar horario_funcionamento acima"
+    },
+    {
+      "pergunta": "vocês entregam",
+      "resposta": "TODO: preencher (área de entrega, prazo, taxa se houver)"
+    }
+  ]
+}

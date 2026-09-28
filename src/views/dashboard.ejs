@@ -1,0 +1,11 @@
+<%- include('partials/inicio', { titulo: 'Painel' }) %>
+<%- include('partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <h1>Olá, <%= atendenteLogado.nome %></h1>
+  <div class="cartoes">
+    <div class="cartao"><span class="numero"><%= totalAtendentes %></span><span class="rotulo">Atendentes</span></div>
+    <div class="cartao"><span class="numero"><%= totalSetores %></span><span class="rotulo">Setores</span></div>
+  </div>
+  <p class="aviso">A fila de conversas em tempo real chega na próxima etapa. Por enquanto, cadastre atendentes e setores.</p>
+</main>
+<%- include('partials/fim') %>
