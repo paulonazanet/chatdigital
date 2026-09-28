@@ -129,4 +129,13 @@
     </section>
   </div>
 </main>
+<% if (conversaSelecionada) { %>
+  <script>
+    // Sempre abre (ou recarrega) já mostrando a mensagem mais recente, sem precisar descer a mão.
+    (function () {
+      var area = document.querySelector('.fila-detalhe');
+      if (area) area.scrollTop = area.scrollHeight;
+    })();
+  </script>
+<% } %>
 <%- include('../partials/fim-painel') %>
