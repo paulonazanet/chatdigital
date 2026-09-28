@@ -30,7 +30,7 @@
   <div class="fila-corpo">
     <aside class="fila-lista">
       <% grupos.forEach((grupo) => { %>
-        <details class="grupo-setor" open>
+        <details class="grupo-setor" data-setor-chave="<%= grupo.chave %>" open>
           <summary><%= grupo.nome %> <span class="contador">(<%= grupo.vermelho.length + grupo.amarelo.length %>)</span></summary>
 
           <% if (grupo.vermelho.length > 0) { %>

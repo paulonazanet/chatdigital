@@ -183,7 +183,7 @@ router.post('/:id/transferir', (req, res) => {
   }
 
   transferirConversa(conversa.id, { setorId, atendenteId });
-  barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero });
+  barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero, setorId });
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 
