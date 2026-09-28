@@ -32,10 +32,16 @@ instalação em servidor próprio simples — não exige configurar um servidor 
 - **Processo único** (`src/app.js`): painel e bot rodam juntos, compartilhando a mesma conexão do
   WhatsApp (`src/socket-atual.js`) — é isso que permite mandar a resposta do atendente direto pra
   quem está no WhatsApp.
+- **Alerta sonoro + notificação do navegador**: quando uma conversa entra na fila ou o cliente
+  escreve de novo numa conversa já assumida, todo atendente logado ouve um bipe e vê um aviso na
+  tela (e uma notificação do sistema operacional, se o navegador tiver permissão) — via
+  Server-Sent Events (`src/eventos.js`, `src/routes/eventos.js`, `public/js/notificacoes.js`), sem
+  precisar de nenhuma biblioteca externa.
 
 ## O que ainda falta (próximas etapas)
 
-- Atualização em tempo real da fila (WebSocket) — hoje precisa recarregar a página.
+- A lista da fila em si ainda não atualiza sozinha (o alerta avisa que chegou algo, mas a tabela
+  só atualiza ao recarregar a página).
 - Editor visual do fluxo (hoje é só o arquivo `config/fluxo.json`).
 - Blocos prontos por ramo de negócio (agendamento pra clínica, catálogo pra revenda, chamado
   técnico pra provedor).

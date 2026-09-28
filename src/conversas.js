@@ -1,5 +1,6 @@
 const { db } = require('./db');
 const { obterEstadoConversa } = require('./flow-engine');
+const { barramento } = require('./eventos');
 
 function obterOuCriarConversa(numero) {
   const existente = db.prepare('SELECT * FROM conversas WHERE numero = ?').get(numero);
@@ -22,6 +23,12 @@ function registrarMensagem(numero, remetente, texto) {
     agora,
   );
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
+
+  // Cliente escreveu de novo numa conversa que já está com um humano (não é a mensagem que
+  // dispara a transferência em si — essa é avisada por sincronizarConversa logo abaixo).
+  if (remetente === 'cliente' && conversa.status !== 'bot' && conversa.status !== 'finalizado') {
+    barramento.emit('atencao', { motivo: 'mensagem', numero, texto });
+  }
 }
 
 /**
@@ -50,6 +57,11 @@ function sincronizarConversa(numero, fluxo) {
     new Date().toISOString(),
     conversa.id,
   );
+
+  const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
+  if (acabouDeEntrarNaFila) {
+    barramento.emit('atencao', { motivo: 'novo-atendimento', numero });
+  }
 }
 
 function listarFila() {
