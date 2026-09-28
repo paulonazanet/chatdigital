@@ -12,11 +12,23 @@ const {
 const { listarSetoresDoAtendente } = require('../atendentes');
 const { obterSocket } = require('../socket-atual');
 const { carregarFluxo } = require('../fluxo');
-const { encerrarAtendimento } = require('../flow-engine');
+const { carregarNegocio } = require('../negocio');
+const { encerrarAtendimento, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 
-const MENSAGEM_ENCERRAMENTO =
+const MENSAGEM_ENCERRAMENTO_PADRAO =
   'Atendimento encerrado. Se precisar de mais alguma coisa, é só mandar uma mensagem por aqui. 👋';
+
+async function enviarComSeguranca(sock, numero, texto) {
+  if (!texto) return false;
+  try {
+    await sock.sendMessage(numero, { text: texto });
+    return true;
+  } catch (erro) {
+    console.error(`Falha ao enviar mensagem para ${numero}:`, erro);
+    return false;
+  }
+}
 
 // Um atendente sem "ver_fila_outros_setores" só vê conversas do(s) setor(es) dele (ou sem setor
 // definido, ou que ele mesmo já assumiu) — admin e quem tem a permissão veem tudo.
@@ -44,10 +56,21 @@ router.get('/:id', (req, res) => {
   });
 });
 
-router.post('/:id/assumir', (req, res) => {
+router.post('/:id/assumir', async (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
   assumirConversa(conversa.id, req.atendente.id);
+
+  const negocio = carregarNegocio();
+  const boasVindas = substituirVariaveis(negocio.mensagem_boas_vindas_atendente, {
+    negocio,
+    atendente: { nome: req.atendente.nome },
+  });
+  const sock = obterSocket();
+  if (sock && (await enviarComSeguranca(sock, conversa.numero, boasVindas))) {
+    registrarMensagem(conversa.numero, 'bot', boasVindas);
+  }
+
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 
@@ -61,13 +84,15 @@ router.post('/:id/finalizar', async (req, res) => {
   finalizarConversa(conversa.id);
   encerrarAtendimento(conversa.numero, carregarFluxo());
 
+  const negocio = carregarNegocio();
+  const mensagemEncerramento = negocio.mensagem_encerramento || MENSAGEM_ENCERRAMENTO_PADRAO;
   const sock = obterSocket();
   if (sock) {
-    try {
-      await sock.sendMessage(conversa.numero, { text: MENSAGEM_ENCERRAMENTO });
-      registrarMensagem(conversa.numero, 'bot', MENSAGEM_ENCERRAMENTO);
-    } catch (erro) {
-      console.error(`Falha ao enviar mensagem de encerramento para ${conversa.numero}:`, erro);
+    if (await enviarComSeguranca(sock, conversa.numero, mensagemEncerramento)) {
+      registrarMensagem(conversa.numero, 'bot', mensagemEncerramento);
+    }
+    if (negocio.pesquisa_satisfacao && (await enviarComSeguranca(sock, conversa.numero, negocio.pesquisa_satisfacao))) {
+      registrarMensagem(conversa.numero, 'bot', negocio.pesquisa_satisfacao);
     }
   }
 

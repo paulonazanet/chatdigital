@@ -6,12 +6,14 @@ const os = require('node:os');
 
 const diretorioTeste = fs.mkdtempSync(path.join(os.tmpdir(), 'chatdigital-fila-teste-'));
 process.env.CHATDIGITAL_DB = path.join(diretorioTeste, 'teste.db');
+process.env.CHATDIGITAL_NEGOCIO = path.join(diretorioTeste, 'negocio.json');
 process.env.SESSION_SECRET = 'segredo-de-teste';
 
 const { app } = require('../src/server');
 const { processarMensagem } = require('../src/flow-engine');
 const { registrarMensagem, sincronizarConversa, listarFila } = require('../src/conversas');
 const { carregarFluxo } = require('../src/fluxo');
+const { definirSocket } = require('../src/socket-atual');
 
 const negocio = {
   nome: 'Loja Exemplo',
@@ -20,6 +22,15 @@ const negocio = {
   produtos: [{ id: 'p13', nome: 'Botijão 13kg', preco: 120 }],
   faq: [],
 };
+fs.writeFileSync(
+  process.env.CHATDIGITAL_NEGOCIO,
+  JSON.stringify({
+    ...negocio,
+    mensagem_boas_vindas_atendente: 'Oi! Aqui é {{atendente.nome}}, vou te ajudar agora.',
+    mensagem_encerramento: 'Fechado por aqui, valeu!',
+    pesquisa_satisfacao: 'De 0 a 10, como foi o atendimento?',
+  }),
+);
 const fluxo = carregarFluxo();
 
 let servidor;
@@ -80,12 +91,26 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   corpo = await resp.text();
   assert.match(corpo, /atendente humano/, 'histórico deve conter a mensagem de transferência do bot');
 
+  // socket falso pra verificar as mensagens automáticas (boas-vindas/encerramento/pesquisa)
+  const mensagensEnviadas = [];
+  definirSocket({
+    sendMessage: async (numero, msg) => {
+      mensagensEnviadas.push({ numero, texto: msg.text });
+    },
+  });
+
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/assumir`, {
     method: 'POST',
     headers: { cookie: cookieAdmin },
     redirect: 'manual',
   });
   assert.strictEqual(resp.status, 302);
+  assert.strictEqual(mensagensEnviadas.length, 1);
+  assert.strictEqual(
+    mensagensEnviadas[0].texto,
+    'Oi! Aqui é Paulo Admin, vou te ajudar agora.',
+    'boas-vindas do atendente deve interpolar {{atendente.nome}}',
+  );
 
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
@@ -95,6 +120,7 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
 
   // sem o bot conectado (não há WhatsApp real neste teste), responder deve falhar com aviso claro,
   // não travar nem enviar silenciosamente
+  definirSocket(null);
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
@@ -103,12 +129,24 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   corpo = await resp.text();
   assert.match(corpo, /não está conectado ao WhatsApp/);
 
+  mensagensEnviadas.length = 0;
+  definirSocket({
+    sendMessage: async (numero, msg) => {
+      mensagensEnviadas.push({ numero, texto: msg.text });
+    },
+  });
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/finalizar`, {
     method: 'POST',
     headers: { cookie: cookieAdmin },
     redirect: 'manual',
   });
   assert.strictEqual(resp.status, 302);
+  assert.deepStrictEqual(
+    mensagensEnviadas.map((m) => m.texto),
+    ['Fechado por aqui, valeu!', 'De 0 a 10, como foi o atendimento?'],
+    'finalizar deve mandar a mensagem de encerramento configurável seguida da pesquisa de satisfação',
+  );
+  definirSocket(null);
 
   resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();

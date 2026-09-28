@@ -74,7 +74,8 @@ form label.linha {
 
 form input[type="text"],
 form input[type="email"],
-form input[type="password"] {
+form input[type="password"],
+form textarea {
   display: block;
   width: 100%;
   margin-top: 0.35rem;
@@ -82,7 +83,10 @@ form input[type="password"] {
   border: 1px solid var(--cinza-borda);
   border-radius: 4px;
   font-size: 0.95rem;
+  font-family: inherit;
 }
+
+form textarea { resize: vertical; }
 
 fieldset {
   border: 1px solid var(--cinza-borda);
@@ -118,6 +122,25 @@ button:hover { background: var(--azul-destaque); }
   font-size: 0.85rem;
   margin-bottom: 1rem;
 }
+
+.sucesso {
+  background: #e3f3ea;
+  color: var(--verde-ativo);
+  border: 1px solid #bfe3cd;
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.referencia-variaveis {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--cinza-texto);
+}
+.referencia-variaveis summary { cursor: pointer; font-weight: 600; color: var(--azul-marinho); }
+.referencia-variaveis ul { margin: 0.6rem 0; padding-left: 1.2rem; }
+.referencia-variaveis code { background: #eef1f4; padding: 0.05rem 0.35rem; border-radius: 3px; }
 
 .dica { color: #8a97a3; font-size: 0.85rem; }
 

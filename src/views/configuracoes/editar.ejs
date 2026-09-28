@@ -1,0 +1,52 @@
+<%- include('../partials/inicio', { titulo: 'Configurações' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <h1>Configurações</h1>
+  <p class="dica">Dados do negócio e mensagens automáticas. Produtos e perguntas frequentes ainda
+    são editados direto em <code>config/negocio.json</code> — essa tela cuida do resto.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Configurações salvas.</p><% } %>
+
+  <form method="post" action="/painel/configuracoes">
+    <fieldset>
+      <legend>Dados do negócio</legend>
+      <label>Nome do negócio<input type="text" name="nome" value="<%= negocio.nome %>" required></label>
+      <label>Horário de funcionamento<input type="text" name="horario_funcionamento" value="<%= negocio.horario_funcionamento || '' %>"></label>
+      <label>Endereço<input type="text" name="endereco" value="<%= negocio.endereco || '' %>"></label>
+      <label>Formas de pagamento (separadas por vírgula)
+        <input type="text" name="formas_pagamento" value="<%= (negocio.formas_pagamento || []).join(', ') %>">
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Mensagens automáticas</legend>
+      <label>Boas-vindas do atendente (mandada quando alguém "Assume" uma conversa)
+        <textarea name="mensagem_boas_vindas_atendente" rows="2"><%= negocio.mensagem_boas_vindas_atendente || '' %></textarea>
+      </label>
+      <label>Mensagem de encerramento (mandada ao "Finalizar" uma conversa)
+        <textarea name="mensagem_encerramento" rows="2"><%= negocio.mensagem_encerramento || '' %></textarea>
+      </label>
+      <label>Pesquisa de satisfação (mandada logo depois do encerramento — deixe em branco pra não mandar)
+        <textarea name="pesquisa_satisfacao" rows="2"><%= negocio.pesquisa_satisfacao || '' %></textarea>
+      </label>
+    </fieldset>
+
+    <button type="submit">Salvar</button>
+  </form>
+
+  <details class="referencia-variaveis">
+    <summary>Variáveis disponíveis (<code>{{ }}</code>)</summary>
+    <ul>
+      <li><code>{{atendente.nome}}</code> — nome de quem assumiu a conversa (só funciona na boas-vindas do atendente)</li>
+      <li><code>{{negocio.nome}}</code> — nome do negócio</li>
+      <li><code>{{negocio.horario_funcionamento}}</code></li>
+      <li><code>{{negocio.endereco}}</code></li>
+      <li><code>{{negocio.formas_pagamento}}</code></li>
+      <li><code>{{negocio.numero_atendente_legivel}}</code> — número de WhatsApp em formato legível</li>
+    </ul>
+    <p class="dica">No editor de Fluxo também tem <code>{{vars.X}}</code> — variáveis capturadas
+      durante aquele fluxo específico (mudam de fluxo pra fluxo, por isso não têm uma lista fixa
+      aqui).</p>
+  </details>
+</main>
+<%- include('../partials/fim-painel') %>

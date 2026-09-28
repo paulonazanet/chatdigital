@@ -245,4 +245,10 @@ function transferirParaHumano(numero, fluxo, setor = null) {
   estado.setor = setor;
 }
 
-module.exports = { processarMensagem, obterEstadoConversa, encerrarAtendimento, transferirParaHumano };
+module.exports = {
+  processarMensagem,
+  obterEstadoConversa,
+  encerrarAtendimento,
+  transferirParaHumano,
+  substituirVariaveis: substituir,
+};

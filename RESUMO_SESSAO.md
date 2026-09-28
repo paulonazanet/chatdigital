@@ -69,11 +69,29 @@ git pull origin main
    - Teste de regressão cobrindo tudo isso em `test/painel.test.js`. `npm test` passando (12
      testes).
 
-## O que falta (do card do Trello, por fase)
+5. **Fase 3 implementada** (menu Configurações):
+   - **Tela nova `/painel/configuracoes`** (`src/routes/configuracoes.js`,
+     `src/views/configuracoes/editar.ejs`), gated pela permissão nova `gerenciar_configuracoes`
+     (admin sempre tem, atendente comum só se o admin marcar). Edita: nome do negócio, horário,
+     endereço, formas de pagamento — e as 3 mensagens automáticas (boas-vindas do atendente,
+     encerramento, pesquisa de satisfação). Grava direto em `config/negocio.json`
+     (`src/negocio.js`, `salvarConfiguracoes`, com o mesmo padrão de override por variável de
+     ambiente que `fluxo.js` já tinha, pra testes não mexerem no arquivo real). **Produtos e FAQ
+     continuam só editáveis no arquivo** — essa tela não mexe neles (ainda não tem UI pra
+     adicionar/remover linhas dinamicamente; fica pra depois se for preciso).
+   - **Boas-vindas do atendente**: ao "Assumir" uma conversa (`routes/fila.js`), manda a mensagem
+     configurada com `{{atendente.nome}}` interpolado pelo nome de quem assumiu — reaproveita o
+     motor de substituição de variáveis do fluxo (`flow-engine.js`, agora exportado como
+     `substituirVariaveis`), então funciona pra qualquer atendente sem hardcode.
+   - **Mensagem de encerramento** (antes fixa no código) e **pesquisa de satisfação** (nova) agora
+     saem do `negocio.json`, mandadas em sequência ao "Finalizar".
+   - **Lista de referência de variáveis** `{{ }}` visível tanto na tela de Configurações quanto no
+     editor de Fluxo (um `<details>` recolhível em cada um).
+   - Testes: `test/configuracoes.test.js` (novo — salvar, validar nome obrigatório, permissão,
+     produtos/FAQ intactos) e `test/fila.test.js` estendido com um socket falso pra conferir o
+     texto exato das 3 mensagens automáticas. `npm test` passando (13 testes).
 
-**Fase 3 — menu Configurações (novo)**
-- Tela reunindo negócio/boas-vindas do atendente (`{{atendente.nome}}`)/mensagem de
-  encerramento/pesquisa de satisfação. Lista de referência de variáveis `{{}}` disponíveis.
+## O que falta (do card do Trello, por fase)
 
 **Fase 4 — fila redesenhada (maior mudança visual, já aprovada em rascunho)**
 - Tela dividida tipo WhatsApp Web + árvore por setor/status (🔴 aguardando sua resposta / 🟡

@@ -20,6 +20,17 @@
       <button type="button" class="botao-paleta" data-tipo="api">Chamar API</button>
       <button type="button" class="botao-paleta" data-tipo="fim">Fim</button>
       <p class="paleta-dica">Arraste uma bolinha de saída até a entrada de outro bloco pra conectar. Clique numa linha pra apagar a conexão.</p>
+      <details class="referencia-variaveis">
+        <summary>Variáveis disponíveis (<code>{{ }}</code>)</summary>
+        <ul>
+          <li><code>{{negocio.nome}}</code></li>
+          <li><code>{{negocio.horario_funcionamento}}</code></li>
+          <li><code>{{negocio.endereco}}</code></li>
+          <li><code>{{negocio.formas_pagamento}}</code></li>
+          <li><code>{{negocio.numero_atendente_legivel}}</code></li>
+          <li><code>{{vars.X}}</code> — o que um nó "pergunta" com campo "variável" guardou antes, neste mesmo fluxo</li>
+        </ul>
+      </details>
     </aside>
 
     <div class="quadro-scroll" id="quadro-scroll">

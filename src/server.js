@@ -11,6 +11,7 @@ const rotasSetores = require('./routes/setores');
 const rotasFila = require('./routes/fila');
 const rotasEventos = require('./routes/eventos');
 const rotasFluxoEditor = require('./routes/fluxo');
+const rotasConfiguracoes = require('./routes/configuracoes');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/painel/setores', exigirLogin, exigirPermissao('gerenciar_setores'), ro
 app.use('/painel/fila', exigirLogin, rotasFila);
 app.use('/painel/eventos', exigirLogin, rotasEventos);
 app.use('/painel/fluxo', exigirLogin, exigirPermissao('editar_fluxo'), rotasFluxoEditor);
+app.use('/painel/configuracoes', exigirLogin, exigirPermissao('gerenciar_configuracoes'), rotasConfiguracoes);
 app.use('/painel', exigirLogin, rotasPainel);
 
 app.get('/', (req, res) => res.redirect(req.atendente ? '/painel' : '/login'));

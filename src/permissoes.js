@@ -8,6 +8,7 @@ const CHAVES = [
   'ver_fila_outros_setores',
   'responder_conversas',
   'finalizar_conversas',
+  'gerenciar_configuracoes',
 ];
 
 const ROTULOS = {
@@ -18,6 +19,7 @@ const ROTULOS = {
   ver_fila_outros_setores: 'Ver fila de outros setores (não só o seu)',
   responder_conversas: 'Responder conversas',
   finalizar_conversas: 'Finalizar conversas',
+  gerenciar_configuracoes: 'Ver e editar Configurações do negócio',
 };
 
 function permissoesPadraoAtendente() {
