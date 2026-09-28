@@ -196,24 +196,29 @@ router.post('/:id/responder', (req, res) => {
       return reexibirComErro('O bot não está conectado ao WhatsApp agora — não dá pra enviar por aqui.');
     }
     if (!arquivo && !texto) {
-      return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo ou áudio antes de enviar.');
+      return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo, áudio ou PDF antes de enviar.');
     }
 
     try {
       if (arquivo) {
         const tipo = tipoPorMimetype(arquivo.mimetype);
-        if (!tipo) return reexibirComErro('Só dá pra mandar imagem, vídeo ou áudio por aqui.');
+        const ehPdf = arquivo.mimetype === 'application/pdf';
+        if (!tipo && !ehPdf) return reexibirComErro('Só dá pra mandar imagem, vídeo, áudio ou PDF por aqui.');
 
         const conteudo =
           tipo === 'imagem'
             ? { image: arquivo.buffer, caption: texto || undefined }
             : tipo === 'video'
               ? { video: arquivo.buffer, caption: texto || undefined }
-              : { audio: arquivo.buffer, mimetype: arquivo.mimetype };
+              : tipo === 'audio'
+                ? { audio: arquivo.buffer, mimetype: arquivo.mimetype }
+                : { document: arquivo.buffer, mimetype: 'application/pdf', fileName: arquivo.originalname || 'documento.pdf', caption: texto || undefined };
 
         await sock.sendMessage(conversa.numero, conteudo);
         const url = salvarBufferDeMidia(arquivo.buffer, arquivo.mimetype);
-        registrarMensagem(conversa.numero, 'atendente', texto || LEGENDA_PADRAO[tipo], { tipo, url });
+        // PDF fica com midia_tipo nulo (a coluna só aceita imagem/video/audio) — o link genérico
+        // de download na tela usa midia_url mesmo sem tipo, ver fila/lista.ejs.
+        registrarMensagem(conversa.numero, 'atendente', texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]'), { tipo, url });
       } else {
         await sock.sendMessage(conversa.numero, { text: texto });
         registrarMensagem(conversa.numero, 'atendente', texto);

@@ -1,6 +1,14 @@
 <%- include('../partials/inicio', { titulo: 'Fila de atendimento' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
 <script src="/js/fila-responder.js" defer></script>
+<%
+  // Número legível pra mostrar: o de exibição (guardado quando o WhatsApp manda em conversas
+  // @lid, que não trazem o número de telefone no endereço) ou, na falta dele, o próprio número
+  // sem o sufixo técnico.
+  function exibirNumero(c) {
+    return c.numero_exibicao || c.numero.replace('@s.whatsapp.net', '').replace('@lid', '');
+  }
+%>
 <main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
   <div class="fila-cabecalho">
     <h1>Fila de atendimento</h1>
@@ -17,7 +25,7 @@
               <summary>🔴 Aguardando sua resposta (<%= grupo.vermelho.length %>)</summary>
               <% grupo.vermelho.forEach((c) => { %>
                 <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-                  <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+                  <span class="item-numero"><%= exibirNumero(c) %></span>
                   <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
                 </a>
               <% }) %>
@@ -29,7 +37,7 @@
               <summary>🟡 Aguardando cliente responder (<%= grupo.amarelo.length %>)</summary>
               <% grupo.amarelo.forEach((c) => { %>
                 <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-                  <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+                  <span class="item-numero"><%= exibirNumero(c) %></span>
                   <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
                 </a>
               <% }) %>
@@ -48,7 +56,7 @@
           <p class="dica">O cliente começou a falar com o bot mas parou no meio — ainda não foi transferido pra ninguém.</p>
           <% paradas.forEach((c) => { %>
             <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-              <span class="item-numero"><%= c.numero.replace('@s.whatsapp.net', '') %></span>
+              <span class="item-numero"><%= exibirNumero(c) %></span>
               <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
             </a>
           <% }) %>
@@ -60,7 +68,7 @@
       <% if (!conversaSelecionada) { %>
         <div class="fila-detalhe-vazia"><p>Selecione uma conversa na lista ao lado.</p></div>
       <% } else { %>
-        <h2><%= conversaSelecionada.numero.replace('@s.whatsapp.net', '') %></h2>
+        <h2><%= exibirNumero(conversaSelecionada) %></h2>
         <p class="dica">
           Setor: <%= conversaSelecionada.setor_nome || '—' %> ·
           Status: <%= conversaSelecionada.status %> ·
@@ -77,6 +85,8 @@
                 <video class="mensagem-midia" src="<%= m.midia_url %>" controls></video>
               <% } else if (m.midia_tipo === 'audio') { %>
                 <audio class="mensagem-midia" src="<%= m.midia_url %>" controls></audio>
+              <% } else if (m.midia_url) { %>
+                <a class="mensagem-arquivo" href="<%= m.midia_url %>" target="_blank" rel="noopener">📄 Baixar arquivo</a>
               <% } %>
               <p><%= m.texto %></p>
             </div>
@@ -128,13 +138,14 @@
             <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
               <div class="form-responder-barra">
                 <button type="button" class="botao-emoji" title="Inserir emoji">🙂</button>
-                <label class="botao-anexo" title="Anexar imagem, vídeo ou áudio">
+                <label class="botao-anexo" title="Anexar imagem, vídeo, áudio ou PDF">
                   📎
-                  <input type="file" name="midia" accept="image/*,video/*,audio/*" hidden>
+                  <input type="file" name="midia" accept="image/*,video/*,audio/*,application/pdf" hidden>
                 </label>
+                <button type="button" class="botao-gravar-audio" title="Gravar áudio">🎤</button>
                 <span class="anexo-nome"></span>
+                <div class="emoji-painel" hidden></div>
               </div>
-              <div class="emoji-painel" hidden></div>
               <div class="form-responder-linha">
                 <textarea name="texto" placeholder="Escreva a resposta para o cliente..."></textarea>
                 <button type="submit">Enviar</button>

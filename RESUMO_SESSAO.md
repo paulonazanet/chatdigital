@@ -257,8 +257,36 @@ resposta.
   o envio, mas vale o Paulo confirmar se toda imagem chega normal no celular do cliente.
 - Testes novos: `test/midia.test.js` (`tipoPorMimetype`, `salvarBufferDeMidia` grava arquivo de
   verdade e nunca colide nome) e um teste HTTP novo em `test/fila.test.js` (upload de imagem de
-  verdade via `FormData`, confere que manda o buffer certo pro Baileys, aparece no histórico, e
-  recusa tipo não suportado tipo PDF). `npm test` passando (27 testes).
+  verdade via `FormData`, confere que manda o buffer certo pro Baileys e aparece no histórico).
+  `npm test` passando (27 testes).
+
+## Mais ajustes depois de testar mídia/emoji com o Paulo ao vivo
+
+- ✅ **Painel de emoji abria no canto errado da tela** — `<div class="emoji-painel">` estava
+  como IRMÃO de `.form-responder-barra` no HTML, não filho — `position: absolute` sem um
+  ancestral posicionado de verdade cai pro topo da página inteira. Corrigido movendo o painel pra
+  dentro da barra (`fila/lista.ejs`).
+- ✅ **Botões da barra (emoji/anexo) desalinhados** — `<label>` (anexo) e `<button>` (emoji) têm
+  `box-sizing` padrão diferente no navegador (label = content-box, button = border-box), então a
+  borda de 1px fazia um ficar 2px maior que o outro. `box-sizing: border-box` explícito nos três
+  botões da barra resolve (`estilo.css`).
+- ✅ **PDF agora é aceito** (pedido do Paulo) — no anexo (painel → cliente) e ao receber do
+  cliente. Como a coluna `midia_tipo` só aceita imagem/vídeo/áudio, PDF fica salvo com
+  `midia_tipo` nulo + `midia_url` preenchida, e o histórico mostra um link genérico "📄 Baixar
+  arquivo" nesse caso (em vez de decidir mexer no CHECK constraint da coluna, que exigiria
+  recriar a tabela `mensagens` em bancos já existentes). Outros tipos de documento (Word, Excel
+  etc.) continuam só com aviso de texto, sem download/preview.
+- ✅ **Número `@lid` ilegível na fila** — o Baileys às vezes manda o número de telefone de
+  verdade separado (`msg.key.senderPn`) quando a conversa é endereçada por `@lid` (contato sem
+  número visível). Nova coluna `numero_exibicao` em `conversas` guarda esse número quando
+  disponível, sem trocar o `numero` usado de fato pra mandar mensagem (isso continua sendo o que
+  já funcionava). A fila mostra `numero_exibicao` quando existe, senão cai pro comportamento de
+  antes.
+- ✅ **Botão de gravar áudio** (🎤) — grava direto do microfone do navegador com a API nativa
+  `MediaRecorder` (sem lib nova), reaproveita o mesmo campo de anexo pra mandar (via
+  `DataTransfer`). Fica escondido sozinho se o navegador não suportar. **Não testável por mim**
+  (preciso de um microfone de verdade, que não tenho no ambiente onde rodei os testes) — o Paulo
+  precisa confirmar se grava/envia certinho.
 
 ## Como testar localmente
 

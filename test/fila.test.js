@@ -303,18 +303,37 @@ test('responder com imagem/vídeo/áudio: manda pro WhatsApp, salva no históric
   let corpo = await resp.text();
   assert.match(corpo, /<img class="mensagem-midia" src="\/uploads\/[^"]+\.png"/, 'deve mostrar a imagem enviada no histórico');
 
-  // tipo não suportado (ex.: PDF) deve ser recusado com uma mensagem clara, sem mandar nada
+  // PDF também é aceito: manda como documento e mostra um link de download genérico (a coluna
+  // midia_tipo só tem imagem/video/audio, então PDF fica com midia_tipo nulo + midia_url)
   const formPdf = new FormData();
   formPdf.append('midia', new Blob([Buffer.from('%PDF-fake')], { type: 'application/pdf' }), 'nota.pdf');
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
     method: 'POST',
     headers: { cookie: cookieAdmin },
     body: formPdf,
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+  assert.strictEqual(mensagensEnviadas.length, 2);
+  assert.ok(Buffer.isBuffer(mensagensEnviadas[1].conteudo.document), 'deve mandar o PDF de verdade pro Baileys');
+  assert.strictEqual(mensagensEnviadas[1].conteudo.mimetype, 'application/pdf');
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  assert.match(corpo, /<a class="mensagem-arquivo" href="\/uploads\/[^"]+" target="_blank"[^>]*>📄 Baixar arquivo<\/a>/, 'deve mostrar o link de download do PDF');
+
+  // tipo de verdade não suportado (ex.: um .zip) deve ser recusado com uma mensagem clara
+  const formZip = new FormData();
+  formZip.append('midia', new Blob([Buffer.from('PK-fake-zip')], { type: 'application/zip' }), 'arquivo.zip');
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
+    method: 'POST',
+    headers: { cookie: cookieAdmin },
+    body: formZip,
   });
   corpo = await resp.text();
-  assert.match(corpo, /Só dá pra mandar imagem, vídeo ou áudio/);
-  assert.strictEqual(mensagensEnviadas.length, 1, 'não deve ter mandado nada pro PDF recusado');
+  assert.match(corpo, /Só dá pra mandar imagem, vídeo, áudio ou PDF/);
+  assert.strictEqual(mensagensEnviadas.length, 2, 'não deve ter mandado nada pro .zip recusado');
 
   definirSocket(null);
-  console.log('OK: responder com mídia envia pro WhatsApp, aparece no histórico, e recusa tipo não suportado');
+  console.log('OK: responder com mídia (imagem/PDF) envia pro WhatsApp, aparece no histórico, e recusa tipo não suportado');
 });

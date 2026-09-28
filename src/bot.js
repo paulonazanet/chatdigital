@@ -9,7 +9,7 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const { processarMensagem, transferirParaHumano } = require('./flow-engine');
-const { registrarMensagem, sincronizarConversa } = require('./conversas');
+const { registrarMensagem, sincronizarConversa, definirNumeroExibicao } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
 const { salvarBufferDeMidia } = require('./midia');
 const whatsappStatus = require('./whatsapp-status');
@@ -33,9 +33,9 @@ function ehConversaDeCliente(numero) {
 }
 
 // Imagem/vídeo/áudio (e figurinha, que é só uma imagem) a gente baixa de verdade e mostra pro
-// atendente no histórico da fila. Documento fica de fora por enquanto — pode ser qualquer tipo de
-// arquivo, então mostrar/baixar automaticamente merece mais cuidado (segurança) do que deu pra
-// fazer nesta rodada.
+// atendente no histórico da fila. Documento em geral pode ser qualquer tipo de arquivo — mostrar/
+// baixar automaticamente merece mais cuidado (segurança) do que deu pra fazer nesta rodada — mas
+// PDF é comum o bastante (nota, comprovante) que vale a exceção.
 const TIPOS_MIDIA_SUPORTADOS = [
   { chave: 'imageMessage', tipo: 'imagem', rotulo: 'a imagem' },
   { chave: 'videoMessage', tipo: 'video', rotulo: 'o vídeo' },
@@ -47,7 +47,13 @@ function identificarMidia(mensagem) {
   for (const item of TIPOS_MIDIA_SUPORTADOS) {
     if (mensagem[item.chave]) return item;
   }
-  if (mensagem.documentMessage) return { chave: 'documentMessage', tipo: null, rotulo: 'o documento' };
+  if (mensagem.documentMessage) {
+    // `tipo` fica null mesmo sendo PDF pra caber na coluna midia_tipo do banco (só aceita
+    // imagem/video/audio) — o arquivo ainda é baixado e mostrado como link genérico no histórico
+    // graças ao `baixavel` abaixo, ver routes/fila.js pro mesmo padrão do lado de enviar.
+    const ehPdf = mensagem.documentMessage.mimetype === 'application/pdf';
+    return { chave: 'documentMessage', tipo: null, baixavel: ehPdf, rotulo: 'o documento' };
+  }
   return null;
 }
 
@@ -119,7 +125,7 @@ async function iniciarBot(negocio, fluxo) {
         if (!midiaInfo) continue; // outro tipo de evento sem conteúdo processável (ex.: reação)
 
         let midiaBaixada = null;
-        if (midiaInfo.tipo) {
+        if (midiaInfo.tipo || midiaInfo.baixavel) {
           try {
             const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
             const mimetype = msg.message[midiaInfo.chave]?.mimetype;
@@ -130,6 +136,7 @@ async function iniciarBot(negocio, fluxo) {
         }
 
         registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
+        if (msg.key.senderPn) definirNumeroExibicao(numero, msg.key.senderPn.replace('@s.whatsapp.net', ''));
         transferirParaHumano(numero, fluxo);
         const sincronizacao = sincronizarConversa(numero, fluxo);
         const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
@@ -141,6 +148,7 @@ async function iniciarBot(negocio, fluxo) {
       }
 
       registrarMensagem(numero, 'cliente', texto);
+      if (msg.key.senderPn) definirNumeroExibicao(numero, msg.key.senderPn.replace('@s.whatsapp.net', ''));
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
       const sincronizacao = sincronizarConversa(numero, fluxo);
       if (resposta) {

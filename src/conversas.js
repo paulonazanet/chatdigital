@@ -14,6 +14,19 @@ function obterOuCriarConversa(numero) {
   return db.prepare('SELECT * FROM conversas WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
+/**
+ * Guarda o número de telefone legível pra mostrar na fila, sem mexer no `numero` usado de fato
+ * pra mandar mensagem (importante pra conversas em @lid, onde o "numero" que funciona pra enviar
+ * não é um número de telefone visível). Chamar toda vez que o Baileys mandar essa informação
+ * junto de uma mensagem — não custa nada gravar de novo se já for a mesma.
+ */
+function definirNumeroExibicao(numero, numeroExibicao) {
+  if (!numeroExibicao) return;
+  db.prepare(
+    'UPDATE conversas SET numero_exibicao = ? WHERE numero = ? AND (numero_exibicao IS NULL OR numero_exibicao != ?)',
+  ).run(numeroExibicao, numero, numeroExibicao);
+}
+
 function registrarMensagem(numero, remetente, texto, midia = null) {
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
@@ -145,6 +158,7 @@ function finalizarConversa(id) {
 module.exports = {
   obterOuCriarConversa,
   registrarMensagem,
+  definirNumeroExibicao,
   sincronizarConversa,
   listarFila,
   listarConversasComBot,

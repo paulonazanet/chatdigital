@@ -432,6 +432,16 @@ html.menu-recolhido .recolhivel { display: none; }
 .mensagem-midia { max-width: 220px; border-radius: 6px; margin-top: 0.3rem; }
 video.mensagem-midia { max-width: 260px; }
 audio.mensagem-midia { max-width: 100%; }
+.mensagem-arquivo {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  background: #eef1f4;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--azul-marinho);
+}
+.mensagem-bot .mensagem-arquivo, .mensagem-atendente .mensagem-arquivo { background: rgba(255, 255, 255, 0.15); color: var(--branco); }
 
 .acoes-conversa { display: flex; gap: 0.75rem; margin-top: 1rem; }
 .botao-secundario {
@@ -460,12 +470,15 @@ audio.mensagem-midia { max-width: 100%; }
 }
 
 .form-responder-barra { display: flex; align-items: center; gap: 0.5rem; position: relative; }
-.botao-emoji, .botao-anexo {
+.botao-emoji, .botao-anexo, .botao-gravar-audio {
+  box-sizing: border-box;
   background: transparent;
   border: 1px solid var(--cinza-borda);
   border-radius: 4px;
   width: 34px;
   height: 34px;
+  margin: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -474,7 +487,8 @@ audio.mensagem-midia { max-width: 100%; }
   color: var(--cinza-texto);
   line-height: 1;
 }
-.botao-emoji:hover, .botao-anexo:hover { background: #e9edf1; }
+.botao-emoji:hover, .botao-anexo:hover, .botao-gravar-audio:hover { background: #e9edf1; }
+.botao-gravar-audio.gravando { background: var(--vermelho-erro); border-color: var(--vermelho-erro); color: var(--branco); }
 .anexo-nome { font-size: 0.8rem; color: #8a97a3; }
 
 .emoji-painel {

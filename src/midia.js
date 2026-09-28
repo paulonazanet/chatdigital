@@ -21,6 +21,8 @@ const EXTENSAO_POR_MIMETYPE = {
   'audio/ogg': 'ogg',
   'audio/aac': 'aac',
   'audio/wav': 'wav',
+  'audio/webm': 'webm', // gravado direto no navegador (MediaRecorder) — ver public/js/fila-responder.js
+  'application/pdf': 'pdf',
 };
 
 function tipoPorMimetype(mimetype) {

@@ -41,6 +41,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS conversas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     numero TEXT NOT NULL UNIQUE,
+    numero_exibicao TEXT,
     status TEXT NOT NULL CHECK (status IN ('bot', 'aguardando', 'atendendo', 'finalizado')) DEFAULT 'bot',
     setor_id INTEGER REFERENCES setores(id),
     atendente_id INTEGER REFERENCES atendentes(id),
@@ -79,6 +80,13 @@ if (!colunaExiste('conversas', 'lembrete_inatividade_em')) {
   // quando o lembrete de inatividade foi mandado (NULL = nenhum pendente) — usado por
   // src/inatividade.js pra não repetir o lembrete e pra saber quando resetar a conversa parada.
   db.exec('ALTER TABLE conversas ADD COLUMN lembrete_inatividade_em TEXT');
+}
+if (!colunaExiste('conversas', 'numero_exibicao')) {
+  // número de telefone legível pra mostrar na fila. Normalmente é o próprio `numero`, mas quando
+  // o WhatsApp usa o formato @lid (Linked ID, sem o número visível) pra endereçar a conversa,
+  // isso guarda o número de verdade que o Baileys manda separado (`senderPn`) — sem mexer no
+  // `numero` usado de fato pra mandar mensagem, que continua sendo o que funcionou de verdade.
+  db.exec('ALTER TABLE conversas ADD COLUMN numero_exibicao TEXT');
 }
 if (!colunaExiste('mensagens', 'midia_url')) {
   // suporte a imagem/vídeo/áudio no histórico (recebido do cliente ou enviado pelo atendente) —
