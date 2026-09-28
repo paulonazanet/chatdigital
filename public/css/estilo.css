@@ -170,7 +170,7 @@ html.menu-recolhido .barra-lateral { width: 64px; }
   font-weight: 500;
   font-size: 0.62rem;
   color: var(--marca-cinza-azulado-claro);
-  white-space: normal;
+  text-align: center;
 }
 
 .botao-recolher {
