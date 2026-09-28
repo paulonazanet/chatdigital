@@ -872,6 +872,14 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
 }
 .botao-como-summary::-webkit-details-marker { display: none; }
 .botao-como-summary:hover { background: #e9edf1; }
+
+.nova-conversa-popover .botao-como-summary {
+  background: var(--azul-marinho);
+  border-color: var(--azul-marinho);
+  color: var(--branco);
+  font-weight: 600;
+}
+.nova-conversa-popover .botao-como-summary:hover { background: var(--azul-destaque); }
 .form-transferir {
   position: absolute;
   top: 2.2rem;
