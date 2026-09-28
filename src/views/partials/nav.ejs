@@ -1,16 +1,54 @@
 <div class="app-shell">
   <aside class="barra-lateral">
-    <div class="marca">ChatDigital</div>
+    <div class="marca">
+      <button type="button" id="botao-recolher" class="botao-recolher" aria-label="Recolher menu" title="Recolher menu">
+        <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <span class="marca-texto recolhivel">ChatDigital</span>
+    </div>
     <nav>
-      <a href="/painel">Painel</a>
+      <a href="/painel">
+        <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9"></rect>
+          <rect x="14" y="3" width="7" height="5"></rect>
+          <rect x="14" y="12" width="7" height="9"></rect>
+          <rect x="3" y="16" width="7" height="5"></rect>
+        </svg>
+        <span class="recolhivel">Painel</span>
+      </a>
       <% if (atendenteLogado.papel === 'admin') { %>
-        <a href="/painel/atendentes">Atendentes</a>
-        <a href="/painel/setores">Setores</a>
+        <a href="/painel/atendentes">
+          <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            <path d="M21 21v-2a4 4 0 0 0-3-3.85"></path>
+          </svg>
+          <span class="recolhivel">Atendentes</span>
+        </a>
+        <a href="/painel/setores">
+          <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span class="recolhivel">Setores</span>
+        </a>
       <% } %>
     </nav>
     <form method="post" action="/logout" class="sair">
-      <span class="usuario"><%= atendenteLogado.nome %></span>
-      <button type="submit">Sair</button>
+      <span class="usuario recolhivel"><%= atendenteLogado.nome %></span>
+      <button type="submit" title="Sair">
+        <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span class="recolhivel">Sair</span>
+      </button>
     </form>
   </aside>
   <div class="area-principal">

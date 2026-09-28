@@ -5,5 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><%= titulo %> · ChatDigital</title>
   <link rel="stylesheet" href="/css/estilo.css" />
+  <script>
+    try {
+      if (localStorage.getItem('menuRecolhido') === '1') {
+        document.documentElement.classList.add('menu-recolhido');
+      }
+    } catch (e) {}
+  </script>
+  <script src="/js/barra-lateral.js" defer></script>
 </head>
 <body>
