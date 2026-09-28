@@ -2,10 +2,31 @@
 <%- include('partials/nav', { atendenteLogado }) %>
 <main class="conteudo">
   <h1>Olá, <%= atendenteLogado.nome %></h1>
+
+  <% if (!whatsappConectado) { %>
+    <p class="erro">⚠️ WhatsApp desconectado agora — o bot não está recebendo nem enviando mensagens. Reconecte pelo terminal do servidor (QR Code).</p>
+  <% } %>
+
   <div class="cartoes">
+    <div class="cartao"><span class="numero"><%= aguardando %></span><span class="rotulo">Aguardando resposta</span></div>
+    <div class="cartao"><span class="numero"><%= atendendo %></span><span class="rotulo">Em atendimento</span></div>
+    <div class="cartao"><span class="numero"><%= paradas %></span><span class="rotulo">Paradas no fluxo</span></div>
+    <div class="cartao"><span class="numero"><%= registrosHoje %></span><span class="rotulo">Registros hoje</span></div>
     <div class="cartao"><span class="numero"><%= totalAtendentes %></span><span class="rotulo">Atendentes</span></div>
     <div class="cartao"><span class="numero"><%= totalSetores %></span><span class="rotulo">Setores</span></div>
   </div>
-  <p class="aviso">Veja as conversas que precisam de atendimento em <a href="/painel/fila">Fila</a>. A atualização ainda é manual (recarregar a página) — tempo real é a próxima melhoria.</p>
+
+  <h2 class="subtitulo-painel">Atendentes online agora</h2>
+  <% if (atendentesOnline.length === 0) { %>
+    <p class="dica">Ninguém com o painel aberto no momento.</p>
+  <% } else { %>
+    <ul class="lista-online">
+      <% atendentesOnline.forEach((a) => { %>
+        <li><span class="ponto-online online"></span> <%= a.nome %></li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <p class="aviso">Veja as conversas que precisam de atendimento em <a href="/painel/fila">Fila</a>.</p>
 </main>
 <%- include('partials/fim-painel') %>

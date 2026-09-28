@@ -288,7 +288,7 @@ html.menu-recolhido .recolhivel { display: none; }
 }
 .botao:hover { background: var(--azul-destaque); text-decoration: none; }
 
-.cartoes { display: flex; gap: 1rem; margin: 1.5rem 0; }
+.cartoes { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
 
 .cartao {
   background: var(--branco);
@@ -306,6 +306,10 @@ html.menu-recolhido .recolhivel { display: none; }
 }
 
 .cartao .rotulo { font-size: 0.85rem; color: var(--cinza-texto); }
+
+.subtitulo-painel { font-size: 1rem; color: var(--azul-marinho); margin: 1.75rem 0 0.6rem; }
+.lista-online { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.lista-online li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--cinza-texto); }
 
 .aviso {
   background: #eaf1f6;

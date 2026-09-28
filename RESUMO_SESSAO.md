@@ -126,9 +126,19 @@ git pull origin main
 
 ## O que falta (do card do Trello, por fase)
 
-**Fase 5 — painel do admin + WhatsApp**
-- Painel completo (resumo fila, status conexão, pedidos, atividade). Alerta de WhatsApp
-  desconectado. Tela Configurações > WhatsApp com QR Code na tela (hoje só aparece no terminal).
+**Fase 5 — parcial (feito o barato, falta o caro)**
+- ✅ **Feito**: Painel do admin com resumo (aguardando/atendendo/paradas no fluxo, registros
+  salvos hoje, total de atendentes/setores), status da conexão do WhatsApp (aviso vermelho
+  quando desconectado), lista de atendentes online agora. `src/routes/painel.js` +
+  `src/views/dashboard.ejs`. Sem custo de integração nova — só juntou dados que já existiam
+  (`listarFila`, `listarConversasComBot`, `presenca.listarOnline`, `registros.contarRegistrosHoje`
+  — essa função é nova, conta tudo que o fluxo salvou hoje independente do nome da coleção, já
+  que isso muda de negócio pra negócio).
+- ⬜ **Falta**: Tela Configurações > WhatsApp com **QR Code como imagem na tela** (hoje só
+  aparece no terminal do servidor) — essa é a parte mais cara/arriscada da fase (mexe direto no
+  `bot.js`/Baileys pra capturar o evento do QR e servir pra o navegador), ficou de fora por causa
+  do orçamento. Faixa vermelha fixa + alerta sonoro/notificação quando desconecta também ficou de
+  fora (hoje só tem o aviso estático no Painel, sem tempo real).
 
 **Fase 6 — fluxo avançado**
 - Bloco "Horário" (dias/horas por ramo do fluxo). Mensagem "sem atendente disponível" na
