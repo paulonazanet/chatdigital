@@ -429,6 +429,10 @@ html.menu-recolhido .recolhivel { display: none; }
 .mensagem-bot, .mensagem-atendente { margin-left: auto; text-align: right; }
 .mensagem-bot p, .mensagem-atendente p { background: var(--azul-marinho); color: var(--branco); }
 
+.mensagem-midia { max-width: 220px; border-radius: 6px; margin-top: 0.3rem; }
+video.mensagem-midia { max-width: 260px; }
+audio.mensagem-midia { max-width: 100%; }
+
 .acoes-conversa { display: flex; gap: 0.75rem; margin-top: 1rem; }
 .botao-secundario {
   background: transparent;
@@ -439,10 +443,11 @@ html.menu-recolhido .recolhivel { display: none; }
 
 .form-responder {
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 1rem;
-  align-items: flex-start;
 }
+.form-responder-linha { display: flex; gap: 0.75rem; align-items: flex-start; }
 .form-responder textarea {
   flex: 1;
   min-height: 70px;
@@ -453,6 +458,50 @@ html.menu-recolhido .recolhivel { display: none; }
   font-size: 0.9rem;
   resize: vertical;
 }
+
+.form-responder-barra { display: flex; align-items: center; gap: 0.5rem; position: relative; }
+.botao-emoji, .botao-anexo {
+  background: transparent;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 4px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--cinza-texto);
+  line-height: 1;
+}
+.botao-emoji:hover, .botao-anexo:hover { background: #e9edf1; }
+.anexo-nome { font-size: 0.8rem; color: #8a97a3; }
+
+.emoji-painel {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  z-index: 5;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.15rem;
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  padding: 0.5rem;
+  max-width: 300px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.emoji-painel:not([hidden]) { display: grid; }
+.emoji-painel button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.emoji-painel button:hover { background: #eef1f4; }
 
 .aviso-flutuante {
   position: fixed;

@@ -260,3 +260,61 @@ test('"parado no fluxo" sobrevive a reiniciar o processo (não depende da memór
 
   console.log('OK: "parado no fluxo" funciona a partir do banco, sobrevive a reiniciar o processo');
 });
+
+test('responder com imagem/vídeo/áudio: manda pro WhatsApp, salva no histórico e mostra na tela; recusa tipo não suportado', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+  const admin = db.prepare('SELECT id FROM atendentes WHERE email = ?').get('admin@teste.com');
+
+  const numero = '5511922223333@s.whatsapp.net';
+  const agora = new Date().toISOString();
+  const info = db
+    .prepare('INSERT INTO conversas (numero, status, atendente_id, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?)')
+    .run(numero, 'atendendo', admin.id, agora, agora);
+  const idConversa = Number(info.lastInsertRowid);
+
+  const mensagensEnviadas = [];
+  definirSocket({
+    sendMessage: async (numeroDestino, conteudo) => {
+      mensagensEnviadas.push({ numero: numeroDestino, conteudo });
+    },
+  });
+
+  const formImagem = new FormData();
+  formImagem.append('midia', new Blob([Buffer.from('fake-png-bytes')], { type: 'image/png' }), 'foto.png');
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
+    method: 'POST',
+    headers: { cookie: cookieAdmin },
+    body: formImagem,
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302, 'deve redirecionar de volta pra conversa depois de enviar');
+
+  assert.strictEqual(mensagensEnviadas.length, 1);
+  assert.ok(Buffer.isBuffer(mensagensEnviadas[0].conteudo.image), 'deve mandar a imagem de verdade pro Baileys');
+  assert.strictEqual(mensagensEnviadas[0].conteudo.image.toString(), 'fake-png-bytes');
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
+  let corpo = await resp.text();
+  assert.match(corpo, /<img class="mensagem-midia" src="\/uploads\/[^"]+\.png"/, 'deve mostrar a imagem enviada no histórico');
+
+  // tipo não suportado (ex.: PDF) deve ser recusado com uma mensagem clara, sem mandar nada
+  const formPdf = new FormData();
+  formPdf.append('midia', new Blob([Buffer.from('%PDF-fake')], { type: 'application/pdf' }), 'nota.pdf');
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
+    method: 'POST',
+    headers: { cookie: cookieAdmin },
+    body: formPdf,
+  });
+  corpo = await resp.text();
+  assert.match(corpo, /Só dá pra mandar imagem, vídeo ou áudio/);
+  assert.strictEqual(mensagensEnviadas.length, 1, 'não deve ter mandado nada pro PDF recusado');
+
+  definirSocket(null);
+  console.log('OK: responder com mídia envia pro WhatsApp, aparece no histórico, e recusa tipo não suportado');
+});

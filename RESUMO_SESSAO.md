@@ -211,6 +211,55 @@ Fases 1 a 7 implementadas. O que resta é o que cada fase abaixo listou como lim
   retenção anonimiza só quem está inativo há 12+ meses, sem mexer em conversa recente).
   `npm test` passando (22 testes).
 
+## Depois das 7 fases: teste real com o Paulo (WhatsApp de verdade)
+
+Depois de tudo commitado, rodei o servidor de verdade (não só os testes automatizados) e o Paulo
+testou ao vivo escaneando o QR Code com um número de celular real (da filha dele) — apareceram
+alguns problemas só visíveis em uso real, corrigidos na hora:
+
+- ✅ **Bot tratava o Status (stories) do WhatsApp como se fosse um cliente mandando foto/vídeo**
+  — o filtro de mensagens só ignorava grupos (`@g.us`), não ignorava `status@broadcast` nem
+  canais (`@newsletter`). Virou `ehConversaDeCliente()` em `src/bot.js`: agora só processa
+  `@s.whatsapp.net` (número clássico) ou `@lid` (formato mais novo do WhatsApp, confirmado
+  funcionando no teste real). Teste novo em `test/bot.test.js`.
+- ✅ **Fila não atualizava sozinha** — antes sempre mostrava a faixa "Atualizar" quando uma
+  conversa estava aberta (pra não perder rascunho). Agora só faz isso se a caixa de resposta tem
+  algo digitado; sem rascunho, recarrega sozinha (`public/js/notificacoes.js`).
+- ✅ **Histórico abria no topo em vez de na mensagem mais recente** — `fila/lista.ejs` agora rola
+  pro fim sozinho ao abrir/recarregar a conversa.
+
+## Depois disso: mídia (imagem/vídeo/áudio) e emoji no chat
+
+Pedido do Paulo depois de testar: o chat não aceitava mandar nem mostrar imagem/vídeo/áudio de
+verdade (só um aviso de texto tipo "recebemos sua imagem"), e não tinha como inserir emoji na
+resposta.
+
+- ✅ **Cliente → painel**: `src/bot.js` agora baixa a mídia de verdade (`downloadMediaMessage` do
+  Baileys) quando o cliente manda imagem, vídeo, áudio ou figurinha, salva em `public/uploads/`
+  (nome gerado por nós, nunca o nome que vem de fora) e mostra inline no histórico da fila
+  (`<img>`/`<video>`/`<audio>`). Documento continua só com aviso de texto — é o único tipo que
+  pode ser qualquer formato de arquivo, decidimos deixar de fora por enquanto (mais cuidado de
+  segurança do que deu pra fazer nesta rodada).
+- ✅ **Painel → cliente**: formulário de resposta (`fila/lista.ejs`) virou `multipart/form-data`
+  com um campo de anexo (aceita imagem/vídeo/áudio, limite 16MB via `multer`, `src/routes/fila.js`
+  `POST /:id/responder`). Manda pro WhatsApp com `sock.sendMessage({ image/video/audio: buffer,
+  caption: texto })` e salva no histórico igual à mídia recebida.
+- ✅ **Emoji**: botão 🙂 do lado da caixa de resposta abre um painel com ~30 emojis comuns
+  (`public/js/fila-responder.js`), insere no cursor sem fechar o painel (dá pra clicar vários
+  seguidos). Nenhuma lib nova no front — só JS puro, igual o resto do projeto.
+- Novo módulo `src/midia.js` (`tipoPorMimetype`, `salvarBufferDeMidia`) reaproveitado pelos dois
+  lados. Coluna nova `midia_tipo`/`midia_url` em `mensagens`, migração automática em `src/db.js`.
+  `public/uploads/` é runtime data, não entra no git (`.gitignore`).
+- **Testado de ponta a ponta com o servidor de verdade**: mandei uma imagem real (gerada num
+  `<canvas>`) pelo painel pro número conectado, confirmei que apareceu no histórico com a legenda
+  e o emoji, e que o arquivo foi salvo em disco. Só achei um aviso (não erro) do Baileys sobre não
+  conseguir gerar a miniatura de pré-visualização daquela imagem de teste específica — não impediu
+  o envio, mas vale o Paulo confirmar se toda imagem chega normal no celular do cliente.
+- Testes novos: `test/midia.test.js` (`tipoPorMimetype`, `salvarBufferDeMidia` grava arquivo de
+  verdade e nunca colide nome) e um teste HTTP novo em `test/fila.test.js` (upload de imagem de
+  verdade via `FormData`, confere que manda o buffer certo pro Baileys, aparece no histórico, e
+  recusa tipo não suportado tipo PDF). `npm test` passando (27 testes).
+
 ## Como testar localmente
 
 ```bash

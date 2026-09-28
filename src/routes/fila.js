@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 
 const {
@@ -19,6 +20,10 @@ const { carregarNegocio } = require('../negocio');
 const { encerrarAtendimento, transferirParaHumano, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
+const { tipoPorMimetype, salvarBufferDeMidia } = require('../midia');
+
+const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
 const MENSAGEM_ENCERRAMENTO_PADRAO =
   'Atendimento encerrado. Se precisar de mais alguma coisa, é só mandar uma mensagem por aqui. 👋';
@@ -166,34 +171,58 @@ router.post('/:id/finalizar', async (req, res) => {
   res.redirect('/painel/fila');
 });
 
-router.post('/:id/responder', async (req, res) => {
-  if (!temPermissao(req.atendente, 'responder_conversas')) {
-    return res.status(403).send('Você não tem permissão para responder conversas.');
-  }
-  const conversa = obterConversaPorId(Number(req.params.id));
-  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+router.post('/:id/responder', (req, res) => {
+  upload.single('midia')(req, res, async (erroUpload) => {
+    if (!temPermissao(req.atendente, 'responder_conversas')) {
+      return res.status(403).send('Você não tem permissão para responder conversas.');
+    }
+    const conversa = obterConversaPorId(Number(req.params.id));
+    if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
 
-  const texto = (req.body.texto || '').trim();
-  const sock = obterSocket();
+    const texto = (req.body.texto || '').trim();
+    const arquivo = req.file;
+    const sock = obterSocket();
 
-  function reexibirComErro(erro) {
-    renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
-  }
+    function reexibirComErro(erro) {
+      renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
+    }
 
-  if (!sock) {
-    return reexibirComErro('O bot não está conectado ao WhatsApp agora — não dá pra enviar por aqui.');
-  }
-  if (!texto) {
-    return reexibirComErro('Escreva alguma coisa antes de enviar.');
-  }
+    if (erroUpload) {
+      return reexibirComErro(
+        erroUpload.code === 'LIMIT_FILE_SIZE' ? 'Arquivo maior que o limite de 16MB.' : 'Não consegui processar o arquivo enviado.',
+      );
+    }
+    if (!sock) {
+      return reexibirComErro('O bot não está conectado ao WhatsApp agora — não dá pra enviar por aqui.');
+    }
+    if (!arquivo && !texto) {
+      return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo ou áudio antes de enviar.');
+    }
 
-  try {
-    await sock.sendMessage(conversa.numero, { text: texto });
-    registrarMensagem(conversa.numero, 'atendente', texto);
-    res.redirect(`/painel/fila/${conversa.id}`);
-  } catch (erro) {
-    reexibirComErro('Não consegui enviar pelo WhatsApp agora. Tente de novo em instantes.');
-  }
+    try {
+      if (arquivo) {
+        const tipo = tipoPorMimetype(arquivo.mimetype);
+        if (!tipo) return reexibirComErro('Só dá pra mandar imagem, vídeo ou áudio por aqui.');
+
+        const conteudo =
+          tipo === 'imagem'
+            ? { image: arquivo.buffer, caption: texto || undefined }
+            : tipo === 'video'
+              ? { video: arquivo.buffer, caption: texto || undefined }
+              : { audio: arquivo.buffer, mimetype: arquivo.mimetype };
+
+        await sock.sendMessage(conversa.numero, conteudo);
+        const url = salvarBufferDeMidia(arquivo.buffer, arquivo.mimetype);
+        registrarMensagem(conversa.numero, 'atendente', texto || LEGENDA_PADRAO[tipo], { tipo, url });
+      } else {
+        await sock.sendMessage(conversa.numero, { text: texto });
+        registrarMensagem(conversa.numero, 'atendente', texto);
+      }
+      res.redirect(`/painel/fila/${conversa.id}`);
+    } catch (erro) {
+      reexibirComErro('Não consegui enviar pelo WhatsApp agora. Tente de novo em instantes.');
+    }
+  });
 });
 
 module.exports = router;

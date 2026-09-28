@@ -2,3 +2,4 @@ node_modules/
 data/
 auth/
 .env
+public/uploads/

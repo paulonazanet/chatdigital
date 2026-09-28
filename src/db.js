@@ -53,7 +53,9 @@ db.exec(`
     conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
     remetente TEXT NOT NULL CHECK (remetente IN ('cliente', 'bot', 'atendente')),
     texto TEXT NOT NULL,
-    criado_em TEXT NOT NULL
+    criado_em TEXT NOT NULL,
+    midia_tipo TEXT CHECK (midia_tipo IN ('imagem', 'video', 'audio')),
+    midia_url TEXT
   );
 `);
 
@@ -77,6 +79,13 @@ if (!colunaExiste('conversas', 'lembrete_inatividade_em')) {
   // quando o lembrete de inatividade foi mandado (NULL = nenhum pendente) — usado por
   // src/inatividade.js pra não repetir o lembrete e pra saber quando resetar a conversa parada.
   db.exec('ALTER TABLE conversas ADD COLUMN lembrete_inatividade_em TEXT');
+}
+if (!colunaExiste('mensagens', 'midia_url')) {
+  // suporte a imagem/vídeo/áudio no histórico (recebido do cliente ou enviado pelo atendente) —
+  // midia_tipo é NULL pra mensagem de texto normal, midia_url é o caminho público do arquivo
+  // salvo em public/uploads.
+  db.exec("ALTER TABLE mensagens ADD COLUMN midia_tipo TEXT CHECK (midia_tipo IN ('imagem', 'video', 'audio'))");
+  db.exec('ALTER TABLE mensagens ADD COLUMN midia_url TEXT');
 }
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista

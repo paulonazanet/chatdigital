@@ -1,5 +1,6 @@
 <%- include('../partials/inicio', { titulo: 'Fila de atendimento' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
+<script src="/js/fila-responder.js" defer></script>
 <main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
   <div class="fila-cabecalho">
     <h1>Fila de atendimento</h1>
@@ -70,6 +71,13 @@
           <% mensagens.forEach((m) => { %>
             <div class="mensagem mensagem-<%= m.remetente %>">
               <span class="mensagem-remetente"><%= m.remetente %></span>
+              <% if (m.midia_tipo === 'imagem') { %>
+                <a href="<%= m.midia_url %>" target="_blank" rel="noopener"><img class="mensagem-midia" src="<%= m.midia_url %>" alt="Imagem enviada"></a>
+              <% } else if (m.midia_tipo === 'video') { %>
+                <video class="mensagem-midia" src="<%= m.midia_url %>" controls></video>
+              <% } else if (m.midia_tipo === 'audio') { %>
+                <audio class="mensagem-midia" src="<%= m.midia_url %>" controls></audio>
+              <% } %>
               <p><%= m.texto %></p>
             </div>
           <% }) %>
@@ -117,9 +125,20 @@
           </div>
 
           <% if (conversaSelecionada.status === 'atendendo') { %>
-            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder">
-              <textarea name="texto" placeholder="Escreva a resposta para o cliente..." required></textarea>
-              <button type="submit">Enviar</button>
+            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
+              <div class="form-responder-barra">
+                <button type="button" class="botao-emoji" title="Inserir emoji">🙂</button>
+                <label class="botao-anexo" title="Anexar imagem, vídeo ou áudio">
+                  📎
+                  <input type="file" name="midia" accept="image/*,video/*,audio/*" hidden>
+                </label>
+                <span class="anexo-nome"></span>
+              </div>
+              <div class="emoji-painel" hidden></div>
+              <div class="form-responder-linha">
+                <textarea name="texto" placeholder="Escreva a resposta para o cliente..."></textarea>
+                <button type="submit">Enviar</button>
+              </div>
             </form>
           <% } else { %>
             <p class="aviso">Assuma a conversa para poder responder direto por aqui.</p>

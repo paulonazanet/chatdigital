@@ -14,15 +14,12 @@ function obterOuCriarConversa(numero) {
   return db.prepare('SELECT * FROM conversas WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
-function registrarMensagem(numero, remetente, texto) {
+function registrarMensagem(numero, remetente, texto, midia = null) {
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
-  db.prepare('INSERT INTO mensagens (conversa_id, remetente, texto, criado_em) VALUES (?, ?, ?, ?)').run(
-    conversa.id,
-    remetente,
-    texto,
-    agora,
-  );
+  db.prepare(
+    'INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run(conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null);
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
   // Cliente voltou a escrever — se tinha lembrete de inatividade pendente, não faz mais sentido.
   if (remetente === 'cliente') {

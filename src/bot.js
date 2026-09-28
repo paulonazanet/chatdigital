@@ -4,20 +4,24 @@ const qrcode = require('qrcode-terminal');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
+  downloadMediaMessage,
   DisconnectReason,
 } = require('@whiskeysockets/baileys');
 
 const { processarMensagem, transferirParaHumano } = require('./flow-engine');
 const { registrarMensagem, sincronizarConversa } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
+const { salvarBufferDeMidia } = require('./midia');
 const whatsappStatus = require('./whatsapp-status');
 
 const AUTH_DIR = path.join(__dirname, '..', 'auth');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 
+const AVISO_MIDIA_RECEBIDA =
+  (rotulo) => `Recebemos ${rotulo} sua! Um atendente já foi avisado e já já te responde por aqui. 🙂`;
 const AVISO_MIDIA_NAO_SUPORTADA =
-  (tipo) =>
-    `Recebemos ${tipo} sua! No momento não conseguimos abrir esse tipo de arquivo automaticamente, mas um atendente já foi avisado e já já te responde por aqui. 🙂`;
+  (rotulo) =>
+    `Recebemos ${rotulo} sua! No momento não conseguimos abrir esse tipo de arquivo automaticamente, mas um atendente já foi avisado e já já te responde por aqui. 🙂`;
 
 // Só processa conversa 1:1 de verdade. `@s.whatsapp.net` é o formato clássico (número de
 // telefone); `@lid` é o formato mais novo do WhatsApp (Linked ID, usado com contatos que não têm
@@ -28,12 +32,22 @@ function ehConversaDeCliente(numero) {
   return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid'));
 }
 
-function descreverMidia(mensagem) {
-  if (mensagem.imageMessage) return 'a imagem';
-  if (mensagem.videoMessage) return 'o vídeo';
-  if (mensagem.audioMessage) return 'o áudio';
-  if (mensagem.stickerMessage) return 'a figurinha';
-  if (mensagem.documentMessage) return 'o documento';
+// Imagem/vídeo/áudio (e figurinha, que é só uma imagem) a gente baixa de verdade e mostra pro
+// atendente no histórico da fila. Documento fica de fora por enquanto — pode ser qualquer tipo de
+// arquivo, então mostrar/baixar automaticamente merece mais cuidado (segurança) do que deu pra
+// fazer nesta rodada.
+const TIPOS_MIDIA_SUPORTADOS = [
+  { chave: 'imageMessage', tipo: 'imagem', rotulo: 'a imagem' },
+  { chave: 'videoMessage', tipo: 'video', rotulo: 'o vídeo' },
+  { chave: 'audioMessage', tipo: 'audio', rotulo: 'o áudio' },
+  { chave: 'stickerMessage', tipo: 'imagem', rotulo: 'a figurinha' },
+];
+
+function identificarMidia(mensagem) {
+  for (const item of TIPOS_MIDIA_SUPORTADOS) {
+    if (mensagem[item.chave]) return item;
+  }
+  if (mensagem.documentMessage) return { chave: 'documentMessage', tipo: null, rotulo: 'o documento' };
   return null;
 }
 
@@ -101,13 +115,24 @@ async function iniciarBot(negocio, fluxo) {
         '';
 
       if (!texto) {
-        const tipoMidia = descreverMidia(msg.message);
-        if (!tipoMidia) continue; // outro tipo de evento sem conteúdo processável (ex.: reação)
+        const midiaInfo = identificarMidia(msg.message);
+        if (!midiaInfo) continue; // outro tipo de evento sem conteúdo processável (ex.: reação)
 
-        registrarMensagem(numero, 'cliente', `[cliente enviou ${tipoMidia}]`);
+        let midiaBaixada = null;
+        if (midiaInfo.tipo) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
+            const mimetype = msg.message[midiaInfo.chave]?.mimetype;
+            midiaBaixada = { tipo: midiaInfo.tipo, url: salvarBufferDeMidia(buffer, mimetype) };
+          } catch (erro) {
+            console.error(`Falha ao baixar ${midiaInfo.rotulo} de ${numero}:`, erro);
+          }
+        }
+
+        registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
         transferirParaHumano(numero, fluxo);
         const sincronizacao = sincronizarConversa(numero, fluxo);
-        const aviso = AVISO_MIDIA_NAO_SUPORTADA(tipoMidia);
+        const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
         if (await enviarComSeguranca(sock, numero, aviso)) {
           registrarMensagem(numero, 'bot', aviso);
         }
