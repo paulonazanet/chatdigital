@@ -67,17 +67,33 @@
     areaPrincipal.insertBefore(banner, areaPrincipal.firstChild);
   }
 
-  // Navegadores só liberam som/notificação depois de uma interação do usuário na página.
-  document.addEventListener(
-    'click',
-    function () {
+  // Navegadores só liberam som/notificação depois de uma interação do usuário na página —
+  // qualquer clique já destrava o som, mas a notificação do sistema (a que aparece mesmo com a
+  // aba minimizada) só é pedida de verdade por um botão explícito, senão a permissão pode nunca
+  // ser concedida de fato (o navegador só pergunta uma vez).
+  document.addEventListener('click', garantirContextoAudio, { once: true });
+
+  function configurarBotaoAtivarNotificacoes() {
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    var marca = document.querySelector('.barra-lateral .marca');
+    if (!marca || document.getElementById('botao-ativar-notificacoes')) return;
+
+    var botao = document.createElement('button');
+    botao.id = 'botao-ativar-notificacoes';
+    botao.type = 'button';
+    botao.className = 'botao-ativar-notificacoes';
+    botao.textContent = '🔔 Ativar avisos na tela';
+    botao.title = 'Recebe um aviso do sistema (perto do relógio) mesmo com o ChatDigital minimizado';
+    botao.addEventListener('click', function () {
       garantirContextoAudio();
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    },
-    { once: true },
-  );
+      Notification.requestPermission().then(function () {
+        botao.remove();
+      });
+    });
+    marca.insertAdjacentElement('afterend', botao);
+  }
+
+  configurarBotaoAtivarNotificacoes(); // seguro chamar direto: o script tem "defer", o DOM já está pronto
 
   if (!('EventSource' in window)) return;
 
@@ -97,7 +113,13 @@
     mostrarAvisoFlutuante(texto);
 
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('ChatDigital', { body: texto });
+      // requireInteraction: fica na tela até o atendente clicar ou fechar, em vez de sumir
+      // sozinha em poucos segundos — importante justamente pra quem está noutro programa.
+      var notificacao = new Notification('ChatDigital', { body: texto, requireInteraction: true });
+      notificacao.onclick = function () {
+        window.focus();
+        notificacao.close();
+      };
     }
 
     if (estaNaListaDaFila()) {

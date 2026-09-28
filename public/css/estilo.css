@@ -409,3 +409,19 @@ html.menu-recolhido .recolhivel { display: none; }
   font-size: 0.9rem;
 }
 .banner-atualizar a { color: #6b5900; font-weight: 600; text-decoration: underline; margin-left: 0.35rem; }
+
+.botao-ativar-notificacoes {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: 0.75rem 1rem;
+  background: #fff4cc;
+  color: #6b5900;
+  border: 1px solid #e8d68a;
+  border-radius: 4px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+.botao-ativar-notificacoes:hover { background: #ffe999; }
+html.menu-recolhido .botao-ativar-notificacoes { display: none; }
