@@ -68,6 +68,11 @@ if (!colunaExiste('atendentes', 'permissoes')) {
 if (!colunaExiste('atendentes', 'ultimo_login')) {
   db.exec('ALTER TABLE atendentes ADD COLUMN ultimo_login TEXT');
 }
+if (!colunaExiste('conversas', 'no_fluxo_atual')) {
+  // em qual nó do fluxo o cliente está agora (motor de fluxo só guarda isso em memória) — salvar
+  // aqui é o que permite a seção "Parado no fluxo" sobreviver a um reinício do processo.
+  db.exec('ALTER TABLE conversas ADD COLUMN no_fluxo_atual TEXT');
+}
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.

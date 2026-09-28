@@ -14,6 +14,7 @@ const { processarMensagem } = require('../src/flow-engine');
 const { registrarMensagem, sincronizarConversa, listarFila } = require('../src/conversas');
 const { carregarFluxo } = require('../src/fluxo');
 const { definirSocket } = require('../src/socket-atual');
+const { db } = require('../src/db');
 
 const negocio = {
   nome: 'Loja Exemplo',
@@ -228,4 +229,34 @@ test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transf
   assert.match(corpo, /Setor: Suporte/, 'transferir deve mudar o setor da conversa');
 
   console.log('OK: "parado no fluxo" aparece, "puxar pra mim" assume e silencia o bot, transferir muda o setor');
+});
+
+test('"parado no fluxo" sobrevive a reiniciar o processo (não depende da memória do motor de fluxo)', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+
+  // grava direto no banco, sem passar pelo flow-engine (simula uma conversa que ficou parada
+  // ANTES do processo atual existir — o motor de fluxo não tem esse número na memória)
+  const numero = '5511955554444@s.whatsapp.net';
+  const agora = new Date().toISOString();
+  const info = db
+    .prepare('INSERT INTO conversas (numero, status, no_fluxo_atual, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?)')
+    .run(numero, 'bot', 'pergunta-menu', agora, agora);
+  db.prepare('INSERT INTO mensagens (conversa_id, remetente, texto, criado_em) VALUES (?, ?, ?, ?)').run(
+    Number(info.lastInsertRowid),
+    'cliente',
+    'oi',
+    agora,
+  );
+
+  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  const corpo = await resp.text();
+  assert.match(corpo, /5511955554444/, 'deve aparecer como parada mesmo sem o motor de fluxo ter visto esse número neste processo');
+
+  console.log('OK: "parado no fluxo" funciona a partir do banco, sobrevive a reiniciar o processo');
 });

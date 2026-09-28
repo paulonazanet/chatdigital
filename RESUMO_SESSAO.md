@@ -106,9 +106,11 @@ git pull origin main
      falar com o bot mas não terminaram (`listarConversasComBot` + o nó atual do fluxo, via
      `obterEstadoConversa`, comparado ao nó inicial). Botão **"Puxar pra mim"** assume na hora
      (`transferirParaHumano` do flow-engine, que já existia da Fase 1, + `assumirConversa`).
-     **Limitação conhecida**: o estado do fluxo é só em memória (não salvo no banco) — depois de
-     reiniciar o processo, uma conversa que estava parada some dessa lista até o cliente escrever
-     de novo. Isso é comportamento antigo do motor de fluxo, não uma regressão desta fase.
+     ~~Limitação conhecida: o estado do fluxo é só em memória~~ — **corrigido logo em seguida**:
+     coluna `no_fluxo_atual` nova em `conversas` (migração automática em `db.js`), gravada a cada
+     mensagem por `sincronizarConversa`. "Parado no fluxo" agora consulta só o banco, não mais a
+     memória do motor de fluxo — sobrevive a reiniciar o processo (testado gravando uma conversa
+     direto no banco, sem passar pelo motor de fluxo, e conferindo que ela aparece na lista).
    - **Transferir entre setores/atendentes**: botão "Transferir" abre um popover (setor
      obrigatório + atendente específico opcional) — `conversas.js` (`transferirConversa`) +
      dispara o alerta sonoro/notificação pra quem recebeu (`motivo: 'transferencia'`).
@@ -119,7 +121,8 @@ git pull origin main
    - Teste novo em `test/fila.test.js` cobrindo "parado no fluxo" aparecendo, "puxar pra mim"
      assumindo e silenciando o bot, e transferir mudando o setor. Checagem visual feita com
      Playwright (screenshot) antes de fechar — o botão "Transferir" foi ajustado pra ficar com a
-     mesma cara dos outros botões. `npm test` passando (14 testes).
+     mesma cara dos outros botões. `npm test` passando (15 testes, já contando a correção da
+     persistência do "parado no fluxo" logo abaixo).
 
 ## O que falta (do card do Trello, por fase)
 

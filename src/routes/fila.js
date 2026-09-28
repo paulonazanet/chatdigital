@@ -16,7 +16,7 @@ const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
-const { encerrarAtendimento, transferirParaHumano, substituirVariaveis, obterEstadoConversa } = require('../flow-engine');
+const { encerrarAtendimento, transferirParaHumano, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 
@@ -63,13 +63,12 @@ function agruparPorSetor(conversas) {
 
 // Conversas que o cliente começou a falar com o bot mas não terminaram no início do fluxo (ex.:
 // pararam de responder no meio de uma pergunta) — ninguém vê isso hoje a não ser por aqui.
+// Usa `no_fluxo_atual` salvo no banco (não a memória do motor de fluxo), então continua
+// funcionando certinho mesmo depois de reiniciar o processo.
 function listarParadasNoFluxo(atendente, fluxo) {
   return listarConversasComBot()
     .filter((c) => podeVerConversa(atendente, c))
-    .filter((c) => {
-      const estado = obterEstadoConversa(c.numero, fluxo);
-      return estado.no !== fluxo.inicio;
-    });
+    .filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxo.inicio);
 }
 
 function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null } = {}) {

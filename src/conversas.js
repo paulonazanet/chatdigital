@@ -51,9 +51,10 @@ function sincronizarConversa(numero, fluxo) {
     status = conversa.status === 'atendendo' || conversa.status === 'finalizado' ? conversa.status : 'aguardando';
   }
 
-  db.prepare('UPDATE conversas SET status = ?, setor_id = ?, atualizado_em = ? WHERE id = ?').run(
+  db.prepare('UPDATE conversas SET status = ?, setor_id = ?, no_fluxo_atual = ?, atualizado_em = ? WHERE id = ?').run(
     status,
     setorId,
+    estado.no,
     new Date().toISOString(),
     conversa.id,
   );
