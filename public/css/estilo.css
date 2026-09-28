@@ -488,8 +488,35 @@ audio.mensagem-midia { max-width: 100%; }
   line-height: 1;
 }
 .botao-emoji:hover, .botao-anexo:hover, .botao-gravar-audio:hover { background: #e9edf1; }
-.botao-gravar-audio.gravando { background: var(--vermelho-erro); border-color: var(--vermelho-erro); color: var(--branco); }
+.botao-gravar-audio.gravando {
+  background: var(--vermelho-erro);
+  border-color: var(--vermelho-erro);
+  color: var(--branco);
+  animation: pulsar-gravando 1.2s ease-in-out infinite;
+}
+@keyframes pulsar-gravando {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(164, 34, 44, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(164, 34, 44, 0); }
+}
 .anexo-nome { font-size: 0.8rem; color: #8a97a3; }
+.anexo-nome.gravando-texto { color: var(--vermelho-erro); font-weight: 600; }
+.botao-remover-anexo {
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--cinza-texto);
+  line-height: 1;
+}
+.botao-remover-anexo:hover { background: var(--vermelho-erro); border-color: var(--vermelho-erro); color: var(--branco); }
 
 .emoji-painel {
   position: absolute;
