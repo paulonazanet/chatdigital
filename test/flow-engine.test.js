@@ -3,7 +3,7 @@ const { processarMensagem } = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
-  nome: 'Naza Gás',
+  nome: 'Loja Exemplo',
   formas_pagamento: ['Dinheiro', 'Pix', 'Cartão na entrega'],
   numero_atendente_legivel: '(11) 90000-0000',
   produtos: [
@@ -25,7 +25,7 @@ async function testarFluxoDePedidoCompleto() {
   const numero = 'cliente-pedido';
 
   let resp = await enviar(numero, 'oi', fluxo);
-  assert.match(resp, /Naza Gás/);
+  assert.match(resp, /Loja Exemplo/);
   assert.match(resp, /1\. Fazer um pedido/);
 
   resp = await enviar(numero, '1', fluxo);

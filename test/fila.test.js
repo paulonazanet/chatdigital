@@ -14,7 +14,7 @@ const { registrarMensagem, sincronizarConversa, listarFila } = require('../src/c
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
-  nome: 'Naza Gás',
+  nome: 'Loja Exemplo',
   numero_atendente_legivel: '(11) 90000-0000',
   formas_pagamento: ['Pix'],
   produtos: [{ id: 'p13', nome: 'Botijão 13kg', preco: 120 }],
@@ -57,7 +57,7 @@ after(async () => {
 test('conversa transferida para atendente aparece na fila com o setor certo, e assumir/finalizar funcionam', async () => {
   const numero = '5511999998888@s.whatsapp.net';
   await simularMensagemDoCliente(numero, 'oi');
-  await simularMensagemDoCliente(numero, '3'); // "Falar com um atendente" no fluxo da Naza Gás
+  await simularMensagemDoCliente(numero, '3'); // "Falar com um atendente" no fluxo da Loja Exemplo
 
   let resp = await fetch(`${baseUrl}/setup`, {
     method: 'POST',
