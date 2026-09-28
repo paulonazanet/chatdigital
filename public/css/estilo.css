@@ -119,28 +119,57 @@ button:hover { background: var(--azul-destaque); }
 
 .dica { color: #8a97a3; font-size: 0.85rem; }
 
-/* Painel interno */
+/* Painel interno: menu na lateral esquerda */
 
-.topo {
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.barra-lateral {
+  width: 230px;
+  flex-shrink: 0;
   background: var(--azul-marinho);
   color: var(--branco);
   display: flex;
-  align-items: center;
-  padding: 0.85rem 1.5rem;
-  gap: 2rem;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
 
-.topo .marca { font-weight: 700; font-size: 1.1rem; }
+.barra-lateral .marca {
+  font-weight: 700;
+  font-size: 1.15rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
 
-.topo nav { display: flex; gap: 1.25rem; flex: 1; }
-.topo nav a { color: #dce6ee; }
-.topo nav a:hover { color: var(--branco); }
+.barra-lateral nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.barra-lateral nav a {
+  color: #dce6ee;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.9rem;
+}
+.barra-lateral nav a:hover {
+  color: var(--branco);
+  background: rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+}
 
 .sair {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: 0;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .sair .usuario { font-size: 0.85rem; color: #dce6ee; }
@@ -149,13 +178,19 @@ button:hover { background: var(--azul-destaque); }
   border: 1px solid #4d6c85;
   padding: 0.35rem 0.8rem;
   font-size: 0.8rem;
+  align-self: flex-start;
 }
 .sair button:hover { background: var(--azul-destaque); }
+
+.area-principal {
+  flex: 1;
+  min-width: 0;
+}
 
 .conteudo {
   max-width: 960px;
   margin: 2rem auto;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
 }
 
 .conteudo-estreita { max-width: 560px; }
