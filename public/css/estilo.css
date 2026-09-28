@@ -152,7 +152,8 @@ html.menu-recolhido .barra-lateral { width: 64px; }
   font-size: 1.05rem;
 }
 
-.marca-texto { white-space: nowrap; }
+.marca-logo { height: 28px; width: auto; flex-shrink: 0; }
+.marca-icone { height: 26px; width: 26px; flex-shrink: 0; display: none; }
 
 .botao-recolher {
   background: transparent;
@@ -190,6 +191,8 @@ html.menu-recolhido .barra-lateral { width: 64px; }
 }
 
 html.menu-recolhido .barra-lateral nav a { justify-content: center; padding: 0.65rem; }
+html.menu-recolhido .barra-lateral .marca { padding: 1.1rem 0.6rem; justify-content: center; gap: 0.4rem; }
+html.menu-recolhido .marca-icone { height: 22px; width: 22px; }
 
 .sair {
   display: flex;
@@ -219,6 +222,7 @@ html.menu-recolhido .sair { align-items: center; padding: 1rem 0.5rem; }
 .sair button:hover { background: var(--azul-destaque); }
 
 html.menu-recolhido .recolhivel { display: none; }
+html.menu-recolhido .somente-recolhido { display: block; }
 
 .area-principal {
   flex: 1;
