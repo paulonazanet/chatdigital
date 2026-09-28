@@ -337,3 +337,55 @@ test('responder com imagem/vídeo/áudio: manda pro WhatsApp, salva no históric
   definirSocket(null);
   console.log('OK: responder com mídia (imagem/PDF) envia pro WhatsApp, aparece no histórico, e recusa tipo não suportado');
 });
+
+test('nova conversa: cria e assume com número que existe no WhatsApp, recusa número que não existe', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+
+  const mensagensEnviadas = [];
+  definirSocket({
+    onWhatsApp: async (jid) => {
+      const numero = jid.replace('@s.whatsapp.net', '');
+      return numero === '5511900001111' ? [{ exists: true, jid }] : [{ exists: false, jid }];
+    },
+    sendMessage: async (numero, msg) => {
+      mensagensEnviadas.push({ numero, texto: msg.text });
+    },
+  });
+
+  // número que não existe no WhatsApp: recusa, sem criar conversa nenhuma
+  resp = await fetch(`${baseUrl}/painel/fila/nova`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ numero: '5511900009999', texto: '' }),
+  });
+  let corpo = await resp.text();
+  assert.match(corpo, /não tem WhatsApp/);
+  assert.strictEqual(mensagensEnviadas.length, 0);
+
+  // número real: cria a conversa já "atendendo" com quem criou, manda a mensagem inicial
+  resp = await fetch(`${baseUrl}/painel/fila/nova`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ numero: '(55) 11 90000-1111', texto: 'Oi! Vi que você pediu contato, aqui é a loja.' }),
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302, 'deve redirecionar pra conversa recém-criada');
+  assert.strictEqual(mensagensEnviadas.length, 1);
+  assert.strictEqual(mensagensEnviadas[0].numero, '5511900001111@s.whatsapp.net', 'deve limpar a formatação e montar o JID certo');
+  assert.strictEqual(mensagensEnviadas[0].texto, 'Oi! Vi que você pediu contato, aqui é a loja.');
+
+  resp = await fetch(`${baseUrl}${resp.headers.get('location')}`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  assert.match(corpo, /5511900001111/);
+  assert.match(corpo, /atendendo/, 'conversa já deve nascer assumida por quem a criou, não esperando outro atendente');
+  assert.match(corpo, /Oi! Vi que você pediu contato, aqui é a loja\./);
+
+  definirSocket(null);
+  console.log('OK: nova conversa cria e assume com número válido, recusa número sem WhatsApp');
+});

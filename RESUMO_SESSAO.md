@@ -301,6 +301,26 @@ resposta.
   **Ainda preciso que o Paulo confirme no celular** se agora chega e toca normal — essa é a parte
   que só dá pra saber testando no destino de verdade.
 
+## Modo de teste + iniciar conversa manualmente
+
+O Paulo passou a testar com o próprio número de WhatsApp principal (não um número reserva), e
+outras pessoas de verdade mandam mensagem nele — o bot não pode responder o menu automático pra
+essas pessoas.
+
+- ✅ **Modo de teste (`NUMEROS_TESTE`)** — variável nova no `.env` (números com DDI separados por
+  vírgula). Preenchida, `src/bot.js` só processa/responde mensagens desses números; qualquer
+  outro contato é ignorado pelo bot (a mensagem continua chegando no celular normal, só sem o
+  menu automático). Em branco (padrão), atende todo mundo como sempre — não muda nada em
+  produção. Funciona também em conversas `@lid`, comparando com o `senderPn` do Baileys. Testado
+  em `test/bot.test.js`.
+- ✅ **Botão "+ Nova conversa"** na Fila — faltava um jeito de o atendente puxar assunto primeiro
+  (ex.: cliente pediu contato por outro canal). Novo `POST /painel/fila/nova`
+  (`src/routes/fila.js`): confere com `sock.onWhatsApp()` se o número existe de verdade antes de
+  criar (evita conversa fantasma com número errado), cria a conversa já `atendendo` com quem
+  criou, e manda a mensagem inicial se o atendente escrever uma. Teste HTTP novo em
+  `test/fila.test.js` (número válido cria e assume; número inválido recusa com aviso, sem mandar
+  nada). `npm test` passando (30 testes).
+
 ## Como testar localmente
 
 ```bash

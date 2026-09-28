@@ -6,6 +6,7 @@ const {
   listarFila,
   listarConversasComBot,
   obterConversaPorId,
+  obterOuCriarConversa,
   listarMensagens,
   assumirConversa,
   finalizarConversa,
@@ -76,7 +77,7 @@ function listarParadasNoFluxo(atendente, fluxo) {
     .filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxo.inicio);
 }
 
-function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null } = {}) {
+function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null, erroNovaConversa = null } = {}) {
   const fluxo = carregarFluxo();
   const conversas = listarFila().filter((c) => podeVerConversa(req.atendente, c));
   res.render('fila/lista', {
@@ -86,12 +87,52 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     conversaSelecionada,
     mensagens,
     erro,
+    erroNovaConversa,
     setores: listarSetores(),
     atendentes: listarAtendentes().filter((a) => a.ativo),
   });
 }
 
 router.get('/', (req, res) => renderizarFila(req, res));
+
+// Iniciar conversa com um número que ainda não escreveu pra gente (ex.: cliente pediu contato
+// por outro canal). Confere no próprio WhatsApp se o número existe antes de criar a conversa —
+// evita "conversa fantasma" com número digitado errado.
+router.post('/nova', async (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) {
+    return res.status(403).send('Você não tem permissão para iniciar conversas.');
+  }
+
+  const numeroDigitado = (req.body.numero || '').replace(/\D/g, '');
+  const texto = (req.body.texto || '').trim();
+  const sock = obterSocket();
+
+  if (!numeroDigitado) {
+    return renderizarFila(req, res, { erroNovaConversa: 'Informe um número de telefone (com DDD e DDI).' });
+  }
+  if (!sock) {
+    return renderizarFila(req, res, { erroNovaConversa: 'O bot não está conectado ao WhatsApp agora — não dá pra iniciar conversa.' });
+  }
+
+  try {
+    const [resultado] = await sock.onWhatsApp(`${numeroDigitado}@s.whatsapp.net`);
+    if (!resultado?.exists) {
+      return renderizarFila(req, res, { erroNovaConversa: 'Esse número não tem WhatsApp, ou está digitado errado.' });
+    }
+
+    const numero = resultado.jid; // o Baileys devolve o JID já no formato certo (às vezes normaliza)
+    const conversa = obterOuCriarConversa(numero);
+    assumirConversa(conversa.id, req.atendente.id);
+
+    if (texto && (await enviarComSeguranca(sock, numero, texto))) {
+      registrarMensagem(numero, 'atendente', texto);
+    }
+
+    res.redirect(`/painel/fila/${conversa.id}`);
+  } catch (erro) {
+    renderizarFila(req, res, { erroNovaConversa: 'Não consegui iniciar a conversa agora. Tente de novo em instantes.' });
+  }
+});
 
 router.get('/:id', (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));

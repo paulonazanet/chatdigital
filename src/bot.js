@@ -32,6 +32,25 @@ function ehConversaDeCliente(numero) {
   return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid'));
 }
 
+// Modo de teste: quando NUMEROS_TESTE está preenchido no .env (números separados por vírgula),
+// o bot só responde pra esses números — todo mundo que mandar mensagem pro WhatsApp conectado
+// não recebe o menu automático (o bot fica em silêncio, mas a mensagem continua chegando no
+// celular normalmente, dá pra responder na mão). Útil pra testar com o número principal sem o
+// fluxo aparecer pra quem não devia. Sem essa variável (produção), atende todo mundo como sempre.
+function construirVerificadorNumeroPermitido(listaPermitidos) {
+  return function numeroPermitido(numero, senderPn) {
+    if (listaPermitidos.length === 0) return true;
+    const candidato = String(senderPn || numero).replace('@s.whatsapp.net', '').replace('@lid', '');
+    return listaPermitidos.some((permitido) => candidato.includes(permitido));
+  };
+}
+
+const NUMEROS_TESTE = (process.env.NUMEROS_TESTE || '')
+  .split(',')
+  .map((n) => n.trim())
+  .filter(Boolean);
+const numeroPermitido = construirVerificadorNumeroPermitido(NUMEROS_TESTE);
+
 // Imagem/vídeo/áudio (e figurinha, que é só uma imagem) a gente baixa de verdade e mostra pro
 // atendente no histórico da fila. Documento em geral pode ser qualquer tipo de arquivo — mostrar/
 // baixar automaticamente merece mais cuidado (segurança) do que deu pra fazer nesta rodada — mas
@@ -114,6 +133,7 @@ async function iniciarBot(negocio, fluxo) {
       if (!msg.message || msg.key.fromMe) continue;
       const numero = msg.key.remoteJid;
       if (!ehConversaDeCliente(numero)) continue; // ignora grupos, Status, canais etc.
+      if (!numeroPermitido(numero, msg.key.senderPn)) continue; // modo de teste: ignora quem não está na lista
 
       const texto =
         msg.message.conversation ||
@@ -162,4 +182,4 @@ async function iniciarBot(negocio, fluxo) {
   return sock;
 }
 
-module.exports = { iniciarBot, ehConversaDeCliente };
+module.exports = { iniciarBot, ehConversaDeCliente, construirVerificadorNumeroPermitido };

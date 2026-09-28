@@ -783,8 +783,15 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--cinza-borda);
   background: var(--branco);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 .fila-cabecalho h1 { margin: 0; font-size: 1.2rem; color: var(--azul-marinho); }
+.fila-cabecalho .erro { width: 100%; margin: 0; }
+.nova-conversa-popover { position: relative; }
 
 .fila-corpo { flex: 1; display: flex; min-height: 0; }
 

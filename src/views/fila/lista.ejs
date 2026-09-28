@@ -12,6 +12,19 @@
 <main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
   <div class="fila-cabecalho">
     <h1>Fila de atendimento</h1>
+    <details class="nova-conversa-popover">
+      <summary class="botao-como-summary">+ Nova conversa</summary>
+      <form method="post" action="/painel/fila/nova" class="form-transferir">
+        <label>Número (com DDD e DDI)
+          <input type="text" name="numero" placeholder="5581999998888" required>
+        </label>
+        <label>Mensagem inicial (opcional)
+          <textarea name="texto" rows="2" placeholder="Escreva a primeira mensagem..."></textarea>
+        </label>
+        <button type="submit">Iniciar conversa</button>
+      </form>
+    </details>
+    <% if (erroNovaConversa) { %><p class="erro"><%= erroNovaConversa %></p><% } %>
   </div>
 
   <div class="fila-corpo">
