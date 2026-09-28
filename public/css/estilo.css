@@ -880,6 +880,7 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
   font-weight: 600;
 }
 .nova-conversa-popover .botao-como-summary:hover { background: var(--azul-destaque); }
+.nova-conversa-popover .form-transferir { left: auto; right: 0; }
 .form-transferir {
   position: absolute;
   top: 2.2rem;
