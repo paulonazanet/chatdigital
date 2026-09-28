@@ -19,6 +19,15 @@ const AVISO_MIDIA_NAO_SUPORTADA =
   (tipo) =>
     `Recebemos ${tipo} sua! No momento não conseguimos abrir esse tipo de arquivo automaticamente, mas um atendente já foi avisado e já já te responde por aqui. 🙂`;
 
+// Só processa conversa 1:1 de verdade. `@s.whatsapp.net` é o formato clássico (número de
+// telefone); `@lid` é o formato mais novo do WhatsApp (Linked ID, usado com contatos que não têm
+// o número salvo/visível) — vimos isso acontecer de verdade num teste. Tudo o mais (grupos
+// `@g.us`, o Status/stories em `status@broadcast`, listas de transmissão, canais `@newsletter`)
+// não é uma conversa com um cliente e não deve virar atendimento.
+function ehConversaDeCliente(numero) {
+  return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid'));
+}
+
 function descreverMidia(mensagem) {
   if (mensagem.imageMessage) return 'a imagem';
   if (mensagem.videoMessage) return 'o vídeo';
@@ -84,7 +93,7 @@ async function iniciarBot(negocio, fluxo) {
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
       const numero = msg.key.remoteJid;
-      if (!numero || numero.endsWith('@g.us')) continue; // ignora grupos
+      if (!ehConversaDeCliente(numero)) continue; // ignora grupos, Status, canais etc.
 
       const texto =
         msg.message.conversation ||
@@ -120,4 +129,4 @@ async function iniciarBot(negocio, fluxo) {
   return sock;
 }
 
-module.exports = { iniciarBot };
+module.exports = { iniciarBot, ehConversaDeCliente };
