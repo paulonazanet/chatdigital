@@ -11,6 +11,7 @@ const {
 const { carregarNegocio } = require('./negocio');
 const { carregarFluxo } = require('./fluxo');
 const { processarMensagem } = require('./flow-engine');
+const { registrarMensagem, sincronizarConversa } = require('./conversas');
 
 const AUTH_DIR = path.join(__dirname, '..', 'auth');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
@@ -64,8 +65,11 @@ async function iniciar() {
         '';
       if (!texto) continue;
 
+      registrarMensagem(numero, 'cliente', texto);
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
+      sincronizarConversa(numero, fluxo);
       if (resposta) {
+        registrarMensagem(numero, 'bot', resposta);
         await sock.sendMessage(numero, { text: resposta });
       }
     }

@@ -8,6 +8,7 @@ const rotasAuth = require('./routes/auth');
 const rotasPainel = require('./routes/painel');
 const rotasAtendentes = require('./routes/atendentes');
 const rotasSetores = require('./routes/setores');
+const rotasFila = require('./routes/fila');
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(carregarAtendenteLogado);
 app.use(rotasAuth);
 app.use('/painel/atendentes', exigirLogin, exigirAdmin, rotasAtendentes);
 app.use('/painel/setores', exigirLogin, exigirAdmin, rotasSetores);
+app.use('/painel/fila', exigirLogin, rotasFila);
 app.use('/painel', exigirLogin, rotasPainel);
 
 app.get('/', (req, res) => res.redirect(req.atendente ? '/painel' : '/login'));

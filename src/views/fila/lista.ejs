@@ -1,0 +1,26 @@
+<%- include('../partials/inicio', { titulo: 'Fila de atendimento' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <h1>Fila de atendimento</h1>
+  <table class="tabela">
+    <thead>
+      <tr><th>Cliente</th><th>Setor</th><th>Status</th><th>Atendente</th><th>Última mensagem</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% conversas.forEach((c) => { %>
+        <tr>
+          <td><%= c.numero.replace('@s.whatsapp.net', '') %></td>
+          <td><%= c.setor_nome || '—' %></td>
+          <td><span class="selo <%= c.status === 'atendendo' ? 'ativo' : 'inativo' %>"><%= c.status === 'atendendo' ? 'Atendendo' : 'Aguardando' %></span></td>
+          <td><%= c.atendente_nome || '—' %></td>
+          <td class="celula-truncada"><%= c.ultima_mensagem %></td>
+          <td><a href="/painel/fila/<%= c.id %>">Abrir</a></td>
+        </tr>
+      <% }) %>
+      <% if (conversas.length === 0) { %>
+        <tr><td colspan="6" class="dica">Nenhuma conversa aguardando atendimento no momento.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</main>
+<%- include('../partials/fim-painel') %>

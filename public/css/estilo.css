@@ -319,3 +319,48 @@ html.menu-recolhido .recolhivel { display: none; }
 .linha-form-inline { margin-bottom: 0; }
 
 .campo-fixo { font-size: 0.9rem; color: var(--cinza-texto); margin: -0.5rem 0 1rem; }
+
+.celula-truncada {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historico {
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mensagem { max-width: 70%; }
+.mensagem p {
+  margin: 0.2rem 0 0;
+  background: #eef1f4;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.mensagem-remetente {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #8a97a3;
+}
+.mensagem-bot, .mensagem-atendente { margin-left: auto; text-align: right; }
+.mensagem-bot p, .mensagem-atendente p { background: var(--azul-marinho); color: var(--branco); }
+
+.acoes-conversa { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.botao-secundario {
+  background: transparent;
+  border: 1px solid var(--cinza-borda);
+  color: var(--cinza-texto);
+}
+.botao-secundario:hover { background: #e9edf1; }

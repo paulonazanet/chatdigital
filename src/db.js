@@ -37,6 +37,28 @@ db.exec(`
     dados TEXT NOT NULL,
     criado_em TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS conversas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL CHECK (status IN ('bot', 'aguardando', 'atendendo', 'finalizado')) DEFAULT 'bot',
+    setor_id INTEGER REFERENCES setores(id),
+    atendente_id INTEGER REFERENCES atendentes(id),
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS mensagens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    remetente TEXT NOT NULL CHECK (remetente IN ('cliente', 'bot', 'atendente')),
+    texto TEXT NOT NULL,
+    criado_em TEXT NOT NULL
+  );
 `);
+
+// O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
+// sem sobrescrever setores que o cliente já tenha criado.
+db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');
 
 module.exports = { db };

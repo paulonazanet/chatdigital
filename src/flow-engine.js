@@ -219,4 +219,8 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
   return executar(estado, contexto, fluxo);
 }
 
-module.exports = { processarMensagem };
+function obterEstadoConversa(numero, fluxo) {
+  return obterEstado(numero, fluxo);
+}
+
+module.exports = { processarMensagem, obterEstadoConversa };
