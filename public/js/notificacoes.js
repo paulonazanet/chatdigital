@@ -45,6 +45,11 @@
     return !!document.querySelector('main[data-conversa-numero]');
   }
 
+  function temRascunhoDeResposta() {
+    var campo = document.querySelector('textarea[name="texto"]');
+    return !!campo && campo.value.trim().length > 0;
+  }
+
   function mostrarBannerAtualizar() {
     if (document.querySelector('.banner-atualizar')) return;
     var areaPrincipal = document.querySelector('.area-principal');
@@ -142,9 +147,9 @@
 
     if (!estaNaFila()) return;
 
-    if (temConversaAberta()) {
-      // A tela de fila é uma só (lista + conversa aberta lado a lado) — recarregar perderia
-      // qualquer rascunho de resposta em andamento, então só avisa em vez de recarregar sozinho.
+    if (temConversaAberta() && temRascunhoDeResposta()) {
+      // Só avisa em vez de recarregar sozinho quando tem uma resposta sendo digitada — recarregar
+      // nesse caso perderia o rascunho. Sem rascunho, atualiza automaticamente.
       mostrarBannerAtualizar();
     } else {
       setTimeout(function () {
