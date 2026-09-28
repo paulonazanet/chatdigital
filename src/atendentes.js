@@ -1,6 +1,10 @@
 const { db } = require('./db');
 const { gerarHashSenha, conferirSenha } = require('./auth');
 
+function normalizarEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 function listarAtendentes() {
   return db.prepare('SELECT id, nome, email, papel, ativo, criado_em FROM atendentes ORDER BY nome').all();
 }
@@ -10,7 +14,7 @@ function obterAtendentePorId(id) {
 }
 
 function obterAtendentePorEmail(email) {
-  return db.prepare('SELECT * FROM atendentes WHERE email = ?').get(email);
+  return db.prepare('SELECT * FROM atendentes WHERE email = ?').get(normalizarEmail(email));
 }
 
 function contarAtendentes() {
@@ -28,7 +32,7 @@ function criarAtendente({ nome, email, senha, papel }) {
   const senhaHash = gerarHashSenha(senha);
   const info = db
     .prepare('INSERT INTO atendentes (nome, email, senha_hash, papel, ativo, criado_em) VALUES (?, ?, ?, ?, 1, ?)')
-    .run(nome, email, senhaHash, papel, new Date().toISOString());
+    .run(nome, normalizarEmail(email), senhaHash, papel, new Date().toISOString());
   return obterAtendentePorId(Number(info.lastInsertRowid));
 }
 

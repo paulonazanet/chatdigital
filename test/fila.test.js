@@ -114,7 +114,11 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   corpo = await resp.text();
   assert.doesNotMatch(corpo, /5511999998888/, 'conversa finalizada não deve mais aparecer na fila');
 
-  console.log('OK: conversa transferida entra na fila, e assumir/finalizar funcionam');
+  // regressão: finalizar tem que devolver o controle pro bot, não deixar o cliente em silêncio
+  const respostaPosFinalizar = await simularMensagemDoCliente(numero, 'oi');
+  assert.match(respostaPosFinalizar, /Loja Exemplo/, 'bot deve voltar a responder normalmente após finalizar');
+
+  console.log('OK: conversa transferida entra na fila, assumir/finalizar funcionam, e finalizar devolve o controle pro bot');
 });
 
 test('conversa que ainda está com o bot não aparece na fila', async () => {

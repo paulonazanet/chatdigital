@@ -104,6 +104,22 @@ test('fluxo completo: setup do primeiro admin, login, setores, atendentes e perm
   });
   assert.match(await resp.text(), /inválidos/);
 
+  // e-mail não deve ser sensível a maiúscula/minúscula: login e cadastro duplicado
+  resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'Ana@Teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302, 'login deve funcionar com o e-mail em outra caixa');
+
+  resp = await fetch(`${baseUrl}/painel/atendentes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ nome: 'Ana Duplicada', email: 'ANA@TESTE.COM', senha: '123456', papel: 'atendente' }),
+  });
+  assert.match(await resp.text(), /Já existe um atendente com esse e-mail/, 'não deve deixar cadastrar o mesmo e-mail em outra caixa');
+
   console.log('OK: setup, login, setores, atendentes e permissões');
 });
 

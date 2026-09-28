@@ -10,6 +10,11 @@ const {
   registrarMensagem,
 } = require('../conversas');
 const { obterSocket } = require('../socket-atual');
+const { carregarFluxo } = require('../fluxo');
+const { encerrarAtendimento } = require('../flow-engine');
+
+const MENSAGEM_ENCERRAMENTO =
+  'Atendimento encerrado. Se precisar de mais alguma coisa, é só mandar uma mensagem por aqui. 👋';
 
 router.get('/', (req, res) => {
   res.render('fila/lista', { atendenteLogado: req.atendente, conversas: listarFila() });
@@ -31,8 +36,23 @@ router.post('/:id/assumir', (req, res) => {
   res.redirect(`/painel/fila/${req.params.id}`);
 });
 
-router.post('/:id/finalizar', (req, res) => {
-  finalizarConversa(Number(req.params.id));
+router.post('/:id/finalizar', async (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa) return res.redirect('/painel/fila');
+
+  finalizarConversa(conversa.id);
+  encerrarAtendimento(conversa.numero, carregarFluxo());
+
+  const sock = obterSocket();
+  if (sock) {
+    try {
+      await sock.sendMessage(conversa.numero, { text: MENSAGEM_ENCERRAMENTO });
+      registrarMensagem(conversa.numero, 'bot', MENSAGEM_ENCERRAMENTO);
+    } catch (erro) {
+      console.error(`Falha ao enviar mensagem de encerramento para ${conversa.numero}:`, erro);
+    }
+  }
+
   res.redirect('/painel/fila');
 });
 

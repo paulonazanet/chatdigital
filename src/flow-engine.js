@@ -225,4 +225,24 @@ function obterEstadoConversa(numero, fluxo) {
   return obterEstado(numero, fluxo);
 }
 
-module.exports = { processarMensagem, obterEstadoConversa };
+/**
+ * Devolve o controle da conversa pro bot (estado inicial, "menu" de novo). Chamar sempre que um
+ * atendente finalizar um atendimento — sem isso o bot acha que a conversa continua transferida e
+ * fica em silêncio pra sempre com aquele cliente.
+ */
+function encerrarAtendimento(numero, fluxo) {
+  const estado = obterEstado(numero, fluxo);
+  Object.assign(estado, estadoInicial(fluxo, numero));
+}
+
+/**
+ * Marca a conversa como transferida pra um humano sem passar por um nó "transferir" do fluxo —
+ * usado quando o cliente manda algo que o bot não consegue processar sozinho (ex.: mídia).
+ */
+function transferirParaHumano(numero, fluxo, setor = null) {
+  const estado = obterEstado(numero, fluxo);
+  estado.humano = true;
+  estado.setor = setor;
+}
+
+module.exports = { processarMensagem, obterEstadoConversa, encerrarAtendimento, transferirParaHumano };

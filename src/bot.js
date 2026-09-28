@@ -7,12 +7,35 @@ const {
   DisconnectReason,
 } = require('@whiskeysockets/baileys');
 
-const { processarMensagem } = require('./flow-engine');
+const { processarMensagem, transferirParaHumano } = require('./flow-engine');
 const { registrarMensagem, sincronizarConversa } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
 
 const AUTH_DIR = path.join(__dirname, '..', 'auth');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
+
+const AVISO_MIDIA_NAO_SUPORTADA =
+  (tipo) =>
+    `Recebemos ${tipo} sua! No momento não conseguimos abrir esse tipo de arquivo automaticamente, mas um atendente já foi avisado e já já te responde por aqui. 🙂`;
+
+function descreverMidia(mensagem) {
+  if (mensagem.imageMessage) return 'a imagem';
+  if (mensagem.videoMessage) return 'o vídeo';
+  if (mensagem.audioMessage) return 'o áudio';
+  if (mensagem.stickerMessage) return 'a figurinha';
+  if (mensagem.documentMessage) return 'o documento';
+  return null;
+}
+
+async function enviarComSeguranca(sock, numero, texto) {
+  try {
+    await sock.sendMessage(numero, { text: texto });
+    return true;
+  } catch (erro) {
+    console.error(`Falha ao enviar mensagem para ${numero}:`, erro);
+    return false;
+  }
+}
 
 async function iniciarBot(negocio, fluxo) {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -56,14 +79,27 @@ async function iniciarBot(negocio, fluxo) {
         msg.message.conversation ||
         msg.message.extendedTextMessage?.text ||
         '';
-      if (!texto) continue;
+
+      if (!texto) {
+        const tipoMidia = descreverMidia(msg.message);
+        if (!tipoMidia) continue; // outro tipo de evento sem conteúdo processável (ex.: reação)
+
+        registrarMensagem(numero, 'cliente', `[cliente enviou ${tipoMidia}]`);
+        transferirParaHumano(numero, fluxo);
+        sincronizarConversa(numero, fluxo);
+        const aviso = AVISO_MIDIA_NAO_SUPORTADA(tipoMidia);
+        if (await enviarComSeguranca(sock, numero, aviso)) {
+          registrarMensagem(numero, 'bot', aviso);
+        }
+        continue;
+      }
 
       registrarMensagem(numero, 'cliente', texto);
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
       sincronizarConversa(numero, fluxo);
       if (resposta) {
         registrarMensagem(numero, 'bot', resposta);
-        await sock.sendMessage(numero, { text: resposta });
+        await enviarComSeguranca(sock, numero, resposta);
       }
     }
   });
