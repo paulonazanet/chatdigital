@@ -400,3 +400,12 @@ html.menu-recolhido .recolhivel { display: none; }
   from { transform: translateY(-10px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+.banner-atualizar {
+  background: #fff4cc;
+  border-bottom: 1px solid #e8d68a;
+  color: #6b5900;
+  padding: 0.6rem 2rem;
+  font-size: 0.9rem;
+}
+.banner-atualizar a { color: #6b5900; font-weight: 600; text-decoration: underline; margin-left: 0.35rem; }

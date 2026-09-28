@@ -37,6 +37,36 @@
     }, 6000);
   }
 
+  function estaNaListaDaFila() {
+    return window.location.pathname === '/painel/fila';
+  }
+
+  function numeroDaConversaAberta() {
+    var main = document.querySelector('main[data-conversa-numero]');
+    return main ? main.getAttribute('data-conversa-numero') : null;
+  }
+
+  function mostrarBannerAtualizar() {
+    if (document.querySelector('.banner-atualizar')) return;
+    var areaPrincipal = document.querySelector('.area-principal');
+    if (!areaPrincipal) return;
+
+    var banner = document.createElement('div');
+    banner.className = 'banner-atualizar';
+    banner.textContent = 'Chegou mensagem nova nesta conversa. ';
+
+    var link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'Atualizar';
+    link.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      window.location.reload();
+    });
+    banner.appendChild(link);
+
+    areaPrincipal.insertBefore(banner, areaPrincipal.firstChild);
+  }
+
   // Navegadores só liberam som/notificação depois de uma interação do usuário na página.
   document.addEventListener(
     'click',
@@ -68,6 +98,20 @@
 
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('ChatDigital', { body: texto });
+    }
+
+    if (estaNaListaDaFila()) {
+      // Página só lista conversas, sem rascunho de resposta em andamento — seguro recarregar sozinho.
+      setTimeout(function () {
+        window.location.reload();
+      }, 1500);
+    } else {
+      var numeroAberto = numeroDaConversaAberta();
+      if (numeroAberto && dados.numero === numeroAberto) {
+        // Está com essa conversa aberta: não recarrega sozinho (perderia o rascunho da resposta),
+        // só avisa que tem coisa nova pra atualizar quando quiser.
+        mostrarBannerAtualizar();
+      }
     }
   });
 })();

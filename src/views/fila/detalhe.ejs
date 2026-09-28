@@ -1,6 +1,6 @@
 <%- include('../partials/inicio', { titulo: 'Conversa' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo">
+<main class="conteudo" data-conversa-numero="<%= conversa.numero %>">
   <p><a href="/painel/fila">&larr; Voltar para a fila</a></p>
   <h1><%= conversa.numero.replace('@s.whatsapp.net', '') %></h1>
   <p class="dica">

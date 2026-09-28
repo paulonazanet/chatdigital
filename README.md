@@ -36,12 +36,13 @@ instalação em servidor próprio simples — não exige configurar um servidor 
   escreve de novo numa conversa já assumida, todo atendente logado ouve um bipe e vê um aviso na
   tela (e uma notificação do sistema operacional, se o navegador tiver permissão) — via
   Server-Sent Events (`src/eventos.js`, `src/routes/eventos.js`, `public/js/notificacoes.js`), sem
-  precisar de nenhuma biblioteca externa.
+  precisar de nenhuma biblioteca externa. A lista da fila (`/painel/fila`) recarrega sozinha
+  quando chega algo novo; se o atendente já estiver dentro de uma conversa com uma resposta
+  começada a digitar, não recarrega sozinho (perderia o rascunho) — mostra um aviso com um link
+  "Atualizar" em vez disso.
 
 ## O que ainda falta (próximas etapas)
 
-- A lista da fila em si ainda não atualiza sozinha (o alerta avisa que chegou algo, mas a tabela
-  só atualiza ao recarregar a página).
 - Editor visual do fluxo (hoje é só o arquivo `config/fluxo.json`).
 - Blocos prontos por ramo de negócio (agendamento pra clínica, catálogo pra revenda, chamado
   técnico pra provedor).
