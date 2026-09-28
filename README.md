@@ -41,9 +41,14 @@ instalação em servidor próprio simples — não exige configurar um servidor 
   começada a digitar, não recarrega sozinho (perderia o rascunho) — mostra um aviso com um link
   "Atualizar" em vez disso.
 
+- **Editor visual do fluxo** (`/painel/fluxo`, admin): quadro tipo Syntor — arrasta os blocos,
+  puxa uma linha da bolinha de saída até a entrada de outro bloco pra conectar, clique numa linha
+  pra apagar a conexão. Cada tipo de bloco (mensagem, pergunta, condição, transferir, salvar
+  registro, chamar API, fim) tem seu painel de edição próprio. Salva direto em
+  `config/fluxo.json`, validando antes (não deixa salvar com um destino que não existe).
+
 ## O que ainda falta (próximas etapas)
 
-- Editor visual do fluxo (hoje é só o arquivo `config/fluxo.json`).
 - Blocos prontos por ramo de negócio (agendamento pra clínica, catálogo pra revenda, chamado
   técnico pra provedor).
 

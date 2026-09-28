@@ -1,0 +1,37 @@
+<%- include('../partials/inicio', { titulo: 'Editor de fluxo' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo-fluxo">
+  <div class="editor-cabecalho">
+    <h1>Editor de fluxo</h1>
+    <div class="editor-acoes">
+      <span id="mensagem-editor" class="mensagem-editor"></span>
+      <button type="button" id="botao-salvar-fluxo" class="botao">Salvar</button>
+    </div>
+  </div>
+
+  <div class="editor-corpo">
+    <aside class="paleta-nos">
+      <p class="paleta-titulo">Adicionar bloco</p>
+      <button type="button" class="botao-paleta" data-tipo="mensagem">Mensagem</button>
+      <button type="button" class="botao-paleta" data-tipo="pergunta">Pergunta</button>
+      <button type="button" class="botao-paleta" data-tipo="condicao">Condição</button>
+      <button type="button" class="botao-paleta" data-tipo="transferir">Transferir</button>
+      <button type="button" class="botao-paleta" data-tipo="salvar">Salvar registro</button>
+      <button type="button" class="botao-paleta" data-tipo="api">Chamar API</button>
+      <button type="button" class="botao-paleta" data-tipo="fim">Fim</button>
+      <p class="paleta-dica">Arraste uma bolinha de saída até a entrada de outro bloco pra conectar. Clique numa linha pra apagar a conexão.</p>
+    </aside>
+
+    <div class="quadro-scroll" id="quadro-scroll">
+      <div class="quadro-fluxo" id="quadro-fluxo">
+        <svg id="camada-conexoes" class="camada-conexoes"></svg>
+      </div>
+    </div>
+
+    <aside class="painel-edicao" id="painel-edicao">
+      <p class="dica">Clique num bloco no quadro pra editar aqui.</p>
+    </aside>
+  </div>
+</main>
+<script src="/js/editor-fluxo.js" defer></script>
+<%- include('../partials/fim-painel') %>
