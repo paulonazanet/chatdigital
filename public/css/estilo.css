@@ -328,6 +328,29 @@ html.menu-recolhido .recolhivel { display: none; }
 .selo.ativo { background: #e3f3ea; color: var(--verde-ativo); }
 .selo.inativo { background: #ececec; color: #6b7580; }
 
+.ponto-online {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c7cdd4;
+}
+.ponto-online.online { background: var(--verde-ativo); }
+
+.acoes-linha { display: flex; align-items: center; gap: 0.9rem; }
+.form-inline { display: inline; margin: 0; }
+.botao-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--azul-destaque);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+.botao-link:hover { color: var(--azul-marinho); }
+
 .linha-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .linha-form input[type="text"] { flex: 1; margin-top: 0; }
 .linha-form-inline { margin-bottom: 0; }

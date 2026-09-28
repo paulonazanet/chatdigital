@@ -6,15 +6,22 @@
     <a class="botao" href="/painel/atendentes/novo">+ Novo atendente</a>
   </div>
   <table class="tabela">
-    <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th><th></th></tr></thead>
     <tbody>
       <% atendentes.forEach((a) => { %>
-        <tr>
+        <tr data-atendente-id="<%= a.id %>">
+          <td><span class="ponto-online <%= a.online ? 'online' : '' %>" title="<%= a.online ? 'Online agora' : 'Offline' %>"></span></td>
           <td><%= a.nome %></td>
           <td><%= a.email %></td>
           <td><%= a.papel === 'admin' ? 'Administrador' : 'Atendente' %></td>
           <td><span class="selo <%= a.ativo ? 'ativo' : 'inativo' %>"><%= a.ativo ? 'Ativo' : 'Inativo' %></span></td>
-          <td><a href="/painel/atendentes/<%= a.id %>/editar">Editar</a></td>
+          <td><%= a.ultimo_login ? new Date(a.ultimo_login).toLocaleString('pt-BR') : 'nunca' %></td>
+          <td class="acoes-linha">
+            <a href="/painel/atendentes/<%= a.id %>/editar">Editar</a>
+            <form method="post" action="/painel/atendentes/<%= a.id %>/alternar-ativo" class="form-inline">
+              <button type="submit" class="botao-link"><%= a.ativo ? 'Desativar' : 'Ativar' %></button>
+            </form>
+          </td>
         </tr>
       <% }) %>
     </tbody>

@@ -42,12 +42,34 @@ git pull origin main
    - Testes de regressão adicionados pros 4 itens acima em `test/fila.test.js` e
      `test/painel.test.js`. `npm test` passando (11 testes).
 
-## O que falta (do card do Trello, por fase)
+4. **Fase 2 implementada** (infraestrutura de base pras próximas fases):
+   - **Permissões granulares por atendente** (`src/permissoes.js`, novo): 7 permissões
+     (`ver_painel`, `gerenciar_atendentes`, `gerenciar_setores`, `editar_fluxo`,
+     `ver_fila_outros_setores`, `responder_conversas`, `finalizar_conversas`). Admin sempre tem
+     tudo. Atendente novo já vem com `responder_conversas` + `finalizar_conversas` marcados por
+     padrão (pra conseguir atender assim que criado); admin ajusta o resto na tela de edição.
+     Coluna `permissoes` (JSON) nova em `atendentes`, migração automática em bancos já existentes
+     (`src/db.js`). **Guarda de segurança**: só admin pode promover alguém a admin, editar quem já
+     é admin, ou mudar as permissões de outro atendente — um atendente comum com
+     "gerenciar_atendentes" não consegue se autopromover nem se autoconceder mais acesso (testado).
+   - **Menu por papel**: sidebar (`partials/nav.ejs`) só mostra Painel/Atendentes/Setores/Fluxo se
+     a permissão correspondente existir; "Fila" sempre aparece pra todo mundo. Quem não tem
+     `ver_painel` e cai em `/painel` é redirecionado pra `/painel/fila` (não vê erro).
+   - **Fila respeita setor**: sem `ver_fila_outros_setores`, um atendente só vê (e só
+     assume/responde/finaliza) conversas do(s) setor(es) dele, sem setor definido, ou que ele
+     mesmo já assumiu — `src/routes/fila.js` (`podeVerConversa`).
+   - **"Quem está online"**: reaproveita a conexão SSE que já ficava aberta (mesma do alerta
+     sonoro) — `src/presenca.js` (novo) conta conexões abertas por atendente, sem heartbeat extra.
+     Pontinho verde/cinza na lista de Atendentes, atualiza sozinho via evento `presenca`
+     (`public/js/notificacoes.js`).
+   - **Botão rápido Ativar/Desativar** na lista de Atendentes (sem precisar entrar no formulário).
+   - **Campo "Último login"** na lista de Atendentes, gravado a cada login bem-sucedido
+     (`registrarUltimoLogin`).
+   - **Caixinha "Marcar todos"** no formulário de atendente pra marcar todos os setores de uma vez.
+   - Teste de regressão cobrindo tudo isso em `test/painel.test.js`. `npm test` passando (12
+     testes).
 
-**Fase 2 — infraestrutura de base**
-- "Quem está online" via SSE, permissões granulares por atendente, menu por papel (atendente não
-  vê "Painel"), botão rápido ativar/desativar atendente, campo "último login", marcar todos os
-  setores de uma vez.
+## O que falta (do card do Trello, por fase)
 
 **Fase 3 — menu Configurações (novo)**
 - Tela reunindo negócio/boas-vindas do atendente (`{{atendente.nome}}`)/mensagem de

@@ -12,26 +12,66 @@
       <p class="campo-fixo">E-mail: <%= alvo.email %></p>
       <label>Nova senha (deixe em branco para manter a atual)<input type="password" name="senha" minlength="6"></label>
     <% } %>
-    <label>Papel
-      <select name="papel">
-        <option value="atendente" <%= alvo && alvo.papel === 'atendente' ? 'selected' : '' %>>Atendente</option>
-        <option value="admin" <%= alvo && alvo.papel === 'admin' ? 'selected' : '' %>>Administrador</option>
-      </select>
-    </label>
+    <% if (atendenteLogado.papel === 'admin') { %>
+      <label>Papel
+        <select name="papel" id="campo-papel">
+          <option value="atendente" <%= alvo && alvo.papel === 'atendente' ? 'selected' : '' %>>Atendente</option>
+          <option value="admin" <%= alvo && alvo.papel === 'admin' ? 'selected' : '' %>>Administrador</option>
+        </select>
+      </label>
+    <% } else { %>
+      <input type="hidden" name="papel" value="atendente">
+    <% } %>
     <% if (alvo) { %>
       <label class="linha"><input type="checkbox" name="ativo" <%= alvo.ativo ? 'checked' : '' %>> Ativo</label>
     <% } %>
     <fieldset>
       <legend>Setores</legend>
+      <label class="linha"><input type="checkbox" id="marcar-todos-setores"> <strong>Marcar todos</strong></label>
       <% setores.forEach((s) => { %>
         <label class="linha">
-          <input type="checkbox" name="setores" value="<%= s.id %>" <%= setoresDoAlvo.includes(s.id) ? 'checked' : '' %>>
+          <input type="checkbox" name="setores" class="setor-checkbox" value="<%= s.id %>" <%= setoresDoAlvo.includes(s.id) ? 'checked' : '' %>>
           <%= s.nome %>
         </label>
       <% }) %>
       <% if (setores.length === 0) { %><p class="dica">Nenhum setor cadastrado ainda.</p><% } %>
     </fieldset>
+    <% if (atendenteLogado.papel === 'admin') { %>
+      <fieldset id="fieldset-permissoes">
+        <legend>Permissões</legend>
+        <p class="dica">O que esse atendente pode acessar no painel.</p>
+        <% chavesPermissao.forEach((chave) => { %>
+          <label class="linha">
+            <input type="checkbox" name="permissoes" value="<%= chave %>" <%= permissoesDoAlvo.includes(chave) ? 'checked' : '' %>>
+            <%= rotulosPermissao[chave] %>
+          </label>
+        <% }) %>
+      </fieldset>
+    <% } %>
     <button type="submit"><%= alvo ? 'Salvar' : 'Criar atendente' %></button>
   </form>
+  <script>
+    (function () {
+      var marcarTodos = document.getElementById('marcar-todos-setores');
+      var checkboxesSetor = document.querySelectorAll('.setor-checkbox');
+      if (marcarTodos) {
+        marcarTodos.checked = checkboxesSetor.length > 0 && Array.prototype.every.call(checkboxesSetor, function (c) { return c.checked; });
+        marcarTodos.addEventListener('change', function () {
+          checkboxesSetor.forEach(function (c) { c.checked = marcarTodos.checked; });
+        });
+      }
+
+      var campoPapel = document.getElementById('campo-papel');
+      var fieldsetPermissoes = document.getElementById('fieldset-permissoes');
+      function atualizarVisibilidadePermissoes() {
+        if (!campoPapel || !fieldsetPermissoes) return;
+        fieldsetPermissoes.style.display = campoPapel.value === 'admin' ? 'none' : '';
+      }
+      if (campoPapel) {
+        campoPapel.addEventListener('change', atualizarVisibilidadePermissoes);
+        atualizarVisibilidadePermissoes();
+      }
+    })();
+  </script>
 </main>
 <%- include('../partials/fim-painel') %>

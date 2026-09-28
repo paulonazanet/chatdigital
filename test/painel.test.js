@@ -141,3 +141,77 @@ test('não deixa remover o último administrador ativo', async () => {
 
   console.log('OK: bloqueia remover o último administrador ativo');
 });
+
+test('permissões granulares: último login, ativar/desativar rápido, e atendente não-admin não se autopromove', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+
+  // "último login" é gravado no login
+  resp = await fetch(`${baseUrl}/painel/atendentes`, { headers: { cookie: cookieAdmin } });
+  let corpo = await resp.text();
+  assert.doesNotMatch(corpo, />nunca</, 'admin já logou, não deve aparecer "nunca"');
+
+  // cria a Bia com permissão de gerenciar atendentes, mas sem ser admin
+  resp = await fetch(`${baseUrl}/painel/atendentes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({
+      nome: 'Bia Supervisora',
+      email: 'bia@teste.com',
+      senha: '123456',
+      papel: 'atendente',
+      permissoes: 'gerenciar_atendentes',
+    }),
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+
+  resp = await fetch(`${baseUrl}/painel/atendentes`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  const matchIdBia = corpo.match(/Bia Supervisora[\s\S]*?\/painel\/atendentes\/(\d+)\/editar/);
+  const bia = Number(matchIdBia[1]);
+
+  resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'bia@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieBia = extrairCookie(resp);
+
+  // Bia tem a permissão: acessa a tela de atendentes normalmente
+  resp = await fetch(`${baseUrl}/painel/atendentes`, { headers: { cookie: cookieBia } });
+  assert.strictEqual(resp.status, 200, 'Bia tem gerenciar_atendentes, deve acessar');
+
+  // mas não pode se autopromover a admin nem se autoconceder mais permissões
+  resp = await fetch(`${baseUrl}/painel/atendentes/${bia}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieBia },
+    body: new URLSearchParams({
+      nome: 'Bia Supervisora',
+      papel: 'admin',
+      ativo: 'on',
+      permissoes: 'gerenciar_atendentes,editar_fluxo,gerenciar_setores',
+    }),
+  });
+  assert.strictEqual(resp.status, 403, 'atendente não-admin não pode se autopromover a admin');
+
+  // botão rápido ativar/desativar
+  resp = await fetch(`${baseUrl}/painel/atendentes/${bia}/alternar-ativo`, {
+    method: 'POST',
+    headers: { cookie: cookieAdmin },
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+
+  resp = await fetch(`${baseUrl}/painel/atendentes`, { headers: { cookie: cookieAdmin } });
+  corpo = await resp.text();
+  assert.match(corpo, /Bia Supervisora[\s\S]*?Inativo/, 'Bia deve aparecer inativa após o toggle');
+
+  console.log('OK: último login, ativar/desativar rápido, e atendente não-admin não se autopromove');
+});

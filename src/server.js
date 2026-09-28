@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 
-const { carregarAtendenteLogado, exigirLogin, exigirAdmin } = require('./sessao');
+const { carregarAtendenteLogado, exigirLogin, exigirPermissao } = require('./sessao');
 const rotasAuth = require('./routes/auth');
 const rotasPainel = require('./routes/painel');
 const rotasAtendentes = require('./routes/atendentes');
@@ -23,11 +23,11 @@ app.use(cookieParser(process.env.SESSION_SECRET || 'troque-este-segredo-no-.env'
 app.use(carregarAtendenteLogado);
 
 app.use(rotasAuth);
-app.use('/painel/atendentes', exigirLogin, exigirAdmin, rotasAtendentes);
-app.use('/painel/setores', exigirLogin, exigirAdmin, rotasSetores);
+app.use('/painel/atendentes', exigirLogin, exigirPermissao('gerenciar_atendentes'), rotasAtendentes);
+app.use('/painel/setores', exigirLogin, exigirPermissao('gerenciar_setores'), rotasSetores);
 app.use('/painel/fila', exigirLogin, rotasFila);
 app.use('/painel/eventos', exigirLogin, rotasEventos);
-app.use('/painel/fluxo', exigirLogin, exigirAdmin, rotasFluxoEditor);
+app.use('/painel/fluxo', exigirLogin, exigirPermissao('editar_fluxo'), rotasFluxoEditor);
 app.use('/painel', exigirLogin, rotasPainel);
 
 app.get('/', (req, res) => res.redirect(req.atendente ? '/painel' : '/login'));

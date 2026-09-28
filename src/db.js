@@ -57,6 +57,18 @@ db.exec(`
   );
 `);
 
+// Migrações simples: adiciona colunas novas em bancos já existentes (instalações antigas), sem
+// mexer nos dados já gravados. CREATE TABLE IF NOT EXISTS não altera tabelas que já existem.
+function colunaExiste(tabela, coluna) {
+  return db.prepare(`PRAGMA table_info(${tabela})`).all().some((c) => c.name === coluna);
+}
+if (!colunaExiste('atendentes', 'permissoes')) {
+  db.exec("ALTER TABLE atendentes ADD COLUMN permissoes TEXT NOT NULL DEFAULT '[]'");
+}
+if (!colunaExiste('atendentes', 'ultimo_login')) {
+  db.exec('ALTER TABLE atendentes ADD COLUMN ultimo_login TEXT');
+}
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

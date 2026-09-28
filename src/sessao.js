@@ -1,4 +1,5 @@
 const { obterAtendentePorId } = require('./atendentes');
+const { temPermissao } = require('./permissoes');
 
 const DURACAO_COOKIE_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
 
@@ -30,11 +31,19 @@ function exigirLogin(req, res, next) {
   next();
 }
 
-function exigirAdmin(req, res, next) {
-  if (!req.atendente || req.atendente.papel !== 'admin') {
-    return res.status(403).send('Acesso restrito a administradores.');
-  }
-  next();
+function exigirPermissao(chave) {
+  return (req, res, next) => {
+    if (!temPermissao(req.atendente, chave)) {
+      return res.status(403).send('Você não tem permissão para acessar esta área.');
+    }
+    next();
+  };
 }
 
-module.exports = { definirSessao, limparSessao, carregarAtendenteLogado, exigirLogin, exigirAdmin };
+module.exports = {
+  definirSessao,
+  limparSessao,
+  carregarAtendenteLogado,
+  exigirLogin,
+  exigirPermissao,
+};

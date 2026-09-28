@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { contarAtendentes, criarAtendente, autenticar } = require('../atendentes');
+const { contarAtendentes, criarAtendente, autenticar, registrarUltimoLogin } = require('../atendentes');
 const { definirSessao, limparSessao } = require('../sessao');
 
 router.get('/setup', (req, res) => {
@@ -16,6 +16,7 @@ router.post('/setup', (req, res) => {
     return res.render('setup', { erro: 'Preencha todos os campos.' });
   }
   const admin = criarAtendente({ nome, email, senha, papel: 'admin' });
+  registrarUltimoLogin(admin.id);
   definirSessao(res, admin.id);
   res.redirect('/painel');
 });
@@ -30,6 +31,7 @@ router.post('/login', (req, res) => {
   const { email, senha } = req.body;
   const atendente = autenticar(email || '', senha || '');
   if (!atendente) return res.render('login', { erro: 'E-mail ou senha inválidos.' });
+  registrarUltimoLogin(atendente.id);
   definirSessao(res, atendente.id);
   res.redirect('/painel');
 });

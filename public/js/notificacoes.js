@@ -99,6 +99,21 @@
 
   var origem = new EventSource('/painel/eventos');
 
+  origem.addEventListener('presenca', function (evento) {
+    var dados = {};
+    try {
+      dados = JSON.parse(evento.data);
+    } catch (e) {}
+    var online = dados.online || [];
+    document.querySelectorAll('[data-atendente-id]').forEach(function (linha) {
+      var id = Number(linha.getAttribute('data-atendente-id'));
+      var ponto = linha.querySelector('.ponto-online');
+      if (!ponto) return;
+      ponto.classList.toggle('online', online.indexOf(id) !== -1);
+      ponto.title = online.indexOf(id) !== -1 ? 'Online agora' : 'Offline';
+    });
+  });
+
   origem.addEventListener('atencao', function (evento) {
     var dados = {};
     try {
