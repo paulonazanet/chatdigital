@@ -107,10 +107,13 @@ async function testarTransferenciaParaAtendente() {
   resp = await enviar(numero, 'estou com um problema', fluxo);
   assert.strictEqual(resp, null, 'bot deve ficar em silêncio após transferir');
 
-  resp = await enviar(numero, 'menu', fluxo);
-  assert.match(resp, /1\. Fazer um pedido/, '"menu" deve retomar o bot mesmo transferido');
+  // bug real: cliente mandou "oi"/"olá" no meio do atendimento e o bot reabriu o menu
+  for (const palavra of ['oi', 'Olá', 'menu']) {
+    resp = await enviar(numero, palavra, fluxo);
+    assert.strictEqual(resp, null, `"${palavra}" não pode religar o bot enquanto está com atendente`);
+  }
 
-  console.log('OK: transferência para atendente silencia o bot e "menu" retoma');
+  console.log('OK: transferência para atendente silencia o bot, nem "oi"/"menu" religam');
 }
 
 async function testarOpcaoDeTextoIgnoraMaiusculaMinuscula() {

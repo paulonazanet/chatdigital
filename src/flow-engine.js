@@ -224,7 +224,10 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
   const palavras = fluxo.reinicio_palavras || [];
   const ehReinicio = palavras.some((p) => p.toLowerCase() === msg.toLowerCase());
 
-  if (ehReinicio) {
+  // Com atendente, nenhuma palavra de reinício religa o bot — só finalizar devolve a conversa pra
+  // ele. Antes isso vinha primeiro e todo "oi"/"olá" do cliente no meio do atendimento reabria o
+  // menu e ainda tirava a conversa da fila (sincronizarConversa voltava o status pra 'bot').
+  if (ehReinicio && !estado.humano) {
     Object.assign(estado, estadoInicial(fluxo, numero));
     return executar(estado, { negocio, vars: estado.vars }, fluxo);
   }
