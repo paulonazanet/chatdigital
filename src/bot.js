@@ -147,7 +147,7 @@ async function iniciarBot(negocio, fluxo) {
       if (!msg.message || msg.key.fromMe) continue;
       const numero = msg.key.remoteJid;
       if (!ehConversaDeCliente(numero)) continue; // ignora grupos, Status, canais etc.
-      if (!numeroPermitido(numero, msg.key.senderPn)) continue; // modo de teste: ignora quem não está na lista
+      if (!numeroPermitido(numero, msg.key.remoteJidAlt)) continue; // modo de teste: ignora quem não está na lista
 
       const texto =
         msg.message.conversation ||
@@ -170,7 +170,7 @@ async function iniciarBot(negocio, fluxo) {
         }
 
         registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
-        if (msg.key.senderPn) definirNumeroExibicao(numero, msg.key.senderPn.replace('@s.whatsapp.net', ''));
+        if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
         transferirParaHumano(numero, fluxo);
         const sincronizacao = sincronizarConversa(numero, fluxo);
         const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
@@ -182,7 +182,7 @@ async function iniciarBot(negocio, fluxo) {
       }
 
       registrarMensagem(numero, 'cliente', texto);
-      if (msg.key.senderPn) definirNumeroExibicao(numero, msg.key.senderPn.replace('@s.whatsapp.net', ''));
+      if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
       const sincronizacao = sincronizarConversa(numero, fluxo);
       if (resposta) {

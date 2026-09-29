@@ -120,7 +120,11 @@ router.post('/nova', async (req, res) => {
       return renderizarFila(req, res, { erroNovaConversa: 'Esse número não tem WhatsApp, ou está digitado errado.' });
     }
 
-    const numero = resultado.jid; // o Baileys devolve o JID já no formato certo (às vezes normaliza)
+    // Quando o cliente responder, a mensagem chega com o JID @lid (não o @s.whatsapp.net que o
+    // onWhatsApp devolve) — se a conversa fosse criada com o JID errado, a resposta do cliente
+    // cairia numa conversa "fantasma" diferente e o bot achava que era gente nova conversando.
+    const lid = await sock.signalRepository?.lidMapping?.getLIDForPN(resultado.jid).catch(() => null);
+    const numero = lid || resultado.jid;
     const conversa = obterOuCriarConversa(numero);
     assumirConversa(conversa.id, req.atendente.id);
     // Sem isso, o motor de fluxo (memória separada do banco) não sabe que essa conversa já está
