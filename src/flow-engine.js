@@ -33,6 +33,21 @@ function substituir(texto, contexto) {
   return texto.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, caminho) => formatarValor(resolverCaminho(caminho, contexto)));
 }
 
+// Pra texto que vai pro cliente: a linha cuja variável ficou vazia sai inteira, em vez de ir
+// quebrada — ex.: "Se preferir já chamar direto: ." quando o número do atendente não está
+// configurado. Linhas sem variável nenhuma ficam como estão.
+function substituirTextoDeMensagem(texto, contexto) {
+  if (texto == null) return '';
+  return texto
+    .split('\n')
+    .filter((linha) => {
+      const variaveis = [...linha.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)];
+      return variaveis.every(([, caminho]) => formatarValor(resolverCaminho(caminho, contexto)).trim() !== '');
+    })
+    .map((linha) => substituir(linha, contexto))
+    .join('\n');
+}
+
 function substituirObjeto(obj, contexto) {
   const resultado = {};
   for (const [chave, valor] of Object.entries(obj)) {
@@ -58,7 +73,7 @@ function montarTexto(no, contexto, { invalido = false } = {}) {
     texto = lista.map((item) => `*${item[campo_titulo]}*\n${item[campo_corpo]}`).join('\n\n');
     if (rodape) texto += `\n\n${rodape}`;
   } else {
-    texto = substituir(no.texto, contexto);
+    texto = substituirTextoDeMensagem(no.texto, contexto);
   }
 
   if (no.opcoes_dinamicas) {
@@ -203,7 +218,7 @@ async function executar(estado, contexto, fluxo) {
     }
 
     if (no.tipo === 'fim') {
-      if (no.texto) textos.push(substituir(no.texto, contexto));
+      if (no.texto) textos.push(substituirTextoDeMensagem(no.texto, contexto));
       Object.assign(estado, estadoInicial(fluxo, estado.numero));
       break;
     }

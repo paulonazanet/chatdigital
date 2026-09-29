@@ -246,6 +246,17 @@ async function testarNovoAtendimentoCancelaAvaliacao() {
   console.log('OK: iniciar atendimento novo cancela a pesquisa de satisfação pendente');
 }
 
+async function testarLinhaComVariavelVaziaSai() {
+  const fluxo = carregarFluxo();
+  const semNumero = { ...negocio, numero_atendente_legivel: '' };
+  await processarMensagem({ numero: 'cliente-sem-numero-direto', texto: 'menu', negocio: semNumero, fluxo });
+  const resp = await processarMensagem({ numero: 'cliente-sem-numero-direto', texto: '3', negocio: semNumero, fluxo });
+  assert.match(resp, /atendente humano/);
+  assert.doesNotMatch(resp, /chamar direto/, 'bug real: ia "Se preferir já chamar direto: ." com o número vazio');
+
+  console.log('OK: linha com variável vazia sai da mensagem em vez de ir quebrada pro cliente');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
@@ -257,6 +268,7 @@ async function main() {
   await testarPrazoDaAvaliacaoExpira();
   await testarListarAvaliacoesVencidas();
   await testarNovoAtendimentoCancelaAvaliacao();
+  await testarLinhaComVariavelVaziaSai();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 
