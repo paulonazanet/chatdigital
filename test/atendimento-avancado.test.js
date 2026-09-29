@@ -19,6 +19,7 @@ fs.writeFileSync(
     faq: [],
     mensagem_sem_atendente_disponivel: 'No momento não temos ninguém disponível.',
     mensagem_inatividade: 'Ainda por aí?',
+    mensagem_avaliacao_nao_respondida: 'Entendemos que não deu pra responder, até logo!',
   }),
 );
 
@@ -32,6 +33,8 @@ const { criarSetor, listarSetores } = require('../src/setores');
 const presenca = require('../src/presenca');
 const { definirSocket } = require('../src/socket-atual');
 const { verificarInatividade, MINUTOS_LEMBRETE, MINUTOS_RESET } = require('../src/inatividade');
+const { aguardarAvaliacao, MINUTOS_LIMITE_AVALIACAO } = require('../src/flow-engine');
+const { verificarAvaliacoesVencidas } = require('../src/avaliacao-vencida');
 
 const negocio = carregarNegocio();
 const fluxo = carregarFluxo();
@@ -137,4 +140,40 @@ test('cliente responder antes do lembrete cancela o lembrete pendente (não rese
   assert.strictEqual(atualizada.lembrete_inatividade_em, null, 'responder deve cancelar o lembrete pendente');
 
   console.log('OK: cliente responder cancela o lembrete de inatividade pendente');
+});
+
+test('avaliação vencida: manda o aviso de encerramento automático uma vez, e desliga sem mandar de novo', async () => {
+  const numero = '5511900000077@s.whatsapp.net';
+  await simularMensagemDoCliente(numero, 'oi'); // só pra existir um estado no motor de fluxo
+
+  aguardarAvaliacao(numero, fluxo);
+  obterEstadoConversa(numero, fluxo).aguardandoAvaliacaoDesde = Date.now() - (MINUTOS_LIMITE_AVALIACAO + 1) * 60000;
+
+  const mensagensEnviadas = [];
+  definirSocket({ sendMessage: async (numero, msg) => mensagensEnviadas.push({ numero, texto: msg.text }) });
+
+  await verificarAvaliacoesVencidas();
+
+  assert.deepStrictEqual(
+    mensagensEnviadas,
+    [{ numero, texto: 'Entendemos que não deu pra responder, até logo!' }],
+    'deve mandar o aviso de encerramento automático pelo WhatsApp',
+  );
+  const conversa = obterOuCriarConversa(numero);
+  const mensagens = listarMensagens(conversa.id);
+  assert.ok(
+    mensagens.some((m) => m.remetente === 'bot' && m.texto === 'Entendemos que não deu pra responder, até logo!'),
+    'deve ter registrado o aviso no histórico',
+  );
+
+  // rodar de novo não deve mandar duas vezes (já foi desligado)
+  await verificarAvaliacoesVencidas();
+  assert.strictEqual(mensagensEnviadas.length, 1, 'não deve mandar o aviso duas vezes');
+
+  // cliente escrever depois disso é atendimento normal, não "obrigado pela nota"
+  const { resposta } = await simularMensagemDoCliente(numero, 'oi de novo');
+  assert.match(resposta, /Loja Exemplo|1\./, 'depois do aviso automático, volta a ser atendimento normal');
+
+  definirSocket(null);
+  console.log('OK: avaliação vencida manda o aviso de encerramento uma vez e não trava a conversa');
 });

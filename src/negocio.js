@@ -26,6 +26,7 @@ function salvarConfiguracoes(campos) {
     pesquisa_satisfacao: campos.pesquisa_satisfacao,
     mensagem_sem_atendente_disponivel: campos.mensagem_sem_atendente_disponivel,
     mensagem_inatividade: campos.mensagem_inatividade,
+    mensagem_avaliacao_nao_respondida: campos.mensagem_avaliacao_nao_respondida,
   };
   fs.writeFileSync(caminhoArquivo(), JSON.stringify(atualizado, null, 2) + '\n', 'utf8');
   return atualizado;

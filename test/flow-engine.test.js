@@ -1,5 +1,13 @@
 const assert = require('assert');
-const { processarMensagem, estaDentroDoHorario, aguardarAvaliacao, obterEstadoConversa, MINUTOS_LIMITE_AVALIACAO } = require('../src/flow-engine');
+const {
+  processarMensagem,
+  estaDentroDoHorario,
+  aguardarAvaliacao,
+  obterEstadoConversa,
+  listarAguardandoAvaliacaoVencidos,
+  desligarAguardandoAvaliacao,
+  MINUTOS_LIMITE_AVALIACAO,
+} = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
@@ -193,6 +201,32 @@ async function testarPrazoDaAvaliacaoExpira() {
   console.log('OK: depois do prazo, mensagem do cliente não é mais tratada como nota da pesquisa');
 }
 
+async function testarListarAvaliacoesVencidas() {
+  const fluxo = carregarFluxo();
+  const dentroDoPrazo = 'cliente-avaliacao-recente';
+  const vencida = 'cliente-avaliacao-vencida';
+
+  await enviar(dentroDoPrazo, 'menu', fluxo);
+  aguardarAvaliacao(dentroDoPrazo, fluxo); // acabou de mandar, ainda dentro do prazo
+
+  await enviar(vencida, 'menu', fluxo);
+  aguardarAvaliacao(vencida, fluxo);
+  obterEstadoConversa(vencida, fluxo).aguardandoAvaliacaoDesde = Date.now() - (MINUTOS_LIMITE_AVALIACAO + 1) * 60000;
+
+  const vencidos = listarAguardandoAvaliacaoVencidos();
+  assert.ok(vencidos.includes(vencida), 'quem já passou do prazo deve aparecer na lista');
+  assert.ok(!vencidos.includes(dentroDoPrazo), 'quem ainda está dentro do prazo não deve aparecer');
+
+  desligarAguardandoAvaliacao(vencida);
+  assert.ok(!listarAguardandoAvaliacaoVencidos().includes(vencida), 'depois de desligar, não aparece mais na lista');
+
+  // desligar não deve fazer a próxima mensagem virar "obrigado pela avaliação" de novo
+  const resp = await enviar(vencida, 'oi', fluxo);
+  assert.match(resp, /1\. Fazer um pedido/, 'depois de desligado, volta a ser atendimento normal');
+
+  console.log('OK: listarAguardandoAvaliacaoVencidos/desligarAguardandoAvaliacao funcionam certinho');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
@@ -202,6 +236,7 @@ async function main() {
   await testarBlocoHorario();
   await testarAguardarAvaliacao();
   await testarPrazoDaAvaliacaoExpira();
+  await testarListarAvaliacoesVencidas();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 

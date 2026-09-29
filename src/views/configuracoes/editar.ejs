@@ -32,6 +32,9 @@
       <label>Pesquisa de satisfação (mandada logo depois do encerramento — deixe em branco pra não mandar)
         <textarea name="pesquisa_satisfacao" rows="2"><%= negocio.pesquisa_satisfacao || '' %></textarea>
       </label>
+      <label>Avaliação não respondida (mandada automaticamente 30min depois da pesquisa de satisfação, se o cliente não responder — deixe em branco pra não mandar)
+        <textarea name="mensagem_avaliacao_nao_respondida" rows="2"><%= negocio.mensagem_avaliacao_nao_respondida || '' %></textarea>
+      </label>
       <label>Sem atendente disponível (mandada quando o cliente é transferido pro humano e ninguém do setor está online — deixe em branco pra não mandar)
         <textarea name="mensagem_sem_atendente_disponivel" rows="2"><%= negocio.mensagem_sem_atendente_disponivel || '' %></textarea>
       </label>

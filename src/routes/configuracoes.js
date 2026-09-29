@@ -27,6 +27,7 @@ router.post('/', (req, res) => {
     pesquisa_satisfacao,
     mensagem_sem_atendente_disponivel,
     mensagem_inatividade,
+    mensagem_avaliacao_nao_respondida,
   } = req.body;
 
   if (!nome || !nome.trim()) {
@@ -48,6 +49,7 @@ router.post('/', (req, res) => {
     pesquisa_satisfacao: (pesquisa_satisfacao || '').trim(),
     mensagem_sem_atendente_disponivel: (mensagem_sem_atendente_disponivel || '').trim(),
     mensagem_inatividade: (mensagem_inatividade || '').trim(),
+    mensagem_avaliacao_nao_respondida: (mensagem_avaliacao_nao_respondida || '').trim(),
   });
 
   res.render('configuracoes/editar', { atendenteLogado: req.atendente, negocio, erro: null, salvo: true });

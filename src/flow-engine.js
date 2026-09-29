@@ -300,12 +300,35 @@ function aguardarAvaliacao(numero, fluxo) {
   estado.aguardandoAvaliacaoDesde = Date.now();
 }
 
+/** Números esperando a nota há mais de MINUTOS_LIMITE_AVALIACAO — pra quem checa periodicamente
+ * (src/avaliacao-vencida.js) e manda o aviso de encerramento automático. */
+function listarAguardandoAvaliacaoVencidos() {
+  const limite = Date.now() - MINUTOS_LIMITE_AVALIACAO * 60000;
+  const vencidos = [];
+  for (const estado of conversas.values()) {
+    if (estado.aguardandoAvaliacao && estado.aguardandoAvaliacaoDesde <= limite) vencidos.push(estado.numero);
+  }
+  return vencidos;
+}
+
+/** Desliga o "aguardando nota" sem mandar mensagem nenhuma — usado depois de já ter avisado que
+ * o prazo venceu, pra não avisar de novo nem tratar a próxima mensagem como nota atrasada. */
+function desligarAguardandoAvaliacao(numero) {
+  const estado = conversas.get(numero);
+  if (estado) {
+    estado.aguardandoAvaliacao = false;
+    estado.aguardandoAvaliacaoDesde = null;
+  }
+}
+
 module.exports = {
   processarMensagem,
   obterEstadoConversa,
   encerrarAtendimento,
   transferirParaHumano,
   aguardarAvaliacao,
+  listarAguardandoAvaliacaoVencidos,
+  desligarAguardandoAvaliacao,
   substituirVariaveis: substituir,
   estaDentroDoHorario,
   MINUTOS_LIMITE_AVALIACAO,
