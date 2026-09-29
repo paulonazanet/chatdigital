@@ -123,6 +123,25 @@
 
   configurarBotaoAtivarNotificacoes(); // seguro chamar direto: o script tem "defer", o DOM já está pronto
 
+  // Com o painel aberto em mais de uma aba, todas recebem o mesmo evento — sem isso cada aba
+  // tocava o bipe e criava sua notificação do Windows (aviso em dobro). Só uma aba "ganha" a
+  // trava com o id do evento; a aba em foco tenta primeiro, e depois a que já teve clique (o
+  // bipe só toca em aba onde o atendente já clicou alguma vez).
+  function avisarUmaVezEntreAbas(id, avisar) {
+    if (id == null || !navigator.locks) return avisar();
+    var espera = document.hasFocus() ? 0 : ctxAudio ? 300 : 600;
+    setTimeout(function () {
+      navigator.locks.request('chatdigital-aviso-' + id, { ifAvailable: true }, function (trava) {
+        if (!trava) return; // outra aba já avisou
+        avisar();
+        // segura a trava um tempo, pra aba que chegar atrasada não avisar de novo
+        return new Promise(function (resolve) {
+          setTimeout(resolve, 10000);
+        });
+      });
+    }, espera);
+  }
+
   if (!('EventSource' in window)) return;
 
   var origem = new EventSource('/painel/eventos');
@@ -159,18 +178,20 @@
     var texto = textos[dados.motivo] || 'Nova mensagem do cliente';
     if (numero) texto += ' — ' + numero;
 
-    tocarBipe();
     mostrarAvisoFlutuante(texto);
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      // requireInteraction: fica na tela até o atendente clicar ou fechar, em vez de sumir
-      // sozinha em poucos segundos — importante justamente pra quem está noutro programa.
-      var notificacao = new Notification('ChatDigital', { body: texto, requireInteraction: true });
-      notificacao.onclick = function () {
-        window.focus();
-        notificacao.close();
-      };
-    }
+    avisarUmaVezEntreAbas(dados.id, function () {
+      tocarBipe();
+      if ('Notification' in window && Notification.permission === 'granted') {
+        // requireInteraction: fica na tela até o atendente clicar ou fechar, em vez de sumir
+        // sozinha em poucos segundos — importante justamente pra quem está noutro programa.
+        // tag: se mesmo assim duas abas criarem, o Windows troca uma pela outra em vez de empilhar.
+        var notificacao = new Notification('ChatDigital', { body: texto, requireInteraction: true, tag: 'chatdigital-' + dados.id });
+        notificacao.onclick = function () {
+          window.focus();
+          notificacao.close();
+        };
+      }
+    });
 
     if (!estaNaFila()) return;
 
