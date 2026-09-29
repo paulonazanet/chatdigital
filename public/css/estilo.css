@@ -416,6 +416,7 @@ html.menu-recolhido .recolhivel { display: none; }
 .mensagem { max-width: 70%; }
 .mensagem p {
   margin: 0.2rem 0 0;
+  white-space: pre-line; /* respeita as quebras de linha (menu do bot vinha num parágrafo só) */
   background: #eef1f4;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
@@ -523,6 +524,8 @@ audio.mensagem-midia { max-width: 100%; }
   line-height: 1;
 }
 .botao-remover-anexo:hover { background: var(--vermelho-erro); border-color: var(--vermelho-erro); color: var(--branco); }
+/* o display: flex acima vence o atributo hidden — sem isso o "×" aparecia mesmo sem anexo */
+.botao-remover-anexo[hidden] { display: none; }
 
 .emoji-painel {
   position: absolute;

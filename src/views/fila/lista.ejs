@@ -8,6 +8,19 @@
   function exibirNumero(c) {
     return c.numero_exibicao || c.numero.replace('@s.whatsapp.net', '').replace('@lid', '');
   }
+
+  // Mostra o texto como o WhatsApp mostra: *negrito*, _itálico_, ~riscado~ (as quebras de linha
+  // ficam por conta do white-space no CSS). Escapa o HTML ANTES de formatar — o texto do
+  // cliente não pode virar código na tela do atendente.
+  function escaparHtml(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function formatarWhatsapp(t) {
+    return escaparHtml(t == null ? '' : t)
+      .replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?]|$)/gm, '$1<em>$2</em>')
+      .replace(/~([^~\n]+)~/g, '<s>$1</s>');
+  }
 %>
 <main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
   <div class="fila-cabecalho">
@@ -105,7 +118,7 @@
               <% } else if (m.midia_url) { %>
                 <a class="mensagem-arquivo" href="<%= m.midia_url %>" target="_blank" rel="noopener">📄 Baixar arquivo</a>
               <% } %>
-              <p><%= m.texto %></p>
+              <p><%- formatarWhatsapp(m.texto) %></p>
             </div>
           <% }) %>
           <% if (mensagens.length === 0) { %><p class="dica">Nenhuma mensagem ainda.</p><% } %>

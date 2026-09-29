@@ -381,6 +381,16 @@ test('histórico mostra o nome de quem respondeu, não só "atendente" genérico
   assert.match(corpo, /<span class="mensagem-remetente">Paulo Admin<\/span>\s*<p>Seu gás sai em 20 minutos<\/p>/, 'balão deve mostrar o nome do atendente');
   assert.match(corpo, /<span class="mensagem-remetente">atendente<\/span>\s*<p>mensagem antiga sem autor<\/p>/, 'mensagem antiga continua com "atendente"');
 
+  // balão formata como o WhatsApp (*negrito*, quebra de linha), mas texto do cliente nunca vira HTML
+  const inserir = db.prepare('INSERT INTO mensagens (conversa_id, remetente, texto, criado_em) VALUES (?, ?, ?, ?)');
+  inserir.run(idConversa, 'bot', 'Aqui é a *Nazagas*.\n1. Fazer um pedido', agora);
+  inserir.run(idConversa, 'cliente', '<script>alert(1)</script> *<img src=x onerror=alert(1)>*', agora);
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
+  const corpoFormatado = await resp.text();
+  assert.match(corpoFormatado, /<p>Aqui é a <strong>Nazagas<\/strong>\.\n1\. Fazer um pedido<\/p>/, 'negrito vira <strong> e a quebra de linha fica');
+  assert.doesNotMatch(corpoFormatado, /<script>alert\(1\)<\/script>|<img src=x/, 'HTML do cliente não pode ir cru pra tela');
+  assert.match(corpoFormatado, /&lt;script&gt;alert\(1\)&lt;\/script&gt; <strong>&lt;img src=x onerror=alert\(1\)&gt;<\/strong>/);
+
   console.log('OK: histórico mostra o nome do atendente que respondeu');
 });
 

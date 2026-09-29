@@ -27,6 +27,7 @@
           textarea.value = textarea.value.slice(0, inicio) + emoji + textarea.value.slice(fim);
           textarea.focus();
           textarea.selectionStart = textarea.selectionEnd = inicio + emoji.length;
+          painelEmoji.hidden = true; // escolheu, fecha — igual ao WhatsApp
         });
         painelEmoji.appendChild(botao);
       });
@@ -37,7 +38,9 @@
     });
 
     document.addEventListener('click', function (ev) {
-      if (!painelEmoji.hidden && !painelEmoji.contains(ev.target) && ev.target !== botaoEmoji) {
+      // contains, não "===": o botão agora tem um ícone SVG dentro, e o clique no desenho chega com
+      // o <path> como alvo — com "===" a janela abria e fechava no mesmo clique
+      if (!painelEmoji.hidden && !painelEmoji.contains(ev.target) && !botaoEmoji.contains(ev.target)) {
         painelEmoji.hidden = true;
       }
     });
