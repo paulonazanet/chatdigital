@@ -1,5 +1,5 @@
 const { db } = require('./db');
-const { obterEstadoConversa } = require('./flow-engine');
+const { obterEstadoConversa, transferirParaHumano } = require('./flow-engine');
 const { barramento } = require('./eventos');
 const { haAtendenteDisponivel } = require('./atendentes');
 
@@ -111,6 +111,27 @@ function listarConversasComBot() {
     .all();
 }
 
+/**
+ * Reconstrói, no boot, o estado "com atendente" do motor de fluxo a partir do banco. Esse estado
+ * vive só na memória (flow-engine.js), então sem isso todo reinício do servidor "esquecia" quem
+ * estava com humano — a próxima mensagem do cliente caía no menu do bot e sincronizarConversa
+ * ainda rebaixava a conversa pra status 'bot', tirando ela da fila. Chamar antes de começar a
+ * escutar mensagens do WhatsApp. Devolve quantas conversas foram restauradas.
+ */
+function restaurarAtendimentosEmAndamento(fluxo) {
+  const conversasComHumano = db
+    .prepare(
+      `SELECT c.numero, s.nome AS setor_nome FROM conversas c
+       LEFT JOIN setores s ON s.id = c.setor_id
+       WHERE c.status IN ('aguardando', 'atendendo')`,
+    )
+    .all();
+  // passa o nome do setor junto — sem ele, sincronizarConversa gravaria setor_id = NULL na
+  // próxima mensagem do cliente e a conversa sumiria da fila do setor dela.
+  for (const conversa of conversasComHumano) transferirParaHumano(conversa.numero, fluxo, conversa.setor_nome || null);
+  return conversasComHumano.length;
+}
+
 function transferirConversa(id, { setorId, atendenteId }) {
   // com atendente específico, já entra "atendendo" (foi endereçada); só o setor, volta pra fila
   // desse setor esperando alguém assumir.
@@ -167,4 +188,5 @@ module.exports = {
   assumirConversa,
   finalizarConversa,
   transferirConversa,
+  restaurarAtendimentosEmAndamento,
 };
