@@ -386,6 +386,11 @@ test('nova conversa: cria e assume com número que existe no WhatsApp, recusa n�
   assert.match(corpo, /atendendo/, 'conversa já deve nascer assumida por quem a criou, não esperando outro atendente');
   assert.match(corpo, /Oi! Vi que você pediu contato, aqui é a loja\./);
 
+  // regressão: a primeira resposta do cliente não pode acordar o bot do fluxo — a conversa já
+  // nasceu "com humano" (o motor de fluxo tem memória própria, separada do banco)
+  const respostaDoBot = await processarMensagem({ numero: '5511900001111@s.whatsapp.net', texto: 'oi, chegou minha mensagem?', negocio: {}, fluxo });
+  assert.strictEqual(respostaDoBot, null, 'bot deve ficar em silêncio — a conversa já foi iniciada por um atendente humano');
+
   definirSocket(null);
-  console.log('OK: nova conversa cria e assume com número válido, recusa número sem WhatsApp');
+  console.log('OK: nova conversa cria e assume com número válido, recusa número sem WhatsApp, e não deixa o bot acordar');
 });

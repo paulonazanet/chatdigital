@@ -123,6 +123,9 @@ router.post('/nova', async (req, res) => {
     const numero = resultado.jid; // o Baileys devolve o JID já no formato certo (às vezes normaliza)
     const conversa = obterOuCriarConversa(numero);
     assumirConversa(conversa.id, req.atendente.id);
+    // Sem isso, o motor de fluxo (memória separada do banco) não sabe que essa conversa já está
+    // com um atendente, e o bot mostra o menu automático assim que o cliente responder.
+    transferirParaHumano(numero, carregarFluxo());
 
     if (texto && (await enviarComSeguranca(sock, numero, texto))) {
       registrarMensagem(numero, 'atendente', texto);
