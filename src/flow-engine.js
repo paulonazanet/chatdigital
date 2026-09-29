@@ -285,6 +285,11 @@ function transferirParaHumano(numero, fluxo, setor = null) {
   const estado = obterEstado(numero, fluxo);
   estado.humano = true;
   estado.setor = setor;
+  // Um atendimento novo (ex.: "+ Nova conversa" logo depois de finalizar) cancela a pesquisa de
+  // satisfação pendente — senão a primeira resposta do cliente viraria "obrigado pela avaliação"
+  // e, passado o prazo, o aviso de encerramento automático cairia no meio do atendimento novo.
+  estado.aguardandoAvaliacao = false;
+  estado.aguardandoAvaliacaoDesde = null;
 }
 
 /**

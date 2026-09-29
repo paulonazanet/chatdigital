@@ -6,6 +6,7 @@ const {
   obterEstadoConversa,
   listarAguardandoAvaliacaoVencidos,
   desligarAguardandoAvaliacao,
+  transferirParaHumano,
   MINUTOS_LIMITE_AVALIACAO,
 } = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
@@ -227,6 +228,21 @@ async function testarListarAvaliacoesVencidas() {
   console.log('OK: listarAguardandoAvaliacaoVencidos/desligarAguardandoAvaliacao funcionam certinho');
 }
 
+async function testarNovoAtendimentoCancelaAvaliacao() {
+  const fluxo = carregarFluxo();
+  const numero = 'cliente-nova-conversa-apos-finalizar';
+
+  await enviar(numero, 'menu', fluxo);
+  aguardarAvaliacao(numero, fluxo); // atendente finalizou e mandou a pesquisa
+  transferirParaHumano(numero, fluxo); // ...e logo depois iniciou "+ Nova conversa" com o mesmo cliente
+
+  const resp = await enviar(numero, 'oi, recebi sua mensagem', fluxo);
+  assert.strictEqual(resp, null, 'resposta do cliente vai pro atendente, não vira nota da pesquisa');
+  assert.ok(!listarAguardandoAvaliacaoVencidos().includes(numero), 'pesquisa cancelada não gera aviso de encerramento depois');
+
+  console.log('OK: iniciar atendimento novo cancela a pesquisa de satisfação pendente');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
@@ -237,6 +253,7 @@ async function main() {
   await testarAguardarAvaliacao();
   await testarPrazoDaAvaliacaoExpira();
   await testarListarAvaliacoesVencidas();
+  await testarNovoAtendimentoCancelaAvaliacao();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 
