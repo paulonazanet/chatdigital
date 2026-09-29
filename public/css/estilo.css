@@ -6,6 +6,7 @@
   --cinza-borda: #d7dce2;
   --cinza-texto: #47535e;
   --verde-ativo: #1f7a4d;
+  --verde-atendente: #0f6e56;
   --vermelho-erro: #a4222c;
   --branco: #ffffff;
   --marca-laranja: #ed813b;
@@ -427,7 +428,10 @@ html.menu-recolhido .recolhivel { display: none; }
   color: #8a97a3;
 }
 .mensagem-bot, .mensagem-atendente { margin-left: auto; text-align: right; }
-.mensagem-bot p, .mensagem-atendente p { background: var(--azul-marinho); color: var(--branco); }
+.mensagem-bot p { background: var(--azul-marinho); color: var(--branco); }
+/* verde-escuro pro atendente (aprovado pelo Paulo) — antes era o mesmo azul do bot e confundia
+   quem respondeu: a pessoa ou a resposta automática */
+.mensagem-atendente p { background: var(--verde-atendente); color: var(--branco); }
 
 .mensagem-midia { max-width: 220px; border-radius: 6px; margin-top: 0.3rem; }
 video.mensagem-midia { max-width: 260px; }
@@ -472,8 +476,11 @@ audio.mensagem-midia { max-width: 100%; }
 .form-responder-barra { display: flex; align-items: center; gap: 0.5rem; position: relative; }
 .botao-emoji, .botao-anexo, .botao-gravar-audio {
   box-sizing: border-box;
-  background: transparent;
-  border: 1px solid var(--cinza-borda);
+  /* ícones de linha (Tabler) em botão preenchido — opção "C" aprovada pelo Paulo, no lugar dos
+     emojis 🙂📎🎤 que ficavam com cara infantil */
+  background: var(--azul-marinho);
+  border: 1px solid var(--azul-marinho);
+  color: var(--branco);
   border-radius: 4px;
   width: 34px;
   height: 34px;
@@ -483,11 +490,10 @@ audio.mensagem-midia { max-width: 100%; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: var(--cinza-texto);
   line-height: 1;
 }
-.botao-emoji:hover, .botao-anexo:hover, .botao-gravar-audio:hover { background: #e9edf1; }
+.botao-emoji .icone, .botao-anexo .icone, .botao-gravar-audio .icone { width: 18px; height: 18px; }
+.botao-emoji:hover, .botao-anexo:hover, .botao-gravar-audio:hover { background: var(--azul-marinho-escuro); }
 .botao-gravar-audio.gravando {
   background: var(--vermelho-erro);
   border-color: var(--vermelho-erro);
@@ -908,6 +914,16 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
 .fila-detalhe { flex: 1; min-width: 0; overflow-y: auto; padding: 1.5rem 1.75rem; }
 .fila-detalhe-vazia { display: flex; align-items: center; justify-content: center; height: 100%; color: #8a97a3; }
 .fila-detalhe h2 { margin: 0 0 0.3rem; color: var(--azul-marinho); }
+.cabecalho-conversa {
+  position: sticky;
+  top: -1.5rem; /* = padding-top do .fila-detalhe: gruda rente à borda, sem mensagem aparecendo por cima */
+  z-index: 2;
+  margin: -1.5rem -1.75rem 1rem;
+  padding: 1rem 1.75rem 0.75rem;
+  background: var(--cinza-fundo);
+  border-bottom: 1px solid var(--cinza-borda);
+}
+.cabecalho-conversa .dica { margin: 0; }
 .fila-detalhe .historico { max-height: none; flex: 1; }
 
 .transferir-popover { position: relative; }

@@ -81,12 +81,16 @@
       <% if (!conversaSelecionada) { %>
         <div class="fila-detalhe-vazia"><p>Selecione uma conversa na lista ao lado.</p></div>
       <% } else { %>
-        <h2><%= exibirNumero(conversaSelecionada) %></h2>
-        <p class="dica">
-          Setor: <%= conversaSelecionada.setor_nome || '—' %> ·
-          Status: <%= conversaSelecionada.status %> ·
-          Atendente: <%= conversaSelecionada.atendente_nome || '—' %>
-        </p>
+        <%# fixo no topo: a tela rola sozinha até a última mensagem, e sem isso o número do
+            cliente ficava escondido lá em cima numa conversa comprida %>
+        <div class="cabecalho-conversa">
+          <h2><%= exibirNumero(conversaSelecionada) %></h2>
+          <p class="dica">
+            Setor: <%= conversaSelecionada.setor_nome || '—' %> ·
+            Status: <%= conversaSelecionada.status %> ·
+            Atendente: <%= conversaSelecionada.atendente_nome || '—' %>
+          </p>
+        </div>
 
         <div class="historico">
           <% mensagens.forEach((m) => { %>
@@ -150,12 +154,12 @@
           <% if (conversaSelecionada.status === 'atendendo') { %>
             <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
               <div class="form-responder-barra">
-                <button type="button" class="botao-emoji" title="Inserir emoji">🙂</button>
+                <button type="button" class="botao-emoji" title="Inserir emoji"><svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></button>
                 <label class="botao-anexo" title="Anexar imagem, vídeo, áudio ou PDF">
-                  📎
+                  <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5"/></svg>
                   <input type="file" name="midia" accept="image/*,video/*,audio/*,application/pdf" hidden>
                 </label>
-                <button type="button" class="botao-gravar-audio" title="Gravar áudio">🎤</button>
+                <button type="button" class="botao-gravar-audio" title="Gravar áudio"><svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5a3 3 0 0 1 6 0v5a3 3 0 0 1 -6 0z"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
                 <span class="anexo-nome"></span>
                 <button type="button" class="botao-remover-anexo" hidden title="Remover">✕</button>
                 <div class="emoji-painel" hidden></div>
