@@ -30,3 +30,19 @@ test('modo de teste (NUMEROS_TESTE): sem lista atende todo mundo, com lista só 
 
   console.log('OK: modo de teste ignora quem não está na lista de números de teste, sem lista atende todo mundo');
 });
+
+test('modo de teste: bate mesmo quando o WhatsApp manda o número sem o nono dígito (bug real visto em produção)', () => {
+  // Paulo cadastrou com o 9 (padrão celular BR), mas o WhatsApp mandou o senderPn sem o 9 pra
+  // esse contato -- a mensagem ficava sendo ignorada em silêncio, sem erro nenhum no log.
+  const comFiltro = construirVerificadorNumeroPermitido(['5581996850663']);
+  assert.strictEqual(comFiltro('558196850663@s.whatsapp.net'), true, 'sem o 9 deve bater com o cadastro que tem o 9');
+
+  // e o caminho inverso também: cadastrou sem o 9, WhatsApp manda com o 9
+  const comFiltroSemNove = construirVerificadorNumeroPermitido(['558196850663']);
+  assert.strictEqual(comFiltroSemNove('5581996850663@s.whatsapp.net'), true, 'com o 9 deve bater com o cadastro sem o 9');
+
+  // não pode virar um "vale-tudo": um número de outro DDD/assinante não deve colar
+  assert.strictEqual(comFiltro('5581996850664@s.whatsapp.net'), false, 'número parecido mas diferente continua sendo recusado');
+
+  console.log('OK: modo de teste ignora a ambiguidade do nono dígito dos celulares brasileiros');
+});

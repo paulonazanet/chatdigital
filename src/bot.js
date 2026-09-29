@@ -32,16 +32,30 @@ function ehConversaDeCliente(numero) {
   return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid'));
 }
 
+// Celular brasileiro tem um "nono dígito" ambíguo: o WhatsApp às vezes manda o número sem ele
+// (55 81 96850663, 8 dígitos depois do DDD) mesmo quando o número de verdade tem 9 (55 81
+// 996850663) — vimos isso acontecer de verdade num teste, e sem essa normalização a comparação
+// simplesmente nunca batia, sem erro nenhum, só silêncio. Isso tira esse 9 (quando presente) pra
+// comparar sempre na forma curta.
+function formaCurtaNumeroBr(digitos) {
+  const m = /^55(\d{2})(\d{8,9})$/.exec(digitos);
+  if (!m) return digitos;
+  const [, ddd, resto] = m;
+  return '55' + ddd + (resto.length === 9 && resto[0] === '9' ? resto.slice(1) : resto);
+}
+
 // Modo de teste: quando NUMEROS_TESTE está preenchido no .env (números separados por vírgula),
 // o bot só responde pra esses números — todo mundo que mandar mensagem pro WhatsApp conectado
 // não recebe o menu automático (o bot fica em silêncio, mas a mensagem continua chegando no
 // celular normalmente, dá pra responder na mão). Útil pra testar com o número principal sem o
 // fluxo aparecer pra quem não devia. Sem essa variável (produção), atende todo mundo como sempre.
 function construirVerificadorNumeroPermitido(listaPermitidos) {
+  const permitidosNaFormaCurta = listaPermitidos.map(formaCurtaNumeroBr);
   return function numeroPermitido(numero, senderPn) {
     if (listaPermitidos.length === 0) return true;
     const candidato = String(senderPn || numero).replace('@s.whatsapp.net', '').replace('@lid', '');
-    return listaPermitidos.some((permitido) => candidato.includes(permitido));
+    const candidatoCurto = formaCurtaNumeroBr(candidato);
+    return permitidosNaFormaCurta.some((permitido) => candidatoCurto === permitido);
   };
 }
 
