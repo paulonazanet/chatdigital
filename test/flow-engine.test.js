@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { processarMensagem, estaDentroDoHorario } = require('../src/flow-engine');
+const { processarMensagem, estaDentroDoHorario, aguardarAvaliacao } = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
@@ -156,6 +156,25 @@ async function testarBlocoHorario() {
   console.log('OK: bloco "Horário" segue o ramo certo conforme dia/hora');
 }
 
+async function testarAguardarAvaliacao() {
+  const fluxo = carregarFluxo();
+  const numero = 'cliente-avaliacao';
+
+  await enviar(numero, 'menu', fluxo); // garante que existe estado antes de finalizar
+  aguardarAvaliacao(numero, fluxo);
+
+  // a nota do cliente não pode reabrir o menu — regressão do bug real visto em produção
+  const resp = await enviar(numero, '9', fluxo);
+  assert.match(resp, /[Oo]brigado/, 'deve agradecer a nota, não mostrar o menu de novo');
+  assert.doesNotMatch(resp, /1\. Fazer um pedido/, 'não pode mostrar o menu como se fosse conversa nova');
+
+  // depois de responder a nota, volta ao normal (não fica preso esperando outra "nota")
+  const respSeguinte = await enviar(numero, 'oi', fluxo);
+  assert.match(respSeguinte, /1\. Fazer um pedido/, 'depois da nota, mensagens seguintes voltam ao fluxo normal');
+
+  console.log('OK: nota da pesquisa de satisfação é agradecida em vez de reabrir o menu');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
@@ -163,6 +182,7 @@ async function main() {
   await testarTransferenciaParaAtendente();
   await testarOpcaoDeTextoIgnoraMaiusculaMinuscula();
   await testarBlocoHorario();
+  await testarAguardarAvaliacao();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 

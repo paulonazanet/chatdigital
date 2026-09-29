@@ -5,7 +5,7 @@ const MAX_PASSOS_POR_TURNO = 25; // trava contra fluxo mal configurado (ciclo se
 const conversas = new Map();
 
 function estadoInicial(fluxo, numero) {
-  return { numero, no: fluxo.inicio, vars: {}, aguardando: false, humano: false };
+  return { numero, no: fluxo.inicio, vars: {}, aguardando: false, humano: false, aguardandoAvaliacao: false };
 }
 
 function obterEstado(numero, fluxo) {
@@ -224,6 +224,15 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
     return executar(estado, { negocio, vars: estado.vars }, fluxo);
   }
 
+  // Resposta à pesquisa de satisfação mandada ao finalizar (ver aguardarAvaliacao) — não é um nó
+  // do fluxo de verdade, então sem isso essa mensagem cairia direto no "estado.no = fluxo.inicio"
+  // logo abaixo e mostraria o menu de novo, em vez de agradecer a nota.
+  if (estado.aguardandoAvaliacao) {
+    estado.aguardandoAvaliacao = false;
+    salvarRegistro('avaliacoes', { numero, nota: msg });
+    return 'Muito obrigado pela sua avaliação! 🙏';
+  }
+
   if (estado.humano) return null;
 
   const contexto = { negocio, vars: estado.vars };
@@ -267,11 +276,23 @@ function transferirParaHumano(numero, fluxo, setor = null) {
   estado.setor = setor;
 }
 
+/**
+ * Como encerrarAtendimento, mas a PRÓXIMA mensagem do cliente é tratada como a nota da pesquisa
+ * de satisfação (salva em `registros` e agradece) em vez de reabrir o menu — só então volta ao
+ * normal. Chamar depois de mandar a pesquisa de satisfação ao finalizar um atendimento.
+ */
+function aguardarAvaliacao(numero, fluxo) {
+  const estado = obterEstado(numero, fluxo);
+  Object.assign(estado, estadoInicial(fluxo, numero));
+  estado.aguardandoAvaliacao = true;
+}
+
 module.exports = {
   processarMensagem,
   obterEstadoConversa,
   encerrarAtendimento,
   transferirParaHumano,
+  aguardarAvaliacao,
   substituirVariaveis: substituir,
   estaDentroDoHorario,
 };

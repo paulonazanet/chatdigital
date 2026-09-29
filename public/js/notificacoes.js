@@ -148,7 +148,10 @@
       dados = JSON.parse(evento.data);
     } catch (e) {}
 
-    var numero = dados.numero ? dados.numero.replace('@s.whatsapp.net', '') : '';
+    // Número legível: o de exibição (guardado quando a conversa é em @lid, que não traz o
+    // telefone no endereço) ou, na falta dele, o próprio número sem o sufixo técnico — mesma
+    // regra usada na lista da Fila (fila/lista.ejs, exibirNumero).
+    var numero = dados.numeroExibicao || (dados.numero ? dados.numero.replace('@s.whatsapp.net', '').replace('@lid', '') : '');
     var textos = {
       'novo-atendimento': 'Nova conversa aguardando atendimento',
       transferencia: 'Uma conversa foi transferida',

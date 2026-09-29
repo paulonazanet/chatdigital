@@ -42,7 +42,7 @@ function registrarMensagem(numero, remetente, texto, midia = null) {
   // Cliente escreveu de novo numa conversa que já está com um humano (não é a mensagem que
   // dispara a transferência em si — essa é avisada por sincronizarConversa logo abaixo).
   if (remetente === 'cliente' && conversa.status !== 'bot' && conversa.status !== 'finalizado') {
-    barramento.emit('atencao', { motivo: 'mensagem', numero, texto, setorId: conversa.setor_id });
+    barramento.emit('atencao', { motivo: 'mensagem', numero, texto, setorId: conversa.setor_id, numeroExibicao: conversa.numero_exibicao });
   }
 }
 
@@ -76,7 +76,7 @@ function sincronizarConversa(numero, fluxo) {
 
   const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
   if (acabouDeEntrarNaFila) {
-    barramento.emit('atencao', { motivo: 'novo-atendimento', numero, setorId });
+    barramento.emit('atencao', { motivo: 'novo-atendimento', numero, setorId, numeroExibicao: conversa.numero_exibicao });
   }
 
   return { semAtendenteDisponivel: acabouDeEntrarNaFila && !haAtendenteDisponivel(setorId) };

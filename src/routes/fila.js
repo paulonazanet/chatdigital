@@ -18,7 +18,7 @@ const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
-const { encerrarAtendimento, transferirParaHumano, substituirVariaveis } = require('../flow-engine');
+const { encerrarAtendimento, transferirParaHumano, aguardarAvaliacao, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus } = require('../midia');
@@ -186,7 +186,7 @@ router.post('/:id/transferir', (req, res) => {
   }
 
   transferirConversa(conversa.id, { setorId, atendenteId });
-  barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero, setorId });
+  barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero, setorId, numeroExibicao: conversa.numero_exibicao });
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 
@@ -197,20 +197,27 @@ router.post('/:id/finalizar', async (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
 
+  const fluxo = carregarFluxo();
   finalizarConversa(conversa.id);
-  encerrarAtendimento(conversa.numero, carregarFluxo());
 
   const negocio = carregarNegocio();
   const mensagemEncerramento = negocio.mensagem_encerramento || MENSAGEM_ENCERRAMENTO_PADRAO;
   const sock = obterSocket();
+  let pesquisaEnviada = false;
   if (sock) {
     if (await enviarComSeguranca(sock, conversa.numero, mensagemEncerramento)) {
       registrarMensagem(conversa.numero, 'bot', mensagemEncerramento);
     }
     if (negocio.pesquisa_satisfacao && (await enviarComSeguranca(sock, conversa.numero, negocio.pesquisa_satisfacao))) {
       registrarMensagem(conversa.numero, 'bot', negocio.pesquisa_satisfacao);
+      pesquisaEnviada = true;
     }
   }
+
+  // Se a pesquisa foi mandada, a próxima mensagem do cliente é a nota dela, não um "oi" pro bot
+  // — aguardarAvaliacao trata isso; sem pesquisa, volta direto ao normal como já era.
+  if (pesquisaEnviada) aguardarAvaliacao(conversa.numero, fluxo);
+  else encerrarAtendimento(conversa.numero, fluxo);
 
   res.redirect('/painel/fila');
 });
