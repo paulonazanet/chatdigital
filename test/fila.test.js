@@ -338,6 +338,52 @@ test('responder com imagem/vídeo/áudio: manda pro WhatsApp, salva no históric
   console.log('OK: responder com mídia (imagem/PDF) envia pro WhatsApp, aparece no histórico, e recusa tipo não suportado');
 });
 
+test('histórico mostra o nome de quem respondeu, não só "atendente" genérico', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+  const admin = db.prepare('SELECT id FROM atendentes WHERE email = ?').get('admin@teste.com');
+
+  const numero = '5511933334444@s.whatsapp.net';
+  const agora = new Date().toISOString();
+  const idConversa = Number(
+    db
+      .prepare('INSERT INTO conversas (numero, status, atendente_id, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?)')
+      .run(numero, 'atendendo', admin.id, agora, agora).lastInsertRowid,
+  );
+  // mensagem de antes da coluna atendente_id existir — continua mostrando "atendente"
+  db.prepare('INSERT INTO mensagens (conversa_id, remetente, texto, criado_em) VALUES (?, ?, ?, ?)').run(
+    idConversa,
+    'atendente',
+    'mensagem antiga sem autor',
+    agora,
+  );
+
+  definirSocket({ sendMessage: async () => {} });
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}/responder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+    body: new URLSearchParams({ texto: 'Seu gás sai em 20 minutos' }),
+    redirect: 'manual',
+  });
+  assert.strictEqual(resp.status, 302);
+  definirSocket(null);
+
+  const gravada = db.prepare('SELECT atendente_id FROM mensagens WHERE conversa_id = ? AND texto = ?').get(idConversa, 'Seu gás sai em 20 minutos');
+  assert.strictEqual(gravada.atendente_id, admin.id, 'deve guardar quem mandou a mensagem');
+
+  resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
+  const corpo = await resp.text();
+  assert.match(corpo, /<span class="mensagem-remetente">Paulo Admin<\/span>\s*<p>Seu gás sai em 20 minutos<\/p>/, 'balão deve mostrar o nome do atendente');
+  assert.match(corpo, /<span class="mensagem-remetente">atendente<\/span>\s*<p>mensagem antiga sem autor<\/p>/, 'mensagem antiga continua com "atendente"');
+
+  console.log('OK: histórico mostra o nome do atendente que respondeu');
+});
+
 test('nova conversa: cria e assume com número que existe no WhatsApp, recusa número que não existe', async () => {
   let resp = await fetch(`${baseUrl}/login`, {
     method: 'POST',

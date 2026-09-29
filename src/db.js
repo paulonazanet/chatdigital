@@ -95,6 +95,11 @@ if (!colunaExiste('mensagens', 'midia_url')) {
   db.exec("ALTER TABLE mensagens ADD COLUMN midia_tipo TEXT CHECK (midia_tipo IN ('imagem', 'video', 'audio'))");
   db.exec('ALTER TABLE mensagens ADD COLUMN midia_url TEXT');
 }
+if (!colunaExiste('mensagens', 'atendente_id')) {
+  // quem mandou a mensagem, quando remetente = 'atendente' — sem isso o histórico só mostrava
+  // "atendente" genérico. Mensagens antigas (de antes desta coluna) ficam NULL.
+  db.exec('ALTER TABLE mensagens ADD COLUMN atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL');
+}
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.

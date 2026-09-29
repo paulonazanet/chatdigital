@@ -132,7 +132,7 @@ router.post('/nova', async (req, res) => {
     transferirParaHumano(numero, carregarFluxo());
 
     if (texto && (await enviarComSeguranca(sock, numero, texto))) {
-      registrarMensagem(numero, 'atendente', texto);
+      registrarMensagem(numero, 'atendente', texto, null, req.atendente.id);
     }
 
     res.redirect(`/painel/fila/${conversa.id}`);
@@ -285,10 +285,10 @@ router.post('/:id/responder', (req, res) => {
         const url = salvarBufferDeMidia(bufferParaEnviar, mimetypeParaEnviar);
         // PDF fica com midia_tipo nulo (a coluna só aceita imagem/video/audio) — o link genérico
         // de download na tela usa midia_url mesmo sem tipo, ver fila/lista.ejs.
-        registrarMensagem(conversa.numero, 'atendente', texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]'), { tipo, url });
+        registrarMensagem(conversa.numero, 'atendente', texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]'), { tipo, url }, req.atendente.id);
       } else {
         await sock.sendMessage(conversa.numero, { text: texto });
-        registrarMensagem(conversa.numero, 'atendente', texto);
+        registrarMensagem(conversa.numero, 'atendente', texto, null, req.atendente.id);
       }
       res.redirect(`/painel/fila/${conversa.id}`);
     } catch (erro) {

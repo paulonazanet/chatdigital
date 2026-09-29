@@ -27,12 +27,12 @@ function definirNumeroExibicao(numero, numeroExibicao) {
   ).run(numeroExibicao, numero, numeroExibicao);
 }
 
-function registrarMensagem(numero, remetente, texto, midia = null) {
+function registrarMensagem(numero, remetente, texto, midia = null, atendenteId = null) {
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
   db.prepare(
-    'INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null);
+    'INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null, atendenteId);
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
   // Cliente voltou a escrever — se tinha lembrete de inatividade pendente, não faz mais sentido.
   if (remetente === 'cliente') {
@@ -158,7 +158,13 @@ function obterConversaPorId(id) {
 }
 
 function listarMensagens(conversaId) {
-  return db.prepare('SELECT * FROM mensagens WHERE conversa_id = ? ORDER BY id ASC').all(conversaId);
+  return db
+    .prepare(
+      `SELECT m.*, a.nome AS atendente_nome FROM mensagens m
+       LEFT JOIN atendentes a ON a.id = m.atendente_id
+       WHERE m.conversa_id = ? ORDER BY m.id ASC`,
+    )
+    .all(conversaId);
 }
 
 function assumirConversa(id, atendenteId) {

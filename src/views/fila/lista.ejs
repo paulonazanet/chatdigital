@@ -91,7 +91,7 @@
         <div class="historico">
           <% mensagens.forEach((m) => { %>
             <div class="mensagem mensagem-<%= m.remetente %>">
-              <span class="mensagem-remetente"><%= m.remetente %></span>
+              <span class="mensagem-remetente"><%= m.remetente === 'atendente' && m.atendente_nome ? m.atendente_nome : m.remetente %></span>
               <% if (m.midia_tipo === 'imagem') { %>
                 <a href="<%= m.midia_url %>" target="_blank" rel="noopener"><img class="mensagem-midia" src="<%= m.midia_url %>" alt="Imagem enviada"></a>
               <% } else if (m.midia_tipo === 'video') { %>
