@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { processarMensagem, estaDentroDoHorario, aguardarAvaliacao } = require('../src/flow-engine');
+const { processarMensagem, estaDentroDoHorario, aguardarAvaliacao, obterEstadoConversa, MINUTOS_LIMITE_AVALIACAO } = require('../src/flow-engine');
 const { carregarFluxo } = require('../src/fluxo');
 
 const negocio = {
@@ -175,6 +175,24 @@ async function testarAguardarAvaliacao() {
   console.log('OK: nota da pesquisa de satisfação é agradecida em vez de reabrir o menu');
 }
 
+async function testarPrazoDaAvaliacaoExpira() {
+  const fluxo = carregarFluxo();
+  const numero = 'cliente-avaliacao-atrasada';
+
+  await enviar(numero, 'menu', fluxo);
+  aguardarAvaliacao(numero, fluxo);
+
+  // simula que o prazo já passou, sem precisar esperar de verdade
+  const estado = obterEstadoConversa(numero, fluxo);
+  estado.aguardandoAvaliacaoDesde = Date.now() - (MINUTOS_LIMITE_AVALIACAO + 1) * 60000;
+
+  const resp = await enviar(numero, 'oi, ainda estão aí?', fluxo);
+  assert.match(resp, /1\. Fazer um pedido/, 'depois do prazo, mensagem deve ser tratada normal (menu), não como nota');
+  assert.doesNotMatch(resp, /[Oo]brigado pela sua avaliação/, 'não deve agradecer uma "nota" que não é mais válida');
+
+  console.log('OK: depois do prazo, mensagem do cliente não é mais tratada como nota da pesquisa');
+}
+
 async function main() {
   await testarFluxoDePedidoCompleto();
   await testarVoltarAoMenuDentroDoPedido();
@@ -183,6 +201,7 @@ async function main() {
   await testarOpcaoDeTextoIgnoraMaiusculaMinuscula();
   await testarBlocoHorario();
   await testarAguardarAvaliacao();
+  await testarPrazoDaAvaliacaoExpira();
   console.log('\nTodos os testes do motor de fluxo passaram.');
 }
 
