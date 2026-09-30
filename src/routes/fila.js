@@ -12,6 +12,9 @@ const {
   finalizarConversa,
   transferirConversa,
   registrarMensagem,
+  listarFinalizadas,
+  conversaCasaComBusca,
+  renomearContato,
 } = require('../conversas');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
@@ -50,7 +53,7 @@ function podeVerConversa(atendente, conversa) {
   return meusSetores.includes(conversa.setor_id);
 }
 
-const FILTROS = ['minhas', 'fila', 'bot', 'todas'];
+const FILTROS = ['minhas', 'fila', 'bot', 'finalizadas', 'todas'];
 
 // Conversas que o cliente começou a falar com o bot mas não terminaram no início do fluxo (ex.:
 // pararam de responder no meio de uma pergunta) — aparecem no filtro "No bot", com botão Puxar.
@@ -71,13 +74,14 @@ function lerFiltros(req, res) {
   if (req.query.filtro !== undefined || req.query.setor !== undefined) {
     res.cookie('filtroFila', `${filtro}|${setor}`, { httpOnly: true, sameSite: 'lax' });
   }
-  return { filtro, setor };
+  // a busca não fica no cookie: é de momento, trocar de filtro já limpa
+  return { filtro, setor, busca: String(req.query.q || '').trim().slice(0, 60) };
 }
 
 // Uma lista só (opção "A ajustada" aprovada pelo Paulo): quem está esperando resposta há mais
 // tempo em cima; `esperandoResposta` = a vez é do atendente (conversa ainda na fila, ou o
 // cliente escreveu depois da última resposta) — é quem ganha a bolinha amarela/vermelha.
-function montarListaFila(atendente, fluxo, { filtro, setor }) {
+function montarListaFila(atendente, fluxo, { filtro, setor, busca }) {
   const naFila = listarFila()
     .filter((c) => podeVerConversa(atendente, c))
     .map((c) => ({
@@ -92,12 +96,17 @@ function montarListaFila(atendente, fluxo, { filtro, setor }) {
     minhas: naFila.filter((c) => c.tipo === 'atendendo' && c.atendente_id === atendente.id),
     fila: naFila.filter((c) => c.tipo === 'fila'),
     bot: noBot,
-    todas: [...naFila, ...noBot],
+    todas: [...naFila, ...noBot], // em andamento: finalizadas ficam no filtro delas
   };
-  const contagens = Object.fromEntries(FILTROS.map((f) => [f, porFiltro[f].filter(doSetor).length]));
+  // finalizadas só são lidas quando o filtro é esse (a tabela cresce pra sempre) e não têm contador
+  porFiltro.finalizadas =
+    filtro === 'finalizadas'
+      ? listarFinalizadas({ busca }).filter((c) => podeVerConversa(atendente, c)).map((c) => ({ ...c, tipo: 'finalizada', esperandoResposta: false }))
+      : [];
+  const contagens = Object.fromEntries(['minhas', 'fila', 'bot', 'todas'].map((f) => [f, porFiltro[f].filter(doSetor).length]));
 
   const desde = (c) => (c.esperandoResposta ? c.esperando_desde || c.ultima_mensagem_em : c.ultima_mensagem_em) || c.atualizado_em;
-  const itens = porFiltro[filtro].filter(doSetor).sort((a, b) => {
+  const itens = porFiltro[filtro].filter(doSetor).filter((c) => conversaCasaComBusca(c, busca)).sort((a, b) => {
     if (a.esperandoResposta !== b.esperandoResposta) return a.esperandoResposta ? -1 : 1;
     // esperando: quem espera há mais tempo primeiro; o resto: atividade mais recente primeiro
     return a.esperandoResposta ? desde(a).localeCompare(desde(b)) : desde(b).localeCompare(desde(a));
@@ -116,6 +125,7 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     contagens,
     filtro: filtros.filtro,
     setorFiltro: filtros.setor,
+    busca: filtros.busca,
     minutosAmarelo: negocio.fila_minutos_amarelo,
     minutosVermelho: negocio.fila_minutos_vermelho,
     conversaSelecionada,
@@ -225,6 +235,15 @@ router.post('/:id/transferir', (req, res) => {
 
   transferirConversa(conversa.id, { setorId, atendenteId });
   barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero, setorId, numeroExibicao: conversa.numero_exibicao });
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Lápis no topo da conversa: corrige o nome do cliente (vale até trocar de novo; vazio volta a
+// usar o nome do perfil do WhatsApp).
+router.post('/:id/nome', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  renomearContato(conversa.id, req.body.nome);
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 

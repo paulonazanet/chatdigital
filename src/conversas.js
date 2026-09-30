@@ -27,6 +27,24 @@ function definirNumeroExibicao(numero, numeroExibicao) {
   ).run(numeroExibicao, numero, numeroExibicao);
 }
 
+/** Nome do perfil do WhatsApp (pushName) — só grava se nenhum atendente corrigiu o nome na mão. */
+function definirNomeDoPerfil(numero, nome) {
+  const limpo = String(nome || '').trim();
+  if (!limpo) return;
+  db.prepare(
+    'UPDATE conversas SET nome_contato = ? WHERE numero = ? AND nome_editado = 0 AND (nome_contato IS NULL OR nome_contato != ?)',
+  ).run(limpo, numero, limpo);
+}
+
+/**
+ * Nome corrigido pelo atendente (lápis no topo da conversa) — pode trocar quantas vezes quiser.
+ * Vazio apaga a correção e volta a valer o nome do perfil do WhatsApp na próxima mensagem.
+ */
+function renomearContato(id, nome) {
+  const limpo = String(nome || '').trim().slice(0, 80);
+  db.prepare('UPDATE conversas SET nome_contato = ?, nome_editado = ? WHERE id = ?').run(limpo || null, limpo ? 1 : 0, id);
+}
+
 function registrarMensagem(numero, remetente, texto, midia = null, atendenteId = null) {
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
@@ -139,6 +157,52 @@ function restaurarAtendimentosEmAndamento(fluxo) {
   return conversasComHumano.length;
 }
 
+// Busca por número (qualquer pedaço dos dígitos, com ou sem 55/DDD) ou nome do cliente, sem
+// diferenciar maiúscula nem acento — mesma regra de public/js/fila-lista.js pra busca instantânea.
+function normalizarBusca(texto) {
+  return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+// O WhatsApp às vezes guarda o celular sem o nono dígito (558196850663 em vez de 5581996850663),
+// então quem busca "99685" também tem que achar — tenta com e sem esse 9.
+function variantesDoNumeroBuscado(digitos) {
+  const variantes = [digitos];
+  const comDdd = /^(55)?(\d{2})9(\d{8})$/.exec(digitos);
+  if (comDdd) variantes.push(`${comDdd[1] || ''}${comDdd[2]}${comDdd[3]}`);
+  else if (digitos.length >= 5 && digitos[0] === '9') variantes.push(digitos.slice(1));
+  return variantes;
+}
+function conversaCasaComBusca(c, busca) {
+  const termo = normalizarBusca(busca);
+  if (!termo) return true;
+  const soNumero = /^[\d\s()+-]+$/.test(termo);
+  if (soNumero) {
+    const numeros = `${c.numero} ${c.numero_exibicao || ''}`.replace(/\D/g, '');
+    return variantesDoNumeroBuscado(termo.replace(/\D/g, '')).some((v) => numeros.includes(v));
+  }
+  return normalizarBusca(c.nome_contato).includes(termo);
+}
+
+/**
+ * Conversas finalizadas, mais recentes primeiro. Sem busca, só as últimas `limite` (a lista
+ * cresce pra sempre); com busca, procura em todas — pra achar o cliente que volta meses depois.
+ */
+function listarFinalizadas({ busca = '', limite = 50 } = {}) {
+  const todas = db
+    .prepare(
+      `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
+       FROM conversas c
+       LEFT JOIN setores s ON s.id = c.setor_id
+       LEFT JOIN atendentes a ON a.id = c.atendente_id
+       WHERE c.status = 'finalizado'
+       ORDER BY c.atualizado_em DESC`,
+    )
+    .all();
+  return busca ? todas.filter((c) => conversaCasaComBusca(c, busca)) : todas.slice(0, limite);
+}
+
 function transferirConversa(id, { setorId, atendenteId }) {
   // com atendente específico, já entra "atendendo" (foi endereçada); só o setor, volta pra fila
   // desse setor esperando alguém assumir.
@@ -202,4 +266,8 @@ module.exports = {
   finalizarConversa,
   transferirConversa,
   restaurarAtendimentosEmAndamento,
+  definirNomeDoPerfil,
+  renomearContato,
+  listarFinalizadas,
+  conversaCasaComBusca,
 };

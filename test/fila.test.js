@@ -11,7 +11,7 @@ process.env.SESSION_SECRET = 'segredo-de-teste';
 
 const { app } = require('../src/server');
 const { processarMensagem } = require('../src/flow-engine');
-const { registrarMensagem, sincronizarConversa, listarFila } = require('../src/conversas');
+const { registrarMensagem, sincronizarConversa, listarFila, definirNomeDoPerfil } = require('../src/conversas');
 const { carregarFluxo } = require('../src/fluxo');
 const { definirSocket } = require('../src/socket-atual');
 const { db } = require('../src/db');
@@ -433,6 +433,66 @@ test('fila: "Minhas" em ordem de espera, bolinha amarela/vermelha pelo tempo, se
   assert.match(trecho('5511944440099'), /Você: já sai/);
 
   console.log('OK: fila ordena por tempo de espera e pinta a bolinha conforme os minutos de Configurações');
+});
+
+test('busca por número/nome, filtro Finalizadas, nome do perfil do WhatsApp e lápis pra trocar o nome', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+  const admin = db.prepare('SELECT id FROM atendentes WHERE email = ?').get('admin@teste.com');
+  const agora = new Date().toISOString();
+  const inserirConversa = (numero, status, extra = {}) =>
+    Number(
+      db
+        .prepare('INSERT INTO conversas (numero, status, atendente_id, numero_exibicao, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(numero, status, admin.id, extra.exibicao || null, agora, agora).lastInsertRowid,
+    );
+
+  // WhatsApp guardou sem o nono dígito (558177770001) — buscar "97777-0001" tem que achar mesmo assim
+  const idAtiva = inserirConversa('900000000000001@lid', 'atendendo', { exibicao: '558177770001' });
+  definirNomeDoPerfil('900000000000001@lid', 'Maria Silva');
+  const idFinalizada = inserirConversa('5511966660001@s.whatsapp.net', 'finalizado');
+  definirNomeDoPerfil('5511966660001@s.whatsapp.net', 'José Antônio');
+
+  const pagina = async (url) => (await fetch(`${baseUrl}${url}`, { headers: { cookie: cookieAdmin } })).text();
+
+  let corpo = await pagina('/painel/fila?filtro=minhas&q=maria');
+  assert.match(corpo, /558177770001 <span class="item-nome">· Maria Silva<\/span>/, 'busca por nome acha e mostra o nome ao lado do número');
+  corpo = await pagina('/painel/fila?filtro=minhas&q=97777-0001');
+  assert.match(corpo, /558177770001/, 'busca com o nono dígito acha o número guardado sem ele');
+  corpo = await pagina('/painel/fila?filtro=minhas&q=joao');
+  assert.doesNotMatch(corpo, /558177770001/, 'nome que não bate não aparece');
+  assert.match(corpo, /Nada encontrado pra &#34;joao&#34;/);
+
+  corpo = await pagina('/painel/fila?filtro=todas');
+  assert.doesNotMatch(corpo, /5511966660001/, '"Todas" é só o que está em andamento');
+  corpo = await pagina('/painel/fila?filtro=finalizadas&q=jose');
+  assert.match(corpo, /5511966660001 <span class="item-nome">· José Antônio<\/span>/, 'busca sem acento acha nas finalizadas');
+
+  // lápis: atendente troca o nome (quantas vezes quiser) e o perfil do WhatsApp não sobrescreve mais
+  const renomear = (nome) =>
+    fetch(`${baseUrl}/painel/fila/${idAtiva}/nome`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+      body: new URLSearchParams({ nome }),
+      redirect: 'manual',
+    });
+  await renomear('Maria da Padaria');
+  await renomear('Maria Padaria Central');
+  definirNomeDoPerfil('900000000000001@lid', 'Mãe ❤️');
+  corpo = await pagina(`/painel/fila/${idAtiva}`);
+  assert.match(corpo, /<span class="nome-contato">· Maria Padaria Central<\/span>/, 'vale o último nome salvo pelo atendente');
+
+  await renomear('');
+  definirNomeDoPerfil('900000000000001@lid', 'Maria Silva');
+  assert.strictEqual(db.prepare('SELECT nome_contato FROM conversas WHERE id = ?').get(idAtiva).nome_contato, 'Maria Silva', 'nome em branco volta a usar o do perfil');
+
+  assert.ok(idFinalizada);
+  console.log('OK: busca por número/nome (com e sem nono dígito e acento), Finalizadas e troca de nome pelo lápis');
 });
 
 test('nova conversa: cria e assume com número que existe no WhatsApp, recusa número que não existe', async () => {

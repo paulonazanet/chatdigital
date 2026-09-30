@@ -9,7 +9,7 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const { processarMensagem, transferirParaHumano } = require('./flow-engine');
-const { registrarMensagem, sincronizarConversa, definirNumeroExibicao } = require('./conversas');
+const { registrarMensagem, sincronizarConversa, definirNumeroExibicao, definirNomeDoPerfil } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
 const { salvarBufferDeMidia } = require('./midia');
 const whatsappStatus = require('./whatsapp-status');
@@ -171,6 +171,7 @@ async function iniciarBot(negocio, fluxo) {
 
         registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
         if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
+        definirNomeDoPerfil(numero, msg.pushName);
         transferirParaHumano(numero, fluxo);
         const sincronizacao = sincronizarConversa(numero, fluxo);
         const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
@@ -183,6 +184,7 @@ async function iniciarBot(negocio, fluxo) {
 
       registrarMensagem(numero, 'cliente', texto);
       if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
+      definirNomeDoPerfil(numero, msg.pushName);
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
       const sincronizacao = sincronizarConversa(numero, fluxo);
       if (resposta) {

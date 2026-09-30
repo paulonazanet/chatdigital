@@ -31,7 +31,13 @@
     if (min >= minutosAmarelo) return 'amarela';
     return 'verde';
   }
-  const ROTULOS_FILTRO = { minhas: 'Minhas', fila: 'Na fila', bot: 'No bot', todas: 'Todas' };
+  const ROTULOS_FILTRO = { minhas: 'Minhas', fila: 'Na fila', bot: 'No bot', finalizadas: 'Finalizadas', todas: 'Todas' };
+  const setorEscolhido = setorFiltro === 'sem' ? 'Sem setor' : (setores.find((s) => String(s.id) === setorFiltro) || {}).nome;
+  // texto que a busca instantânea (public/js/fila-lista.js) compara: dígitos + nome sem acento
+  function textoDeBusca(c) {
+    const nome = String(c.nome_contato || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return `${c.numero} ${c.numero_exibicao || ''}`.replace(/\D/g, ' ') + '|' + nome;
+  }
   const baseFiltro = conversaSelecionada ? `/painel/fila/${conversaSelecionada.id}` : '/painel/fila';
 
   function formatarWhatsapp(t) {
@@ -62,28 +68,40 @@
   <div class="fila-corpo">
     <aside class="fila-lista" data-minutos-amarelo="<%= minutosAmarelo %>" data-minutos-vermelho="<%= minutosVermelho %>">
       <div class="fila-filtros">
-        <% Object.entries(ROTULOS_FILTRO).forEach(([chave, rotulo]) => { %>
-          <a class="chip-filtro <%= filtro === chave ? 'ativo' : '' %> <%= chave === 'fila' && contagens.fila > 0 && filtro !== 'fila' ? 'chip-alerta' : '' %>" href="<%= baseFiltro %>?filtro=<%= chave %>">
-            <%= rotulo %> <span class="chip-contagem"><%= contagens[chave] %></span>
-          </a>
-        <% }) %>
-        <form method="get" action="<%= baseFiltro %>" class="filtro-setor">
-          <input type="hidden" name="filtro" value="<%= filtro %>">
-          <select name="setor" onchange="this.form.submit()" aria-label="Filtrar por setor">
-            <option value="">Todos os setores</option>
-            <% setores.forEach((s) => { %>
-              <option value="<%= s.id %>" <%= setorFiltro === String(s.id) ? 'selected' : '' %>><%= s.nome %></option>
-            <% }) %>
-            <option value="sem" <%= setorFiltro === 'sem' ? 'selected' : '' %>>Sem setor</option>
-          </select>
-          <noscript><button type="submit">Filtrar</button></noscript>
-        </form>
+        <div class="fila-filtros-chips">
+          <% Object.entries(ROTULOS_FILTRO).forEach(([chave, rotulo]) => { %>
+            <a class="chip-filtro <%= filtro === chave ? 'ativo' : '' %> <%= chave === 'fila' && contagens.fila > 0 && filtro !== 'fila' ? 'chip-alerta' : '' %>" href="<%= baseFiltro %>?filtro=<%= chave %>">
+              <%= rotulo %><% if (contagens[chave] !== undefined) { %> <span class="chip-contagem"><%= contagens[chave] %></span><% } %>
+            </a>
+          <% }) %>
+        </div>
+        <div class="fila-filtros-busca">
+          <form method="get" action="<%= baseFiltro %>" class="busca-cliente" role="search">
+            <input type="hidden" name="filtro" value="<%= filtro %>">
+            <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></svg>
+            <input type="search" name="q" value="<%= busca %>" placeholder="Número ou nome" aria-label="Buscar por número ou nome do cliente" autocomplete="off" <%= busca ? 'autofocus' : '' %>>
+          </form>
+          <details class="filtro-setor">
+            <summary class="<%= setorEscolhido ? 'ativo' : '' %>" title="Filtrar por setor">
+              <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1 -.6 1.4l-4.4 4.4v7l-6 2v-8.5l-4.5 -4.9a2 2 0 0 1 -.5 -1.3z"/></svg>
+              <span><%= setorEscolhido || 'Setor' %></span>
+              <svg class="icone seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+            </summary>
+            <div class="filtro-setor-menu">
+              <a class="<%= !setorFiltro ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&setor=">Todos os setores</a>
+              <% setores.forEach((s) => { %>
+                <a class="<%= setorFiltro === String(s.id) ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&setor=<%= s.id %>"><%= s.nome %></a>
+              <% }) %>
+              <a class="<%= setorFiltro === 'sem' ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&setor=sem">Sem setor</a>
+            </div>
+          </details>
+        </div>
       </div>
 
       <% itens.forEach((c) => { %>
-        <div class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>">
+        <div class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" data-busca="<%= textoDeBusca(c) %>">
           <a class="item-link" href="/painel/fila/<%= c.id %>">
-            <span class="item-numero"><%= exibirNumero(c) %></span>
+            <span class="item-numero"><%= exibirNumero(c) %><% if (c.nome_contato) { %> <span class="item-nome">· <%= c.nome_contato %></span><% } %></span>
             <span class="item-tempo" data-desde="<%= c.desde %>"><%= haQuanto(c.desde) %></span>
             <span class="item-ultima"><%= c.ultima_mensagem_remetente === 'atendente' ? 'Você: ' : c.tipo === 'bot' ? 'Bot: ' : '' %><%= c.ultima_mensagem || '' %></span>
             <span class="item-lado">
@@ -100,12 +118,17 @@
       <% }) %>
 
       <% if (itens.length === 0) { %>
-        <p class="dica fila-vazia"><%= {
+        <p class="dica fila-vazia"><%= busca ? `Nada encontrado pra "${busca}" aqui.` : {
           minhas: 'Nenhuma conversa com você agora.',
           fila: 'Ninguém esperando um atendente assumir.',
           bot: 'Nenhum cliente parado no meio do fluxo do bot.',
+          finalizadas: 'Nenhuma conversa finalizada ainda.',
           todas: 'Nenhuma conversa em andamento.',
         }[filtro] %></p>
+      <% } %>
+      <p class="dica fila-vazia fila-busca-vazia" hidden>Nada encontrado aqui.</p>
+      <% if (filtro === 'finalizadas' && !busca && itens.length >= 50) { %>
+        <p class="dica fila-vazia">Mostrando as 50 mais recentes. Use a busca pra achar conversas mais antigas.</p>
       <% } %>
     </aside>
 
@@ -117,7 +140,21 @@
             cliente ficava escondido lá em cima numa conversa comprida %>
         <div class="cabecalho-conversa">
           <div class="cabecalho-conversa-info">
-            <h2><%= exibirNumero(conversaSelecionada) %></h2>
+            <div class="cabecalho-conversa-titulo">
+              <h2><%= exibirNumero(conversaSelecionada) %><% if (conversaSelecionada.nome_contato) { %> <span class="nome-contato">· <%= conversaSelecionada.nome_contato %></span><% } %></h2>
+              <details class="renomear-popover">
+                <summary class="botao-lapis" title="<%= conversaSelecionada.nome_contato ? 'Trocar o nome do cliente' : 'Dar um nome pro cliente' %>" aria-label="Trocar o nome do cliente">
+                  <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>
+                </summary>
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/nome" class="form-transferir form-renomear">
+                  <label>Nome do cliente
+                    <input type="text" name="nome" maxlength="80" value="<%= conversaSelecionada.nome_contato || '' %>" placeholder="Ex.: Maria Silva">
+                  </label>
+                  <p class="dica">Deixe em branco pra voltar a usar o nome do perfil do WhatsApp.</p>
+                  <button type="submit">Salvar nome</button>
+                </form>
+              </details>
+            </div>
             <p class="dica">
               <%= {
                 atendendo: `Atendendo: ${conversaSelecionada.atendente_nome || '—'}`,
