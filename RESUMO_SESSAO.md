@@ -1,110 +1,154 @@
-# ChatDigital — resumo pra continuar com outro modelo (Opus 5.5)
+# ChatDigital — resumo pra continuar numa conversa nova
+
+> Leia este arquivo inteiro antes de mexer em qualquer coisa. O que cada tela faz (pra usar e
+> pra montar o wiki) está em `FUNCIONALIDADES.md`.
+
+## Regra de trabalho
+**Sempre que terminar uma funcionalidade nova (ou mudar o jeito de uma existente), anotar em
+`FUNCIONALIDADES.md`**, no menu certo, em linguagem de usuário — é a base do wiki menu por menu.
+O histórico técnico (commits, decisões, bugs) continua aqui no `RESUMO_SESSAO.md`.
 
 ## O que é o projeto
-Painel de atendimento via WhatsApp pro Paulo (Nazagas — gás/água). Stack: Node.js + Express +
-EJS + SQLite (`node:sqlite`) + Baileys (`@whiskeysockets/baileys`) pra conectar no WhatsApp.
-Repositório: `paulonazanet/chatdigital` no GitHub, branch `main`. Projeto local em
+Painel de atendimento via WhatsApp pro Paulo (Naza Gás — gás/água). Stack: Node.js + Express +
+EJS + SQLite (`node:sqlite`) + Baileys (`@whiskeysockets/baileys` 7.0.0-rc14) pra conectar no
+WhatsApp. Repositório: `paulonazanet/chatdigital` no GitHub, branch `main`. Projeto local em
 `C:\Users\pjnso\Documents\claude\chatdigital`.
 
-Rodando localmente na porta **3001** (nunca mexer em processo na porta 3000, pode ser outra coisa
+Roda localmente na porta **3001** (nunca mexer em processo na porta 3000, pode ser outra coisa
 do Paulo). Comando: `npm start` (roda `node src/app.js`). Painel em http://localhost:3001.
 
-Testes: `npm test` (usa `node:test`). Hoje em dia ~8 arquivos de teste "falham" só por causa de um
-erro `EPERM` do Windows ao tentar apagar pasta temp no `after()` — é pré-existente, não é bug de
-código (já confirmado via `git stash` em sessão anterior). Os testes de verdade (as asserções)
-sempre passam antes desse erro de cleanup.
+Testes: `npm test` (usa `node:test`). ~8 arquivos "falham" só por causa de um `EPERM` do Windows
+ao apagar a pasta temporária no `after()` (o banco SQLite ainda está aberto) — não é bug de
+código; todas as asserções passam antes disso. Dá pra limpar fechando o banco antes do `rmSync`,
+mas o Paulo ainda não pediu.
 
 ## Modo de teste (importante!)
-Existe um `.env` (não commitado) com `NUMEROS_TESTE=5581996850663,5581994773410` — só esses dois
-números recebem resposta automática do bot. Isso existe pra Paulo testar do WhatsApp dele sem
-incomodar clientes reais. A lógica fica em `src/bot.js`, função `construirVerificadorNumeroPermitido`.
+O `.env` (não commitado) tem `NUMEROS_TESTE` com os dois números de teste do Paulo (ver o
+`.env`, não copiar os números pra cá). Regra em `src/modo-teste.js`, vale nos dois sentidos:
+- **chegando**: o bot só responde pra esses números;
+- **saindo**: mensagem que o sistema manda sozinho (lembrete de inatividade, transferência por
+  inatividade, fechamento automático, aviso de avaliação vencida) só vai pra eles — quem está fora
+  da lista é tratado do mesmo jeito, só que em silêncio.
+Ações manuais do atendente no painel não passam por esse filtro. Em produção (sem a variável)
+vale pra todo mundo.
 
-## Bugs corrigidos HOJE (29/09/2026), em ordem
-1. **"AGUARDANDO MENSAGEM" travado por +15min ao iniciar conversa nova** — era corrupção de sessão
-   Signal (Bad MAC / No matching sessions / MessageCounterError) nos logs. Causa raiz real: a versão
-   do Baileys (`6.7.24`) tinha uma vulnerabilidade de segurança conhecida E bugs de sessão com `@lid`.
-   **Fix**: atualizei pra `@whiskeysockets/baileys@7.0.0-rc14` (a mais nova, sem a vulnerabilidade —
-   NUNCA usar a `6.17.16`, tem CVE de spoofing de mensagem). Depois de trocar a versão, sempre apagar
-   `auth/` e escanear o QR de novo (mudança grande de versão não é confiável só reiniciando).
+## Como está hoje (30/09/2026)
+Tudo abaixo está commitado e no GitHub. Os cards de alteração do ChatDigital no Trello (board
+**Nazagas**) estão todos em FEITO. Continuam em "A FAZER":
+- **Instalar e testar na Naza Gás com o Carlos atendendo** (prazo era 29/09 — atrasado);
+- **Estratégia de módulos/planos** (decisão de produto, sessão de planejamento).
 
-2. **"+ Nova conversa" cria conversa "fantasma"** — o botão usa `sock.onWhatsApp()` que devolve o
-   JID no formato `numero@s.whatsapp.net`, mas quando o cliente responde, a mensagem chega com JID
-   `@lid` (um ID interno do WhatsApp, diferente do número). Como o código antigo usava o JID errado
-   pra registrar a conversa, a resposta do cliente caía numa conversa diferente (nunca vista) e o
-   bot achava que era gente nova. **Fix** em `src/routes/fila.js`, rota `POST /nova`: antes de criar
-   a conversa, resolve o `@lid` de verdade via `sock.signalRepository.lidMapping.getLIDForPN(pn)`
-   (API nova do Baileys 7.0) e usa esse LID como identificador da conversa, com fallback pro JID
-   antigo se não achar.
+## O que foi feito em 29–30/09/2026 (em ordem, com o commit)
+**Correções**
+1. `4f583ee` — **Baileys 6.7 → 7.0.0-rc14** (a 6.7 tinha vulnerabilidade e bugs de sessão com
+   `@lid`; NUNCA usar a `6.17.16`, tem CVE de spoofing). Trocar versão grande = apagar `auth/` e
+   escanear o QR de novo. Junto: `msg.key.senderPn` virou `msg.key.remoteJidAlt` na v7 (sem isso
+   o modo de teste descartava a mensagem em silêncio), e "+ Nova conversa" resolve o `@lid` via
+   `sock.signalRepository.lidMapping.getLIDForPN` (senão a resposta caía numa conversa fantasma).
+2. `f9e3923` — **Restaura no boot quem estava com atendente** (`restaurarAtendimentosEmAndamento`
+   em `src/conversas.js`, chamada em `src/app.js`). O estado "humano" vive só na memória do
+   motor de fluxo e zerava a cada reinício.
+3. `ff665c8` — Atendimento novo (`transferirParaHumano`) **cancela a pesquisa de satisfação
+   pendente** (senão a 1ª resposta virava "obrigado pela avaliação").
+4. `d8824d0` — **Pop-up duplicado**: cada aba do painel tocava bipe + notificação do Windows.
+   Evento SSE ganhou `id` único; o navegador usa `navigator.locks` + `tag` pra avisar 1 vez.
+5. `a150646` — **"oi"/"olá"/"menu" não religam o bot durante atendimento humano** (decisão do
+   Paulo: com atendente, o bot só volta ao finalizar). Antes, "oi" reabria o menu e tirava a
+   conversa da fila.
+6. `4312eea` — Linha de mensagem do fluxo cuja **variável está vazia sai inteira** (ia
+   "Se preferir já chamar direto: ." pro cliente). `substituirTextoDeMensagem` em `flow-engine.js`.
+7. `40b1f3b` — Painel de emoji fecha ao escolher; "×" do anexo respeita `hidden`; balão do
+   histórico mantém quebras de linha e mostra `*negrito*`/`_itálico_`/`~riscado~` (escapando HTML).
 
-3. **Resposta do cliente não chegava no painel (sumia sem erro nenhum)** — o Baileys 7.0 **renomeou**
-   um campo que a gente usava: `msg.key.senderPn` virou `msg.key.remoteJidAlt`. Esse campo é o número
-   de telefone de verdade por trás de um JID `@lid`. Como o código ainda lia `senderPn` (que não
-   existe mais na v7), o filtro do "modo de teste" (`numeroPermitido`) nunca reconhecia o número da
-   pessoa e **descartava a mensagem em silêncio** (sem log de erro nenhum — por isso foi difícil de
-   achar). **Fix** em `src/bot.js`: troquei as 3 ocorrências de `msg.key.senderPn` por
-   `msg.key.remoteJidAlt`.
+**Funcionalidades**
+8. `7ca550b` — **Nome do atendente no histórico** (coluna `mensagens.atendente_id`).
+9. `45840b1` — Número fixo no topo da conversa, **ícones novos** (Tabler, botão azul-marinho —
+   "opção C" aprovada) no lugar de 🙂📎🎤, **balão do atendente verde-escuro** (`#0f6e56`).
+10. `59ab731` — **Fila nova ("opção A ajustada")**: lista única com filtros, "há X min", bolinha
+    amarela/vermelha pelo tempo de espera (minutos em Configurações), "No bot" com botão Puxar,
+    ações no topo da conversa, conversa com tamanho fixo, faixa do topo alinhada (72px).
+11. `eb4efe0` — **Busca por número/nome** (instantânea, sem acento, com/sem nono dígito), filtro
+    **Finalizadas** (últimas 50; a busca procura em todas), setor como botão com ícone ("opção 1"),
+    **nome do cliente** (pushName do WhatsApp + lápis pra trocar; editado não é sobrescrito).
+12. `2005bf7` — **Inatividade configurável** (lembrete/desistir/reiniciar ou transferir pra um
+    setor), **fechamento automático** (padrão 24h desde a abertura, 0 desliga; coluna
+    `conversas.aberta_em`) e **modo de teste nas mensagens automáticas** (`src/modo-teste.js`).
 
-4. **Bot mostrava o menu de novo numa conversa que já estava com atendente (depois de reiniciar)** —
-   o estado "humano" vive só na memória (`Map conversas` em `src/flow-engine.js`) e zerava a cada
-   restart. Pior: além de mandar o menu, `sincronizarConversa` rebaixava a conversa pra `status =
-   'bot'` e `setor_id = NULL`, tirando ela da fila. **Fix**: `restaurarAtendimentosEmAndamento(fluxo)`
-   em `src/conversas.js`, chamada em `src/app.js` antes de `iniciarBot`: pega tudo com `status IN
-   ('aguardando','atendendo')` e chama `transferirParaHumano(numero, fluxo, setor_nome)` (o nome do
-   setor vai junto pra não perder o setor). No boot aparece no log "N conversa(s) com atendente
-   restaurada(s)". Teste: `test/restaurar-atendimentos.test.js`.
+13. (30/09) **Segurança pra produção**: com `NODE_ENV=production` o sistema não sobe sem um
+    `SESSION_SECRET` forte (≥ 32 caracteres, não o de exemplo), o cookie de login vira `secure`
+    (só HTTPS) com `trust proxy` pro Caddy local, e `HOST=127.0.0.1` faz ele escutar só dentro
+    da máquina. Guia completo de instalação em **`INSTALACAO.md`** (VM Ubuntu no servidor da
+    Nazanet, `chat.nazagas.com.br`, Caddy + serviço systemd, backup pro outro servidor, Zabbix).
 
-5. **"+ Nova conversa" logo depois de finalizar: resposta do cliente virava "obrigado pela
-   avaliação"** — `transferirParaHumano` agora zera `aguardandoAvaliacao` (em `src/flow-engine.js`).
-   Teste em `test/flow-engine.test.js` (`testarNovoAtendimentoCancelaAvaliacao`).
+⚠️ O repositório `paulonazanet/chatdigital` no GitHub está **público** (30/09). Recomendado
+torná-lo privado (é produto pra vender); o histórico antigo tem os telefones de teste no
+`RESUMO_SESSAO.md` do commit `d8824d0`.
 
-6. **Dois pop-ups por mensagem do cliente** — a mensagem só era gravada uma vez; o aviso duplicava
-   porque cada aba do painel aberta tem sua conexão SSE e cada uma tocava bipe + notificação do
-   Windows. Agora `src/routes/eventos.js` manda um `id` único por evento (igual pra todas as abas) e
-   `public/js/notificacoes.js` usa `navigator.locks` + `tag` da Notification pra avisar uma vez só.
-   O aviso flutuante dentro da página continua por aba (só aparece na aba que você está olhando).
+Em 30/09 também: as 7 conversas simuladas (`5581900000…`) foram finalizadas em silêncio direto
+no banco (cópia antes em `data/copias/`), pra o fechamento automático não mandar mensagem pra
+números que podem ser de gente real.
 
-## Decidido
-- Paulo decidiu (29/09) NÃO persistir `aguardandoAvaliacao` no banco por enquanto — se reiniciar
-  nos 30min após finalizar, a nota pode abrir o menu; aceitável.
+## Decisões do Paulo (não mudar sem perguntar)
+- Botão "+ Nova conversa" continua azul-marinho (laranja foi descartado).
+- `aguardandoAvaliacao` (esperando a nota da pesquisa) fica só em memória — reiniciar nos 30 min
+  após finalizar pode fazer a nota abrir o menu; aceitável.
+- Com atendente, nenhuma palavra ("oi", "menu"...) religa o bot; só finalizar.
+- Fechamento automático conta desde a **abertura** do atendimento, não da última mensagem.
+- Fila abre no filtro "Minhas" e lembra o último filtro/setor (cookie `filtroFila`).
+- Bolinha só aparece quando é a vez do atendente; amarela 0 min / vermelha 10 min (editável).
+- Cliente pode ter o nome trocado quantas vezes quiser; em branco volta pro nome do perfil.
 
 ## Arquitetura rápida (pontos que mais confundem)
-- **`@lid` vs `@s.whatsapp.net`**: WhatsApp às vezes identifica o mesmo contato por um ID interno
-  (`@lid`) em vez do número de telefone (`@s.whatsapp.net`). As duas pontas (bot recebendo mensagem,
-  painel iniciando conversa) precisam concordar em qual JID usar pra mesma pessoa, senão vira
-  conversa "fantasma" duplicada. `numero_exibicao` na tabela `conversas` guarda o número legível só
-  pra mostrar na tela, não é a chave de verdade.
-- **Estado em memória (`flow-engine.js`) vs banco (`conversas.js`)**: são DOIS lugares que guardam
-  "onde a conversa está" — o banco é permanente (sobrevive restart), a memória não. Isso já causou
-  pelo menos 2 bugs diferentes nesta sessão (esse de hoje, e um anterior onde a nota da pesquisa de
-  satisfação reabria o menu).
-- **Baileys é uma API não-oficial** (engenharia reversa do WhatsApp Web) — por isso corrupção de
-  sessão Signal (Bad MAC etc.) acontece de verdade e não é sempre bug nosso. Mas hoje descobri que
-  às vezes SIM é bug nosso mascarado de "coisa estranha do WhatsApp" (o caso do `remoteJidAlt`) —
-  vale sempre olhar o código-fonte da lib em `node_modules/@whiskeysockets/baileys` quando um campo
-  que a gente lê some ou fica `undefined` depois de atualizar a versão.
+- **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
+  interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
+  fantasma. `numero_exibicao` guarda o telefone legível só pra mostrar/buscar.
+- **Nono dígito**: o WhatsApp às vezes guarda o celular sem o 9 (`558196850663`). Comparações e
+  busca tratam com e sem ele (`formaCurtaNumeroBr` em `modo-teste.js`, `variantesDoNumeroBuscado`
+  em `conversas.js`, e o mesmo em `public/js/fila-lista.js`).
+- **Estado em memória (`flow-engine.js`) vs banco (`conversas.js`)**: dois lugares guardam "onde
+  a conversa está". O banco sobrevive a reinício, a memória não — já causou vários bugs. O boot
+  restaura quem estava com atendente.
+- **Linha de `conversas` é reaproveitada pra sempre** pro mesmo número (`numero` é UNIQUE) —
+  por isso `criado_em` não serve pra "quando abriu o atendimento"; use `aberta_em`
+  (NULL = sem atendimento aberto; mensagem de cliente/atendente abre, finalizar/voltar ao início
+  do fluxo fecha, mensagem do bot não mexe).
+- **Baileys é não oficial** (engenharia reversa do WhatsApp Web): corrupção de sessão (Bad MAC)
+  acontece, mas às vezes é bug nosso disfarçado — quando um campo some depois de atualizar a lib,
+  olhar o código em `node_modules/@whiskeysockets/baileys`.
+- **Python no Windows** não abre arquivos do scratchpad (caminho > 260 caracteres) nem o `/tmp`
+  do Git Bash — pra scripts auxiliares, usar arquivo temporário dentro do projeto e apagar depois.
 
 ## Arquivos principais
-- `src/bot.js` — conexão com WhatsApp, recebe mensagens, filtro de modo de teste.
-- `src/routes/fila.js` — rotas do painel (fila de atendimento, nova conversa, responder, finalizar).
+- `src/bot.js` — conexão com o WhatsApp, recebe mensagens, grava nome do perfil (pushName).
+- `src/modo-teste.js` — regra do `NUMEROS_TESTE` (chegando e saindo).
 - `src/flow-engine.js` — motor do fluxo do bot (estado em memória).
-- `src/conversas.js` — acesso ao banco (tabela `conversas` e `mensagens`).
-- `src/midia.js` — upload/conversão de mídia (imagem/vídeo/áudio/PDF).
-- `src/avaliacao-vencida.js`, `src/inatividade.js` — jobs periódicos (setInterval).
-- `.env` (não commitado) — `PORTA`, `NUMEROS_TESTE`, `SESSION_SECRET`.
-- `config/negocio.json` — dados reais do negócio do Paulo, **NUNCA fazer `git add` direto nesse
-  arquivo** (ele edita com dados reais). Pra atualizar o template versionado no Git sem tocar na
-  cópia de trabalho, usar `git hash-object -w` + `git update-index --cacheinfo`.
+- `src/conversas.js` — banco: conversas, mensagens, fila, finalizadas, busca, nome do contato.
+- `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
+  `fila-responder.js` / `notificacoes.js` — tela da Fila.
+- `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`
+  (padrões dos campos novos em `PADROES`).
+- Jobs periódicos (setInterval, iniciados em `src/app.js`): `inatividade.js`,
+  `fechamento-automatico.js`, `avaliacao-vencida.js`, `backup.js` (diário, 30 dias),
+  `retencao.js` (anonimiza conversa sem atividade há 12 meses).
+- `.env` (não commitado) — `PORTA`, `NUMEROS_TESTE`, `SESSION_SECRET`, `NUMERO_ATENDENTE`.
+- `config/negocio.json` — dados reais do negócio, **NUNCA fazer `git add` nele** (pra atualizar
+  o template versionado sem tocar na cópia de trabalho: `git hash-object -w` +
+  `git update-index --cacheinfo`).
+- `data/` (ignorada pelo git) — banco `chatdigital.db`, `backups/`, `copias/`.
 
-## Pendências no Trello (não implementar sem confirmar, só lembrar que existem)
-- Configurações de inatividade (tempo + o que fazer)
-- Fechamento automático da conversa após 24h aberta
-- Mostrar o nome do atendente na mensagem (hoje só mostra "atendente")
+## Ideias que ficaram no ar (não implementar sem o Paulo pedir)
+- Demo sem WhatsApp + teste de 30 dias, relatório de conversas e API oficial do WhatsApp: cards
+  no Trello (Nazagas). Consulta/registro de marca no INPI: card no board PAULO.
+- Campo em Configurações pro número de "chamar direto" (`{{negocio.numero_atendente_legivel}}`),
+  que hoje só vem de `NUMERO_ATENDENTE` no `.env`.
+- Fechar o banco no `after()` dos testes pra sumir o `EPERM`.
 
 ## Como testar
-1. Rodar `npm start` (porta 3001).
-2. No painel, Configurações > WhatsApp — escanear QR se precisar.
-3. Testar só com os números em `NUMEROS_TESTE` do `.env`.
-4. Sempre que mudar código de `src/*.js` (não `views/*.ejs` nem `public/*`), precisa reiniciar o
-   servidor pra valer (Node cacheia `require`).
-5. Log do servidor fica sendo redirecionado pra `/tmp/chatdigital-server.log` quando eu (Claude)
-   rodo em background — útil pra debugar erro de decrypt/sessão do WhatsApp.
+1. `npm start` (porta 3001); no painel, Configurações > WhatsApp pra escanear o QR se precisar.
+2. Testar só com os números de `NUMEROS_TESTE`.
+3. Mudou `src/*.js`? Reiniciar o servidor (Node cacheia `require`). `views/*.ejs` e `public/*`
+   valem com F5.
+4. Pra conferir visual sem logar com a senha do Paulo: renderizar a view com `ejs.renderFile` e
+   dados de exemplo em `public/_previa/`, abrir no navegador e apagar a pasta depois.
+5. Quando o Claude roda o servidor em segundo plano, o log vai pra
+   `%TEMP%\chatdigital-server.log` (e `.err.log`).

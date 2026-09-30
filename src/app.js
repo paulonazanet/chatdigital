@@ -19,7 +19,9 @@ async function iniciar() {
   }
 
   const porta = process.env.PORTA || 3000;
-  app.listen(porta, () => console.log(`Painel do ChatDigital em http://localhost:${porta}`));
+  // HOST=127.0.0.1 no servidor: só o Caddy (na mesma máquina) acessa; sem HOST, escuta em tudo
+  const host = process.env.HOST || '0.0.0.0';
+  app.listen(porta, host, () => console.log(`Painel do ChatDigital em http://${host === '0.0.0.0' ? 'localhost' : host}:${porta}`));
 
   const restauradas = restaurarAtendimentosEmAndamento(fluxo);
   if (restauradas) console.log(`${restauradas} conversa(s) com atendente restaurada(s) — o bot continua em silêncio com elas.`);

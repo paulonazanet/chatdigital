@@ -15,12 +15,29 @@ const rotasConfiguracoes = require('./routes/configuracoes');
 
 const app = express();
 
+// Segredo que assina o cookie de login. Com um segredo conhecido (vazio, o valor de exemplo do
+// .env.example ou curto), qualquer um consegue forjar o cookie e entrar como administrador — em
+// produção (NODE_ENV=production) o sistema se recusa a subir assim; em desenvolvimento só avisa.
+const EM_PRODUCAO = process.env.NODE_ENV === 'production';
+const SEGREDO = process.env.SESSION_SECRET || '';
+const SEGREDO_FRACO = SEGREDO.length < 32 || /^troque/i.test(SEGREDO);
+if (SEGREDO_FRACO && EM_PRODUCAO) {
+  console.error('ERRO: SESSION_SECRET ausente ou fraco no .env (mínimo 32 caracteres aleatórios). Gere um com: openssl rand -hex 32');
+  process.exit(1);
+}
+if (SEGREDO_FRACO && !EM_PRODUCAO && !process.env.CHATDIGITAL_DB) { // (testes automáticos definem CHATDIGITAL_DB)
+  console.warn('Aviso: SESSION_SECRET fraco — tudo bem em desenvolvimento, NUNCA em produção.');
+}
+// em produção o sistema fica atrás do Caddy (HTTPS) na mesma máquina: confia só nele pra saber
+// que a conexão original era HTTPS (necessário pro cookie "secure")
+if (EM_PRODUCAO) app.set('trust proxy', 'loopback');
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(cookieParser(process.env.SESSION_SECRET || 'troque-este-segredo-no-.env'));
+app.use(cookieParser(SEGREDO || 'segredo-so-para-desenvolvimento-local'));
 app.use(carregarAtendenteLogado);
 
 app.use(rotasAuth);
