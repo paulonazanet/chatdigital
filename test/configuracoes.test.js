@@ -93,6 +93,23 @@ test('Configurações: admin salva, atendente sem permissão não acessa, produt
   assert.match(await resp.text(), /obrigatório/);
   assert.strictEqual(carregarNegocio().nome, 'Loja Nova', 'não deve ter salvo com nome vazio');
 
+  // tempos da bolinha da fila: sem nada salvo vale o padrão; salva o que o admin escolher;
+  // vermelha antes da amarela é recusado
+  assert.strictEqual(carregarNegocio().fila_minutos_amarelo, 0);
+  assert.strictEqual(carregarNegocio().fila_minutos_vermelho, 10);
+  const postarTempos = (amarelo, vermelho) =>
+    fetch(`${baseUrl}/painel/configuracoes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+      body: new URLSearchParams({ nome: 'Loja Nova', fila_minutos_amarelo: amarelo, fila_minutos_vermelho: vermelho }),
+    }).then((r) => r.text());
+  assert.match(await postarTempos('3', '15'), /Configurações salvas/);
+  assert.strictEqual(carregarNegocio().fila_minutos_amarelo, 3);
+  assert.strictEqual(carregarNegocio().fila_minutos_vermelho, 15);
+  assert.match(await postarTempos('20', '5'), /não pode ser menor que o da amarela/);
+  assert.match(await postarTempos('abc', '5'), /minutos inteiros/);
+  assert.strictEqual(carregarNegocio().fila_minutos_vermelho, 15, 'valor inválido não é salvo');
+
   // atendente comum sem a permissão não acessa
   resp = await fetch(`${baseUrl}/painel/atendentes`, {
     method: 'POST',

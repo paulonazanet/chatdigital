@@ -50,25 +50,10 @@ function podeVerConversa(atendente, conversa) {
   return meusSetores.includes(conversa.setor_id);
 }
 
-// Agrupa a fila (já transferida) por setor e, dentro de cada setor, em duas pilhas: 🔴 aguardando
-// sua resposta (ainda não assumida, ou o cliente acabou de escrever de novo) e 🟡 aguardando o
-// cliente responder (o atendente já respondeu e está esperando).
-function agruparPorSetor(conversas) {
-  const grupos = new Map();
-  for (const c of conversas) {
-    const chave = c.setor_id || 'sem-setor';
-    if (!grupos.has(chave)) {
-      grupos.set(chave, { chave, nome: c.setor_nome || 'Sem setor', vermelho: [], amarelo: [] });
-    }
-    const grupo = grupos.get(chave);
-    const aguardandoSuaResposta = c.status === 'aguardando' || c.ultima_mensagem_remetente === 'cliente';
-    (aguardandoSuaResposta ? grupo.vermelho : grupo.amarelo).push(c);
-  }
-  return [...grupos.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-}
+const FILTROS = ['minhas', 'fila', 'bot', 'todas'];
 
 // Conversas que o cliente começou a falar com o bot mas não terminaram no início do fluxo (ex.:
-// pararam de responder no meio de uma pergunta) — ninguém vê isso hoje a não ser por aqui.
+// pararam de responder no meio de uma pergunta) — aparecem no filtro "No bot", com botão Puxar.
 // Usa `no_fluxo_atual` salvo no banco (não a memória do motor de fluxo), então continua
 // funcionando certinho mesmo depois de reiniciar o processo.
 function listarParadasNoFluxo(atendente, fluxo) {
@@ -77,13 +62,62 @@ function listarParadasNoFluxo(atendente, fluxo) {
     .filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxo.inicio);
 }
 
+// Filtro e setor escolhidos: vêm da URL quando o atendente clica, e ficam num cookie pra
+// sobreviver aos redirecionamentos (responder, assumir...) que voltam pra /painel/fila/:id.
+function lerFiltros(req, res) {
+  const salvo = req.cookies?.filtroFila ? String(req.cookies.filtroFila).split('|') : [];
+  const filtro = FILTROS.includes(req.query.filtro) ? req.query.filtro : FILTROS.includes(salvo[0]) ? salvo[0] : 'minhas';
+  const setor = req.query.setor !== undefined ? String(req.query.setor) : salvo[1] || '';
+  if (req.query.filtro !== undefined || req.query.setor !== undefined) {
+    res.cookie('filtroFila', `${filtro}|${setor}`, { httpOnly: true, sameSite: 'lax' });
+  }
+  return { filtro, setor };
+}
+
+// Uma lista só (opção "A ajustada" aprovada pelo Paulo): quem está esperando resposta há mais
+// tempo em cima; `esperandoResposta` = a vez é do atendente (conversa ainda na fila, ou o
+// cliente escreveu depois da última resposta) — é quem ganha a bolinha amarela/vermelha.
+function montarListaFila(atendente, fluxo, { filtro, setor }) {
+  const naFila = listarFila()
+    .filter((c) => podeVerConversa(atendente, c))
+    .map((c) => ({
+      ...c,
+      tipo: c.status === 'aguardando' ? 'fila' : 'atendendo',
+      esperandoResposta: c.status === 'aguardando' || c.ultima_mensagem_remetente === 'cliente',
+    }));
+  const noBot = listarParadasNoFluxo(atendente, fluxo).map((c) => ({ ...c, tipo: 'bot', esperandoResposta: false }));
+
+  const doSetor = (c) => !setor || (setor === 'sem' ? !c.setor_id : String(c.setor_id) === setor);
+  const porFiltro = {
+    minhas: naFila.filter((c) => c.tipo === 'atendendo' && c.atendente_id === atendente.id),
+    fila: naFila.filter((c) => c.tipo === 'fila'),
+    bot: noBot,
+    todas: [...naFila, ...noBot],
+  };
+  const contagens = Object.fromEntries(FILTROS.map((f) => [f, porFiltro[f].filter(doSetor).length]));
+
+  const desde = (c) => (c.esperandoResposta ? c.esperando_desde || c.ultima_mensagem_em : c.ultima_mensagem_em) || c.atualizado_em;
+  const itens = porFiltro[filtro].filter(doSetor).sort((a, b) => {
+    if (a.esperandoResposta !== b.esperandoResposta) return a.esperandoResposta ? -1 : 1;
+    // esperando: quem espera há mais tempo primeiro; o resto: atividade mais recente primeiro
+    return a.esperandoResposta ? desde(a).localeCompare(desde(b)) : desde(b).localeCompare(desde(a));
+  });
+  return { itens: itens.map((c) => ({ ...c, desde: desde(c) })), contagens };
+}
+
 function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null, erroNovaConversa = null } = {}) {
   const fluxo = carregarFluxo();
-  const conversas = listarFila().filter((c) => podeVerConversa(req.atendente, c));
+  const negocio = carregarNegocio();
+  const filtros = lerFiltros(req, res);
+  const { itens, contagens } = montarListaFila(req.atendente, fluxo, filtros);
   res.render('fila/lista', {
     atendenteLogado: req.atendente,
-    grupos: agruparPorSetor(conversas),
-    paradas: listarParadasNoFluxo(req.atendente, fluxo),
+    itens,
+    contagens,
+    filtro: filtros.filtro,
+    setorFiltro: filtros.setor,
+    minutosAmarelo: negocio.fila_minutos_amarelo,
+    minutosVermelho: negocio.fila_minutos_vermelho,
     conversaSelecionada,
     mensagens,
     erro,

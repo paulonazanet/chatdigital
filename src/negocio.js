@@ -5,8 +5,14 @@ function caminhoArquivo() {
   return process.env.CHATDIGITAL_NEGOCIO || path.join(__dirname, '..', 'config', 'negocio.json');
 }
 
+// Valores usados quando o negocio.json ainda não tem o campo (instalações de antes dele existir).
+const PADROES = {
+  fila_minutos_amarelo: 0, // bolinha da fila fica amarela assim que o cliente escreve...
+  fila_minutos_vermelho: 10, // ...e vermelha depois de 10 min sem resposta
+};
+
 function carregarNegocio() {
-  return JSON.parse(fs.readFileSync(caminhoArquivo(), 'utf8'));
+  return { ...PADROES, ...JSON.parse(fs.readFileSync(caminhoArquivo(), 'utf8')) };
 }
 
 /**
@@ -27,6 +33,8 @@ function salvarConfiguracoes(campos) {
     mensagem_sem_atendente_disponivel: campos.mensagem_sem_atendente_disponivel,
     mensagem_inatividade: campos.mensagem_inatividade,
     mensagem_avaliacao_nao_respondida: campos.mensagem_avaliacao_nao_respondida,
+    fila_minutos_amarelo: campos.fila_minutos_amarelo,
+    fila_minutos_vermelho: campos.fila_minutos_vermelho,
   };
   fs.writeFileSync(caminhoArquivo(), JSON.stringify(atualizado, null, 2) + '\n', 'utf8');
   return atualizado;

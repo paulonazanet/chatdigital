@@ -10,6 +10,7 @@
   --vermelho-erro: #a4222c;
   --branco: #ffffff;
   --marca-laranja: #ed813b;
+  --altura-topo: 72px; /* faixa de cima: logo na barra lateral + cabeçalho da página */
   --marca-cinza-azulado-claro: #c9cde0;
 }
 
@@ -180,7 +181,10 @@ html.menu-recolhido .barra-lateral { width: 64px; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 1rem 1rem;
+  /* mesma altura do .fila-cabecalho, pra linha de baixo dos dois bater certinho */
+  box-sizing: border-box;
+  height: var(--altura-topo);
+  padding: 0 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   font-weight: 700;
   font-size: 1.05rem;
@@ -234,7 +238,7 @@ html.menu-recolhido .barra-lateral { width: 64px; }
 }
 
 html.menu-recolhido .barra-lateral nav a { justify-content: center; padding: 0.65rem; }
-html.menu-recolhido .barra-lateral .marca { padding: 1.1rem 0.6rem; justify-content: center; gap: 0.4rem; }
+html.menu-recolhido .barra-lateral .marca { padding: 0 0.6rem; justify-content: center; gap: 0.4rem; }
 html.menu-recolhido .marca-icone { height: 22px; width: 22px; }
 
 .sair {
@@ -421,6 +425,7 @@ html.menu-recolhido .recolhivel { display: none; }
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.9rem;
+  text-align: left; /* o balão do bot/atendente fica à direita, mas o texto dentro lê da esquerda */
 }
 .mensagem-remetente {
   font-size: 0.7rem;
@@ -816,7 +821,9 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
 }
 
 .fila-cabecalho {
-  padding: 1rem 1.5rem;
+  box-sizing: border-box;
+  min-height: var(--altura-topo); /* = .barra-lateral .marca */
+  padding: 0.5rem 1.5rem;
   border-bottom: 1px solid var(--cinza-borda);
   background: var(--branco);
   display: flex;
@@ -832,102 +839,115 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
 .fila-corpo { flex: 1; display: flex; min-height: 0; }
 
 .fila-lista {
-  width: 320px;
+  width: 340px;
   flex-shrink: 0;
   background: var(--branco);
   border-right: 1px solid var(--cinza-borda);
   overflow-y: auto;
-  padding: 0.85rem;
 }
 
-.grupo-setor { margin-bottom: 0.6rem; }
-.grupo-setor > summary,
-.subgrupo > summary,
-.grupo-paradas > summary {
-  cursor: pointer;
-  list-style: none;
+/* Filtros da fila (Minhas / Na fila / No bot / Todas + setor) — opção "A ajustada" */
+.fila-filtros {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  background: var(--branco);
+  border-bottom: 1px solid var(--cinza-borda);
 }
-.grupo-setor > summary::-webkit-details-marker,
-.subgrupo > summary::-webkit-details-marker,
-.grupo-paradas > summary::-webkit-details-marker {
-  display: none;
+.chip-filtro {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--cinza-fundo);
+  color: var(--cinza-texto);
+  white-space: nowrap;
 }
-.grupo-setor > summary {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--branco);
-  background: var(--azul-marinho);
-  padding: 0.45rem 0.6rem;
-  border-radius: 4px;
+.chip-filtro:hover { text-decoration: none; background: #e3e8ee; }
+.chip-filtro.ativo { background: var(--azul-marinho); color: var(--branco); }
+.chip-contagem { opacity: 0.75; margin-left: 0.15rem; }
+/* tem gente esperando alguém assumir e o atendente está olhando outro filtro */
+.chip-filtro.chip-alerta { background: #fde8e8; color: var(--vermelho-erro); font-weight: 600; }
+.filtro-setor { width: 100%; margin: 0.15rem 0 0; }
+.filtro-setor select { width: 100%; font-size: 0.8rem; padding: 0.3rem 0.4rem; margin: 0; }
+
+.item-conversa {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-}
-.grupo-setor > summary .contador { color: rgba(255, 255, 255, 0.75); font-weight: 400; }
-
-.ponto-novidade {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #ffffff;
-  margin-left: auto;
-  animation: piscar-novidade 1s ease-in-out infinite;
-}
-@keyframes piscar-novidade {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
-
-.subgrupo { margin: 0.15rem 0 0.3rem 0.4rem; }
-.subgrupo > summary { font-size: 0.78rem; font-weight: 600; padding: 0.3rem 0.25rem; }
-.subgrupo-vermelho > summary { color: var(--vermelho-erro); }
-.subgrupo-amarelo > summary { color: #8a6d00; }
-
-.item-conversa {
-  display: block;
-  padding: 0.5rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.82rem;
-  margin-bottom: 0.15rem;
+  border-bottom: 1px solid #edf0f3;
   color: var(--cinza-texto);
 }
-.item-conversa:hover { background: #eef1f4; text-decoration: none; }
-.item-conversa.selecionado { background: #e3ecf5; }
-.item-numero { font-weight: 600; color: var(--azul-marinho); display: block; }
-.item-ultima {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #8a97a3;
-  font-size: 0.78rem;
+.item-conversa:hover { background: #f5f7f9; }
+.item-conversa.selecionado { background: #e3ecf5; box-shadow: inset 3px 0 0 var(--azul-marinho); }
+.item-link {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.5rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+  color: inherit;
 }
+.item-link:hover { text-decoration: none; }
+.item-numero { font-weight: 600; color: var(--azul-marinho); }
+.item-tempo { font-size: 0.72rem; color: #8a97a3; text-align: right; white-space: nowrap; }
+.item-ultima { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a97a3; font-size: 0.78rem; }
+.item-lado { display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem; font-size: 0.72rem; color: #6b7885; white-space: nowrap; }
+.item-puxar { margin: 0 0.6rem 0 0; }
+.botao-pequeno { font-size: 0.75rem; padding: 0.25rem 0.6rem; margin: 0; }
+.fila-vazia { padding: 1rem 0.9rem; }
 
-.grupo-paradas { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--cinza-borda); }
-.grupo-paradas > summary {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--branco);
-  background: #ED813B;
-  padding: 0.45rem 0.6rem;
-  border-radius: 4px;
-}
-.grupo-paradas .dica { font-size: 0.75rem; margin: 0.3rem 0 0.5rem; }
+/* bolinha = a vez é do atendente; a cor segue os minutos de espera de Configurações */
+.bolinha { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.bolinha-verde { background: #2e9e6a; }
+.bolinha-amarela { background: #e0a100; }
+.bolinha-vermelha { background: #d33a3a; }
 
-.fila-detalhe { flex: 1; min-width: 0; overflow-y: auto; padding: 1.5rem 1.75rem; }
 .fila-detalhe-vazia { display: flex; align-items: center; justify-content: center; height: 100%; color: #8a97a3; }
+/* Tamanho fixo: cabeçalho em cima, caixa de resposta embaixo, e só o histórico rola no meio.
+   Antes a página toda rolava e o histórico crescia, empurrando os ícones e a caixa de resposta. */
+.fila-detalhe { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .fila-detalhe h2 { margin: 0 0 0.3rem; color: var(--azul-marinho); }
 .cabecalho-conversa {
-  position: sticky;
-  top: -1.5rem; /* = padding-top do .fila-detalhe: gruda rente à borda, sem mensagem aparecendo por cima */
-  z-index: 2;
-  margin: -1.5rem -1.75rem 1rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   padding: 1rem 1.75rem 0.75rem;
   background: var(--cinza-fundo);
   border-bottom: 1px solid var(--cinza-borda);
 }
+.cabecalho-conversa-info { flex: 1; min-width: 12rem; }
 .cabecalho-conversa .dica { margin: 0; }
-.fila-detalhe .historico { max-height: none; flex: 1; }
+.cabecalho-conversa .acoes-conversa { margin: 0; align-items: center; }
+.cabecalho-conversa .acoes-conversa form { margin: 0; }
+.cabecalho-conversa .transferir-popover .form-transferir { right: 0; left: auto; }
+/* Transferir é um <summary> e Finalizar/Assumir são <button>: o navegador dá fonte e altura de
+   linha diferentes pra cada um — trava tudo igual pra ficarem simétricos */
+.cabecalho-conversa .acoes-conversa button,
+.cabecalho-conversa .acoes-conversa .botao-como-summary {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  min-width: 110px;
+  padding: 0 1.2rem;
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.fila-detalhe .historico { flex: 1; min-height: 0; max-height: none; margin: 1rem 1.75rem 0; }
+.fila-detalhe > .erro, .fila-detalhe > .aviso { flex-shrink: 0; margin: 0.75rem 1.75rem 0; }
+.fila-detalhe .form-responder { flex-shrink: 0; margin: 0.75rem 1.75rem 1.25rem; }
+.fila-detalhe .form-responder textarea { height: 70px; resize: none; }
 
 .transferir-popover { position: relative; }
 .botao-como-summary {

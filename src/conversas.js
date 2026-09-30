@@ -87,7 +87,13 @@ function listarFila() {
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
               (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em,
+              -- desde quando o cliente espera: a 1a mensagem dele depois da última resposta de um
+              -- atendente (é isso que a cor da bolinha na fila mede)
+              (SELECT MIN(m.criado_em) FROM mensagens m WHERE m.conversa_id = c.id AND m.remetente = 'cliente'
+                 AND m.id > COALESCE((SELECT MAX(a2.id) FROM mensagens a2 WHERE a2.conversa_id = c.id AND a2.remetente = 'atendente'), 0)
+              ) AS esperando_desde
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
        LEFT JOIN atendentes a ON a.id = c.atendente_id
@@ -105,7 +111,8 @@ function listarFila() {
 function listarConversasComBot() {
   return db
     .prepare(
-      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem
+      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
        FROM conversas c WHERE c.status = 'bot' ORDER BY c.atualizado_em ASC`,
     )
     .all();

@@ -50,30 +50,6 @@
     return !!campo && campo.value.trim().length > 0;
   }
 
-  // Marca com uma bolinha piscando o cabeçalho de um setor que está recolhido e recebeu
-  // novidade — sem abrir ele sozinho (isso desfaria o que o atendente organizou na mão). Some
-  // sozinha quando o atendente abre o setor.
-  function marcarNovidadeNoSetor(setorId) {
-    var chave = setorId != null ? String(setorId) : 'sem-setor';
-    var grupo = document.querySelector('.grupo-setor[data-setor-chave="' + chave + '"]');
-    if (!grupo || grupo.open) return;
-
-    var resumo = grupo.querySelector('summary');
-    if (!resumo || resumo.querySelector('.ponto-novidade')) return;
-
-    var ponto = document.createElement('span');
-    ponto.className = 'ponto-novidade';
-    resumo.appendChild(ponto);
-
-    grupo.addEventListener(
-      'toggle',
-      function () {
-        if (grupo.open && ponto.parentNode) ponto.remove();
-      },
-      { once: true },
-    );
-  }
-
   function mostrarBannerAtualizar() {
     if (document.querySelector('.banner-atualizar')) return;
     var areaPrincipal = document.querySelector('.area-principal');
@@ -198,8 +174,7 @@
     if (temConversaAberta() && temRascunhoDeResposta()) {
       // Só avisa em vez de recarregar sozinho quando tem uma resposta sendo digitada — recarregar
       // nesse caso perderia o rascunho. Sem rascunho, atualiza automaticamente (e nesse caso a
-      // bolinha nem faz sentido, a lista toda já vem fresca do recarregamento).
-      marcarNovidadeNoSetor(dados.setorId);
+      // lista toda já vem fresca do recarregamento).
       mostrarBannerAtualizar();
     } else {
       setTimeout(function () {

@@ -43,6 +43,17 @@
       </label>
     </fieldset>
 
+    <fieldset>
+      <legend>Fila de atendimento</legend>
+      <p class="dica">A bolinha aparece na fila quando é a vez do atendente responder. A cor muda conforme o tempo que o cliente está esperando.</p>
+      <label>🟡 Amarela depois de quantos minutos esperando
+        <input type="number" name="fila_minutos_amarelo" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_amarelo %>" required>
+      </label>
+      <label>🔴 Vermelha depois de quantos minutos esperando
+        <input type="number" name="fila_minutos_vermelho" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_vermelho %>" required>
+      </label>
+    </fieldset>
+
     <button type="submit">Salvar</button>
   </form>
 

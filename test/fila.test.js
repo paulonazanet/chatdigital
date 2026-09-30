@@ -80,11 +80,12 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   const cookieAdmin = extrairCookie(resp);
   assert.ok(cookieAdmin);
 
-  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  resp = await fetch(`${baseUrl}/painel/fila?filtro=fila`, { headers: { cookie: cookieAdmin } });
   let corpo = await resp.text();
   assert.match(corpo, /5511999998888/);
   assert.match(corpo, /Geral/, 'deve casar com o setor "geral" do fluxo, seedado como "Geral" no banco');
-  assert.match(corpo, /Aguardando/);
+  assert.match(corpo, /chip-filtro ativo[^"]*"[^>]*>\s*Na fila/, 'filtro "Na fila" deve estar ativo');
+  assert.match(corpo, /class="bolinha bolinha-/, 'ninguém assumiu ainda: é a vez do atendente, tem bolinha'); 
 
   const idConversa = /\/painel\/fila\/(\d+)/.exec(corpo)[1];
 
@@ -115,8 +116,7 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
 
   resp = await fetch(`${baseUrl}/painel/fila/${idConversa}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
-  assert.match(corpo, /Paulo Admin/, 'atendente que assumiu deve aparecer no detalhe');
-  assert.match(corpo, /atendendo/);
+  assert.match(corpo, /Atendendo: Paulo Admin/, 'atendente que assumiu deve aparecer no detalhe');
   assert.match(corpo, /<textarea name="texto"/, 'conversa assumida deve mostrar o formulário de resposta');
 
   // sem o bot conectado (não há WhatsApp real neste teste), responder deve falhar com aviso claro,
@@ -149,7 +149,7 @@ test('conversa transferida para atendente aparece na fila com o setor certo, e a
   );
   definirSocket(null);
 
-  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  resp = await fetch(`${baseUrl}/painel/fila?filtro=todas`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
   assert.doesNotMatch(corpo, /5511999998888/, 'conversa finalizada não deve mais aparecer na fila');
 
@@ -188,10 +188,10 @@ test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transf
   const numeroParado = '5511988887777@s.whatsapp.net';
   await simularMensagemDoCliente(numeroParado, 'oi'); // pergunta o menu e fica esperando — "parado no fluxo"
 
-  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  resp = await fetch(`${baseUrl}/painel/fila?filtro=bot`, { headers: { cookie: cookieAdmin } });
   let corpo = await resp.text();
-  assert.match(corpo, /Parado no fluxo/);
-  assert.match(corpo, /5511988887777/, 'conversa parada no fluxo deve aparecer na lista');
+  assert.match(corpo, /5511988887777/, 'conversa parada no fluxo deve aparecer no filtro "No bot"');
+  assert.match(corpo, /\/puxar" class="item-puxar"/, 'cada conversa no bot tem o botão Puxar na própria linha');
 
   const idParado = corpo.match(/href="\/painel\/fila\/(\d+)"[^>]*>\s*<span class="item-numero">5511988887777/)[1];
 
@@ -204,7 +204,7 @@ test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transf
 
   resp = await fetch(`${baseUrl}/painel/fila/${idParado}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
-  assert.match(corpo, /atendendo/, '"puxar pra mim" deve assumir a conversa direto');
+  assert.match(corpo, /Atendendo: Paulo Admin/, '"puxar pra mim" deve assumir a conversa direto');
 
   // o bot não deve mais responder esse número (foi transferido manualmente)
   const respostaAposPuxar = await simularMensagemDoCliente(numeroParado, 'oi de novo');
@@ -226,7 +226,7 @@ test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transf
 
   resp = await fetch(`${baseUrl}/painel/fila/${idParado}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
-  assert.match(corpo, /Setor: Suporte/, 'transferir deve mudar o setor da conversa');
+  assert.match(corpo, /· Suporte\s*<\/p>/, 'transferir deve mudar o setor da conversa');
 
   console.log('OK: "parado no fluxo" aparece, "puxar pra mim" assume e silencia o bot, transferir muda o setor');
 });
@@ -254,7 +254,7 @@ test('"parado no fluxo" sobrevive a reiniciar o processo (não depende da memór
     agora,
   );
 
-  resp = await fetch(`${baseUrl}/painel/fila`, { headers: { cookie: cookieAdmin } });
+  resp = await fetch(`${baseUrl}/painel/fila?filtro=bot`, { headers: { cookie: cookieAdmin } });
   const corpo = await resp.text();
   assert.match(corpo, /5511955554444/, 'deve aparecer como parada mesmo sem o motor de fluxo ter visto esse número neste processo');
 
@@ -394,6 +394,47 @@ test('histórico mostra o nome de quem respondeu, não só "atendente" genérico
   console.log('OK: histórico mostra o nome do atendente que respondeu');
 });
 
+test('fila: "Minhas" em ordem de espera, bolinha amarela/vermelha pelo tempo, sem bolinha quando a vez é do cliente', async () => {
+  let resp = await fetch(`${baseUrl}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: 'admin@teste.com', senha: '123456' }),
+    redirect: 'manual',
+  });
+  const cookieAdmin = extrairCookie(resp);
+  const admin = db.prepare('SELECT id FROM atendentes WHERE email = ?').get('admin@teste.com');
+
+  const minutosAtras = (m) => new Date(Date.now() - m * 60000).toISOString();
+  function conversaDoAdmin(numero, mensagens) {
+    const id = Number(
+      db
+        .prepare('INSERT INTO conversas (numero, status, atendente_id, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?)')
+        .run(numero, 'atendendo', admin.id, minutosAtras(60), minutosAtras(0)).lastInsertRowid,
+    );
+    for (const [remetente, texto, minutos] of mensagens) {
+      db.prepare('INSERT INTO mensagens (conversa_id, remetente, texto, criado_em) VALUES (?, ?, ?, ?)').run(id, remetente, texto, minutosAtras(minutos));
+    }
+  }
+  // padrão (sem nada em Configurações): amarela a partir de 0 min, vermelha a partir de 10 min
+  conversaDoAdmin('5511944440002@s.whatsapp.net', [['atendente', 'oi', 20], ['cliente', 'cadê meu gás?', 2]]);
+  conversaDoAdmin('5511944440015@s.whatsapp.net', [['atendente', 'oi', 30], ['cliente', 'alô', 15], ['cliente', 'alguém?', 5]]);
+  conversaDoAdmin('5511944440099@s.whatsapp.net', [['cliente', 'quero 1 botijão', 9], ['atendente', 'já sai', 1]]);
+
+  resp = await fetch(`${baseUrl}/painel/fila?filtro=minhas`, { headers: { cookie: cookieAdmin } });
+  const corpo = await resp.text();
+  const ordem = [...corpo.matchAll(/item-numero">(55119444400\d\d)/g)].map((m) => m[1]);
+  assert.deepStrictEqual(ordem, ['5511944440015', '5511944440002', '5511944440099'], 'quem espera há mais tempo em cima; quem já foi respondido por último');
+
+  const trecho = (numero) => corpo.slice(corpo.indexOf(`item-numero">${numero}`), corpo.indexOf('</div>', corpo.indexOf(`item-numero">${numero}`)));
+  assert.match(trecho('5511944440015'), /bolinha-vermelha/, 'esperando desde a 1a mensagem sem resposta (15 min) — vermelha');
+  assert.match(trecho('5511944440015'), /há 15 min/);
+  assert.match(trecho('5511944440002'), /bolinha-amarela/, 'esperando há 2 min — amarela');
+  assert.doesNotMatch(trecho('5511944440099'), /bolinha/, 'atendente respondeu por último: a vez é do cliente, sem bolinha');
+  assert.match(trecho('5511944440099'), /Você: já sai/);
+
+  console.log('OK: fila ordena por tempo de espera e pinta a bolinha conforme os minutos de Configurações');
+});
+
 test('nova conversa: cria e assume com número que existe no WhatsApp, recusa número que não existe', async () => {
   let resp = await fetch(`${baseUrl}/login`, {
     method: 'POST',
@@ -439,7 +480,7 @@ test('nova conversa: cria e assume com número que existe no WhatsApp, recusa n�
   resp = await fetch(`${baseUrl}${resp.headers.get('location')}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
   assert.match(corpo, /5511900001111/);
-  assert.match(corpo, /atendendo/, 'conversa já deve nascer assumida por quem a criou, não esperando outro atendente');
+  assert.match(corpo, /Atendendo: /, 'conversa já deve nascer assumida por quem a criou, não esperando outro atendente');
   assert.match(corpo, /Oi! Vi que você pediu contato, aqui é a loja\./);
 
   // regressão: a primeira resposta do cliente não pode acordar o bot do fluxo — a conversa já

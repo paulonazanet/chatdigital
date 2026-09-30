@@ -1,6 +1,7 @@
 <%- include('../partials/inicio', { titulo: 'Fila de atendimento' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
 <script src="/js/fila-responder.js" defer></script>
+<script src="/js/fila-lista.js" defer></script>
 <%
   // Número legível pra mostrar: o de exibição (guardado quando o WhatsApp manda em conversas
   // @lid, que não trazem o número de telefone no endereço) ou, na falta dele, o próprio número
@@ -15,6 +16,24 @@
   function escaparHtml(t) {
     return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // "há 5 min" / "há 2 h" / "há 3 dias" — public/js/fila-lista.js recalcula isso a cada 30s
+  // na tela, pra não precisar recarregar a página pra ver o tempo andando.
+  function haQuanto(iso) {
+    const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+    if (min < 1) return 'agora';
+    if (min < 60) return `há ${min} min`;
+    if (min < 1440) return `há ${Math.floor(min / 60)} h`;
+    return `há ${Math.floor(min / 1440)} ${min < 2880 ? 'dia' : 'dias'}`;
+  }
+  function corDaBolinha(iso) {
+    const min = (Date.now() - new Date(iso).getTime()) / 60000;
+    if (min >= minutosVermelho) return 'vermelha';
+    if (min >= minutosAmarelo) return 'amarela';
+    return 'verde';
+  }
+  const ROTULOS_FILTRO = { minhas: 'Minhas', fila: 'Na fila', bot: 'No bot', todas: 'Todas' };
+  const baseFiltro = conversaSelecionada ? `/painel/fila/${conversaSelecionada.id}` : '/painel/fila';
+
   function formatarWhatsapp(t) {
     return escaparHtml(t == null ? '' : t)
       .replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')
@@ -41,52 +60,52 @@
   </div>
 
   <div class="fila-corpo">
-    <aside class="fila-lista">
-      <% grupos.forEach((grupo) => { %>
-        <details class="grupo-setor" data-setor-chave="<%= grupo.chave %>" open>
-          <summary><%= grupo.nome %> <span class="contador">(<%= grupo.vermelho.length + grupo.amarelo.length %>)</span></summary>
+    <aside class="fila-lista" data-minutos-amarelo="<%= minutosAmarelo %>" data-minutos-vermelho="<%= minutosVermelho %>">
+      <div class="fila-filtros">
+        <% Object.entries(ROTULOS_FILTRO).forEach(([chave, rotulo]) => { %>
+          <a class="chip-filtro <%= filtro === chave ? 'ativo' : '' %> <%= chave === 'fila' && contagens.fila > 0 && filtro !== 'fila' ? 'chip-alerta' : '' %>" href="<%= baseFiltro %>?filtro=<%= chave %>">
+            <%= rotulo %> <span class="chip-contagem"><%= contagens[chave] %></span>
+          </a>
+        <% }) %>
+        <form method="get" action="<%= baseFiltro %>" class="filtro-setor">
+          <input type="hidden" name="filtro" value="<%= filtro %>">
+          <select name="setor" onchange="this.form.submit()" aria-label="Filtrar por setor">
+            <option value="">Todos os setores</option>
+            <% setores.forEach((s) => { %>
+              <option value="<%= s.id %>" <%= setorFiltro === String(s.id) ? 'selected' : '' %>><%= s.nome %></option>
+            <% }) %>
+            <option value="sem" <%= setorFiltro === 'sem' ? 'selected' : '' %>>Sem setor</option>
+          </select>
+          <noscript><button type="submit">Filtrar</button></noscript>
+        </form>
+      </div>
 
-          <% if (grupo.vermelho.length > 0) { %>
-            <details class="subgrupo subgrupo-vermelho" open>
-              <summary>🔴 Aguardando sua resposta (<%= grupo.vermelho.length %>)</summary>
-              <% grupo.vermelho.forEach((c) => { %>
-                <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-                  <span class="item-numero"><%= exibirNumero(c) %></span>
-                  <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
-                </a>
-              <% }) %>
-            </details>
+      <% itens.forEach((c) => { %>
+        <div class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>">
+          <a class="item-link" href="/painel/fila/<%= c.id %>">
+            <span class="item-numero"><%= exibirNumero(c) %></span>
+            <span class="item-tempo" data-desde="<%= c.desde %>"><%= haQuanto(c.desde) %></span>
+            <span class="item-ultima"><%= c.ultima_mensagem_remetente === 'atendente' ? 'Você: ' : c.tipo === 'bot' ? 'Bot: ' : '' %><%= c.ultima_mensagem || '' %></span>
+            <span class="item-lado">
+              <% if (c.esperandoResposta) { %><span class="bolinha bolinha-<%= corDaBolinha(c.desde) %>" data-desde="<%= c.desde %>" title="Cliente esperando sua resposta"></span><% } %>
+              <%= c.tipo === 'bot' ? '' : (c.setor_nome || 'Sem setor') %>
+            </span>
+          </a>
+          <% if (c.tipo === 'bot') { %>
+            <form method="post" action="/painel/fila/<%= c.id %>/puxar" class="item-puxar">
+              <button type="submit" class="botao-pequeno" title="Tirar do bot e assumir a conversa">Puxar</button>
+            </form>
           <% } %>
-
-          <% if (grupo.amarelo.length > 0) { %>
-            <details class="subgrupo subgrupo-amarelo">
-              <summary>🟡 Aguardando cliente responder (<%= grupo.amarelo.length %>)</summary>
-              <% grupo.amarelo.forEach((c) => { %>
-                <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-                  <span class="item-numero"><%= exibirNumero(c) %></span>
-                  <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
-                </a>
-              <% }) %>
-            </details>
-          <% } %>
-        </details>
+        </div>
       <% }) %>
 
-      <% if (grupos.length === 0) { %>
-        <p class="dica">Nenhuma conversa aguardando atendimento no momento.</p>
-      <% } %>
-
-      <% if (paradas.length > 0) { %>
-        <details class="grupo-paradas">
-          <summary>⚪ Parado no fluxo (<%= paradas.length %>)</summary>
-          <p class="dica">O cliente começou a falar com o bot mas parou no meio — ainda não foi transferido pra ninguém.</p>
-          <% paradas.forEach((c) => { %>
-            <a class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" href="/painel/fila/<%= c.id %>">
-              <span class="item-numero"><%= exibirNumero(c) %></span>
-              <span class="item-ultima"><%= c.ultima_mensagem || '' %></span>
-            </a>
-          <% }) %>
-        </details>
+      <% if (itens.length === 0) { %>
+        <p class="dica fila-vazia"><%= {
+          minhas: 'Nenhuma conversa com você agora.',
+          fila: 'Ninguém esperando um atendente assumir.',
+          bot: 'Nenhum cliente parado no meio do fluxo do bot.',
+          todas: 'Nenhuma conversa em andamento.',
+        }[filtro] %></p>
       <% } %>
     </aside>
 
@@ -97,12 +116,55 @@
         <%# fixo no topo: a tela rola sozinha até a última mensagem, e sem isso o número do
             cliente ficava escondido lá em cima numa conversa comprida %>
         <div class="cabecalho-conversa">
-          <h2><%= exibirNumero(conversaSelecionada) %></h2>
-          <p class="dica">
-            Setor: <%= conversaSelecionada.setor_nome || '—' %> ·
-            Status: <%= conversaSelecionada.status %> ·
-            Atendente: <%= conversaSelecionada.atendente_nome || '—' %>
-          </p>
+          <div class="cabecalho-conversa-info">
+            <h2><%= exibirNumero(conversaSelecionada) %></h2>
+            <p class="dica">
+              <%= {
+                atendendo: `Atendendo: ${conversaSelecionada.atendente_nome || '—'}`,
+                aguardando: 'Na fila, esperando alguém assumir',
+                bot: 'Com o bot',
+                finalizado: 'Finalizada',
+              }[conversaSelecionada.status] %> · <%= conversaSelecionada.setor_nome || 'Sem setor' %>
+            </p>
+          </div>
+          <div class="acoes-conversa">
+            <% if (conversaSelecionada.status === 'bot') { %>
+              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/puxar">
+                <button type="submit">Puxar pra mim</button>
+              </form>
+            <% } else if (conversaSelecionada.status !== 'finalizado') { %>
+              <% if (conversaSelecionada.status === 'aguardando') { %>
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/assumir">
+                  <button type="submit">Assumir conversa</button>
+                </form>
+              <% } %>
+              <details class="transferir-popover">
+                <summary class="botao-secundario botao-como-summary">Transferir</summary>
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/transferir" class="form-transferir">
+                  <label>Setor
+                    <select name="setor_id" required>
+                      <option value="">Escolha um setor</option>
+                      <% setores.forEach((s) => { %>
+                        <option value="<%= s.id %>" <%= conversaSelecionada.setor_id === s.id ? 'selected' : '' %>><%= s.nome %></option>
+                      <% }) %>
+                    </select>
+                  </label>
+                  <label>Atendente específico (opcional)
+                    <select name="atendente_id">
+                      <option value="">Deixar na fila do setor</option>
+                      <% atendentes.forEach((a) => { %>
+                        <option value="<%= a.id %>"><%= a.nome %></option>
+                      <% }) %>
+                    </select>
+                  </label>
+                  <button type="submit">Confirmar transferência</button>
+                </form>
+              </details>
+              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar">
+                <button type="submit" class="botao-secundario">Finalizar</button>
+              </form>
+            <% } %>
+          </div>
         </div>
 
         <div class="historico">
@@ -127,43 +189,8 @@
         <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
 
         <% if (conversaSelecionada.status === 'bot') { %>
-          <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/puxar">
-            <button type="submit">Puxar pra mim</button>
-          </form>
+          <p class="aviso">Essa conversa ainda está com o bot. Use <strong>Puxar pra mim</strong> no topo pra assumir.</p>
         <% } else if (conversaSelecionada.status !== 'finalizado') { %>
-          <div class="acoes-conversa">
-            <% if (conversaSelecionada.status === 'aguardando') { %>
-              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/assumir">
-                <button type="submit">Assumir conversa</button>
-              </form>
-            <% } %>
-            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar">
-              <button type="submit" class="botao-secundario">Finalizar</button>
-            </form>
-            <details class="transferir-popover">
-              <summary class="botao-secundario botao-como-summary">Transferir</summary>
-              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/transferir" class="form-transferir">
-                <label>Setor
-                  <select name="setor_id" required>
-                    <option value="">Escolha um setor</option>
-                    <% setores.forEach((s) => { %>
-                      <option value="<%= s.id %>" <%= conversaSelecionada.setor_id === s.id ? 'selected' : '' %>><%= s.nome %></option>
-                    <% }) %>
-                  </select>
-                </label>
-                <label>Atendente específico (opcional)
-                  <select name="atendente_id">
-                    <option value="">Deixar na fila do setor</option>
-                    <% atendentes.forEach((a) => { %>
-                      <option value="<%= a.id %>"><%= a.nome %></option>
-                    <% }) %>
-                  </select>
-                </label>
-                <button type="submit">Confirmar transferência</button>
-              </form>
-            </details>
-          </div>
-
           <% if (conversaSelecionada.status === 'atendendo') { %>
             <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
               <div class="form-responder-barra">
@@ -194,7 +221,7 @@
   <script>
     // Sempre abre (ou recarrega) já mostrando a mensagem mais recente, sem precisar descer a mão.
     (function () {
-      var area = document.querySelector('.fila-detalhe');
+      var area = document.querySelector('.fila-detalhe .historico');
       if (area) area.scrollTop = area.scrollHeight;
     })();
   </script>
