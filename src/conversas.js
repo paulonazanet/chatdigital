@@ -52,6 +52,11 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
     'INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
   ).run(conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null, atendenteId);
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
+  // mensagem de gente (cliente ou atendente) abre um atendimento, se não tinha um aberto;
+  // mensagem do bot não — senão o "atendimento encerrado" mandado ao finalizar reabriria
+  if (remetente !== 'bot') {
+    db.prepare('UPDATE conversas SET aberta_em = COALESCE(aberta_em, ?) WHERE id = ?').run(agora, conversa.id);
+  }
   // Cliente voltou a escrever — se tinha lembrete de inatividade pendente, não faz mais sentido.
   if (remetente === 'cliente') {
     db.prepare('UPDATE conversas SET lembrete_inatividade_em = NULL WHERE id = ?').run(conversa.id);
@@ -84,13 +89,12 @@ function sincronizarConversa(numero, fluxo) {
     status = conversa.status === 'atendendo' || conversa.status === 'finalizado' ? conversa.status : 'aguardando';
   }
 
-  db.prepare('UPDATE conversas SET status = ?, setor_id = ?, no_fluxo_atual = ?, atualizado_em = ? WHERE id = ?').run(
-    status,
-    setorId,
-    estado.no,
-    new Date().toISOString(),
-    conversa.id,
-  );
+  // de volta ao início do fluxo sem ninguém atendendo = atendimento encerrado (ex.: o fluxo chegou
+  // num nó "fim", ou era a nota da pesquisa) — o próximo "oi" abre um novo
+  const ocioso = status === 'bot' && estado.no === fluxo.inicio && !estado.aguardando;
+  db.prepare(
+    'UPDATE conversas SET status = ?, setor_id = ?, no_fluxo_atual = ?, atualizado_em = ?, aberta_em = CASE WHEN ? THEN NULL ELSE aberta_em END WHERE id = ?',
+  ).run(status, setorId, estado.no, new Date().toISOString(), ocioso ? 1 : 0, conversa.id);
 
   const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
   if (acabouDeEntrarNaFila) {
@@ -239,15 +243,17 @@ function listarMensagens(conversaId) {
 }
 
 function assumirConversa(id, atendenteId) {
-  db.prepare("UPDATE conversas SET atendente_id = ?, status = 'atendendo', atualizado_em = ? WHERE id = ?").run(
+  const agora = new Date().toISOString();
+  db.prepare("UPDATE conversas SET atendente_id = ?, status = 'atendendo', atualizado_em = ?, aberta_em = COALESCE(aberta_em, ?) WHERE id = ?").run(
     atendenteId,
-    new Date().toISOString(),
+    agora,
+    agora,
     id,
   );
 }
 
 function finalizarConversa(id) {
-  db.prepare("UPDATE conversas SET status = 'finalizado', atualizado_em = ? WHERE id = ?").run(
+  db.prepare("UPDATE conversas SET status = 'finalizado', atualizado_em = ?, aberta_em = NULL, lembrete_inatividade_em = NULL WHERE id = ?").run(
     new Date().toISOString(),
     id,
   );

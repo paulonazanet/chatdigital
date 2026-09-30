@@ -107,8 +107,28 @@ test('Configurações: admin salva, atendente sem permissão não acessa, produt
   assert.strictEqual(carregarNegocio().fila_minutos_amarelo, 3);
   assert.strictEqual(carregarNegocio().fila_minutos_vermelho, 15);
   assert.match(await postarTempos('20', '5'), /não pode ser menor que o da amarela/);
-  assert.match(await postarTempos('abc', '5'), /minutos inteiros/);
+  assert.match(await postarTempos('abc', '5'), /números inteiros/);
   assert.strictEqual(carregarNegocio().fila_minutos_vermelho, 15, 'valor inválido não é salvo');
+
+  // inatividade e fechamento automático
+  const postar = (campos) =>
+    fetch(`${baseUrl}/painel/configuracoes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie: cookieAdmin },
+      body: new URLSearchParams({ nome: 'Loja Nova', ...campos }),
+    }).then((r) => r.text());
+  assert.match(await postar({ inatividade_minutos_lembrete: '20', inatividade_minutos_limite: '10' }), /tem que ser maior que o tempo do lembrete/);
+  assert.match(
+    await postar({ inatividade_minutos_lembrete: '5', inatividade_minutos_limite: '20', inatividade_acao: 'transferir', inatividade_setor_id: '', fechamento_automatico_horas: '48', mensagem_fechamento_automatico: '' }),
+    /Configurações salvas/,
+  );
+  const salvo = carregarNegocio();
+  assert.strictEqual(salvo.inatividade_minutos_lembrete, 5);
+  assert.strictEqual(salvo.inatividade_minutos_limite, 20);
+  assert.strictEqual(salvo.inatividade_acao, 'transferir');
+  assert.strictEqual(salvo.inatividade_setor_id, null, 'vazio = Geral');
+  assert.strictEqual(salvo.fechamento_automatico_horas, 48);
+  assert.strictEqual(salvo.mensagem_fechamento_automatico, '', 'em branco = fecha em silêncio');
 
   // atendente comum sem a permissão não acessa
   resp = await fetch(`${baseUrl}/painel/atendentes`, {

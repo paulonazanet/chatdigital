@@ -1,4 +1,5 @@
 const { registrarMensagem } = require('./conversas');
+const { podeEnviarAutomatico } = require('./modo-teste');
 const { carregarNegocio } = require('./negocio');
 const { obterSocket } = require('./socket-atual');
 const { listarAguardandoAvaliacaoVencidos, desligarAguardandoAvaliacao } = require('./flow-engine');
@@ -18,7 +19,7 @@ async function verificarAvaliacoesVencidas() {
   const sock = obterSocket();
 
   for (const numero of numeros) {
-    if (sock && negocio.mensagem_avaliacao_nao_respondida) {
+    if (sock && negocio.mensagem_avaliacao_nao_respondida && podeEnviarAutomatico(numero)) {
       try {
         await sock.sendMessage(numero, { text: negocio.mensagem_avaliacao_nao_respondida });
         registrarMensagem(numero, 'bot', negocio.mensagem_avaliacao_nao_respondida);

@@ -9,6 +9,7 @@ const { iniciarChecagemInatividade } = require('./inatividade');
 const { iniciarBackupDiario } = require('./backup');
 const { iniciarRetencaoDiaria } = require('./retencao');
 const { iniciarChecagemAvaliacaoVencida } = require('./avaliacao-vencida');
+const { iniciarFechamentoAutomatico } = require('./fechamento-automatico');
 
 async function iniciar() {
   const negocio = carregarNegocio();
@@ -28,6 +29,7 @@ async function iniciar() {
   iniciarBackupDiario();
   iniciarRetencaoDiaria();
   iniciarChecagemAvaliacaoVencida();
+  iniciarFechamentoAutomatico();
 }
 
 iniciar().catch((erro) => {

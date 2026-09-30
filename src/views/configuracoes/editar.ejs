@@ -38,9 +38,6 @@
       <label>Sem atendente disponível (mandada quando o cliente é transferido pro humano e ninguém do setor está online — deixe em branco pra não mandar)
         <textarea name="mensagem_sem_atendente_disponivel" rows="2"><%= negocio.mensagem_sem_atendente_disponivel || '' %></textarea>
       </label>
-      <label>Inatividade do cliente (mandada uma vez quando o cliente para no meio de uma pergunta do fluxo e some — deixe em branco pra não mandar)
-        <textarea name="mensagem_inatividade" rows="2"><%= negocio.mensagem_inatividade || '' %></textarea>
-      </label>
     </fieldset>
 
     <fieldset>
@@ -51,6 +48,47 @@
       </label>
       <label>🔴 Vermelha depois de quantos minutos esperando
         <input type="number" name="fila_minutos_vermelho" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_vermelho %>" required>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cliente parado no meio do bot</legend>
+      <p class="dica">Quando o cliente para de responder no meio de uma pergunta do bot (ex.: o endereço do pedido). Não mexe em conversa que já está com atendente.</p>
+      <label>Mandar o lembrete depois de quantos minutos sem resposta
+        <input type="number" name="inatividade_minutos_lembrete" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_lembrete %>" required>
+      </label>
+      <label>Mensagem do lembrete (deixe em branco pra não mandar)
+        <textarea name="mensagem_inatividade" rows="2"><%= negocio.mensagem_inatividade || '' %></textarea>
+      </label>
+      <label>Desistir depois de quantos minutos sem resposta (contando desde que ele parou)
+        <input type="number" name="inatividade_minutos_limite" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_limite %>" required>
+      </label>
+      <div class="grupo-opcoes">
+        <span class="grupo-opcoes-titulo">Ao desistir:</span>
+        <label class="linha"><input type="radio" name="inatividade_acao" value="reiniciar" <%= negocio.inatividade_acao !== 'transferir' ? 'checked' : '' %>> Reiniciar o fluxo (em silêncio — a próxima mensagem do cliente recebe o menu)</label>
+        <label class="linha"><input type="radio" name="inatividade_acao" value="transferir" <%= negocio.inatividade_acao === 'transferir' ? 'checked' : '' %>> Transferir pra um atendente (vai pra "Na fila")</label>
+      </div>
+      <label>Setor que recebe a transferência
+        <select name="inatividade_setor_id">
+          <option value="">Geral</option>
+          <% setores.filter((s) => s.nome.toLowerCase() !== 'geral').forEach((s) => { %>
+            <option value="<%= s.id %>" <%= String(negocio.inatividade_setor_id) === String(s.id) ? 'selected' : '' %>><%= s.nome %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Mensagem pro cliente ao transferir (deixe em branco pra não mandar)
+        <textarea name="mensagem_inatividade_transferencia" rows="2"><%= negocio.mensagem_inatividade_transferencia || '' %></textarea>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Fechamento automático</legend>
+      <p class="dica">Fecha sozinho o atendimento que ficou aberto por tempo demais — com o bot, na fila ou com atendente —, contando desde que ele foi aberto.</p>
+      <label>Fechar depois de quantas horas aberto (0 = nunca fechar sozinho)
+        <input type="number" name="fechamento_automatico_horas" min="0" max="720" step="1" value="<%= negocio.fechamento_automatico_horas %>" required>
+      </label>
+      <label>Mensagem pro cliente ao fechar (deixe em branco pra fechar em silêncio)
+        <textarea name="mensagem_fechamento_automatico" rows="2"><%= negocio.mensagem_fechamento_automatico || '' %></textarea>
       </label>
     </fieldset>
 

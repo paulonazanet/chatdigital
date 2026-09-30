@@ -177,3 +177,124 @@ test('avaliação vencida: manda o aviso de encerramento automático uma vez, e 
   definirSocket(null);
   console.log('OK: avaliação vencida manda o aviso de encerramento uma vez e não trava a conversa');
 });
+
+test('inatividade configurável: tempos de Configurações, lembrete em branco ainda conta, e "transferir" manda pra fila do setor escolhido', async () => {
+  const { salvarConfiguracoes } = require('../src/negocio');
+  const suporte = criarSetor('Suporte Inatividade');
+  salvarConfiguracoes({
+    inatividade_minutos_lembrete: 5,
+    inatividade_minutos_limite: 15,
+    mensagem_inatividade: '', // sem lembrete — antes disso a conversa ficava parada pra sempre
+    inatividade_acao: 'transferir',
+    inatividade_setor_id: suporte.id,
+    mensagem_inatividade_transferencia: 'Vou te passar pra equipe.',
+  });
+
+  const numero = '5511900000077@s.whatsapp.net';
+  await simularMensagemDoCliente(numero, 'oi'); // para no menu
+  const conversa = obterOuCriarConversa(numero);
+  const minutosAtras = (m) => new Date(Date.now() - m * 60000).toISOString();
+
+  const mensagensEnviadas = [];
+  definirSocket({ sendMessage: async (n, msg) => mensagensEnviadas.push({ numero: n, texto: msg.text }) });
+
+  db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(minutosAtras(4), conversa.id);
+  await verificarInatividade();
+  assert.strictEqual(obterOuCriarConversa(numero).lembrete_inatividade_em, null, '4 min: ainda não passou dos 5 configurados');
+
+  db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(minutosAtras(6), conversa.id);
+  await verificarInatividade();
+  assert.ok(obterOuCriarConversa(numero).lembrete_inatividade_em, '6 min: marca o lembrete mesmo sem mensagem configurada');
+  assert.deepStrictEqual(mensagensEnviadas, [], 'mensagem em branco = não manda nada');
+
+  db.prepare('UPDATE conversas SET lembrete_inatividade_em = ? WHERE id = ?').run(minutosAtras(11), conversa.id);
+  await verificarInatividade();
+  const transferida = obterOuCriarConversa(numero);
+  assert.strictEqual(transferida.status, 'aguardando', 'desistiu: vai pra "Na fila"');
+  assert.strictEqual(transferida.setor_id, suporte.id, 'no setor escolhido em Configurações');
+  assert.deepStrictEqual(mensagensEnviadas, [{ numero, texto: 'Vou te passar pra equipe.' }]);
+  const { resposta } = await simularMensagemDoCliente(numero, 'voltei');
+  assert.strictEqual(resposta, null, 'com atendente, o bot fica em silêncio');
+
+  definirSocket(null);
+  salvarConfiguracoes({ inatividade_acao: 'reiniciar', inatividade_minutos_lembrete: 10, inatividade_minutos_limite: 30, mensagem_inatividade: 'Ainda por aí?' });
+  console.log('OK: inatividade usa os tempos de Configurações e "transferir" manda pra fila do setor escolhido');
+});
+
+test('fechamento automático: fecha o atendimento aberto há mais das horas configuradas, contando da abertura', async () => {
+  const { fecharAtendimentosVencidos } = require('../src/fechamento-automatico');
+  const { salvarConfiguracoes } = require('../src/negocio');
+  const { assumirConversa } = require('../src/conversas');
+  const horasAtras = (h) => new Date(Date.now() - h * 3600000).toISOString();
+
+  // abertura: a 1a mensagem do cliente marca aberta_em; mensagem do bot não mexe
+  const antigo = '5511900000066@s.whatsapp.net';
+  await simularMensagemDoCliente(antigo, 'oi');
+  await simularMensagemDoCliente(antigo, '3'); // pede atendente
+  const conversaAntiga = obterOuCriarConversa(antigo);
+  assert.ok(conversaAntiga.aberta_em, 'mensagem do cliente abre o atendimento');
+  assumirConversa(conversaAntiga.id, null);
+  // aberto há 25h, mas com mensagem recente — conta da abertura (decisão do Paulo), fecha mesmo assim
+  db.prepare('UPDATE conversas SET aberta_em = ?, atualizado_em = ? WHERE id = ?').run(horasAtras(25), new Date().toISOString(), conversaAntiga.id);
+
+  const recente = '5511900000055@s.whatsapp.net';
+  await simularMensagemDoCliente(recente, 'oi');
+  await simularMensagemDoCliente(recente, '3');
+  db.prepare('UPDATE conversas SET aberta_em = ? WHERE numero = ?').run(horasAtras(2), recente);
+
+  const mensagensEnviadas = [];
+  definirSocket({ sendMessage: async (n, msg) => mensagensEnviadas.push({ numero: n, texto: msg.text }) });
+
+  salvarConfiguracoes({ fechamento_automatico_horas: 0 });
+  await fecharAtendimentosVencidos();
+  assert.strictEqual(obterOuCriarConversa(antigo).status, 'atendendo', '0 horas = desligado');
+
+  salvarConfiguracoes({ fechamento_automatico_horas: 24, mensagem_fechamento_automatico: 'Encerrando por aqui.' });
+  await fecharAtendimentosVencidos();
+  const fechada = obterOuCriarConversa(antigo);
+  assert.strictEqual(fechada.status, 'finalizado', 'aberto há 25h: fecha');
+  assert.strictEqual(fechada.aberta_em, null, 'fechar zera a abertura');
+  assert.strictEqual(obterOuCriarConversa(recente).status, 'aguardando', 'aberto há 2h: continua');
+  assert.deepStrictEqual(mensagensEnviadas, [{ numero: antigo, texto: 'Encerrando por aqui.' }]);
+
+  // cliente volta depois: abre um atendimento novo, com o bot respondendo normal
+  const { resposta } = await simularMensagemDoCliente(antigo, 'oi de novo');
+  assert.match(resposta, /Loja Exemplo|1\./, 'depois do fechamento automático o bot atende normalmente');
+  assert.ok(obterOuCriarConversa(antigo).aberta_em, 'nova mensagem abre um novo atendimento');
+
+  definirSocket(null);
+  console.log('OK: fechamento automático fecha por tempo desde a abertura, respeita o "0 desliga" e manda a mensagem');
+});
+
+test('modo de teste (NUMEROS_TESTE) também vale pras mensagens automáticas: fora da lista fecha em silêncio', async () => {
+  const { fecharAtendimentosVencidos } = require('../src/fechamento-automatico');
+  const { salvarConfiguracoes } = require('../src/negocio');
+  const horasAtras = (h) => new Date(Date.now() - h * 3600000).toISOString();
+
+  const daLista = '5511900000044@s.whatsapp.net';
+  const deFora = '999000000000044@lid'; // @lid: vale o número guardado em numero_exibicao
+  for (const numero of [daLista, deFora]) {
+    await simularMensagemDoCliente(numero, 'oi');
+    await simularMensagemDoCliente(numero, '3');
+    db.prepare('UPDATE conversas SET aberta_em = ? WHERE numero = ?').run(horasAtras(30), numero);
+  }
+  db.prepare('UPDATE conversas SET numero_exibicao = ? WHERE numero = ?').run('5511911112222', deFora);
+
+  const mensagensEnviadas = [];
+  definirSocket({ sendMessage: async (n, msg) => mensagensEnviadas.push({ numero: n, texto: msg.text }) });
+  salvarConfiguracoes({ fechamento_automatico_horas: 24, mensagem_fechamento_automatico: 'Encerrando por aqui.' });
+  const antes = process.env.NUMEROS_TESTE;
+  process.env.NUMEROS_TESTE = '5511900000044';
+  try {
+    await fecharAtendimentosVencidos();
+  } finally {
+    if (antes === undefined) delete process.env.NUMEROS_TESTE;
+    else process.env.NUMEROS_TESTE = antes;
+    definirSocket(null);
+  }
+
+  assert.deepStrictEqual(mensagensEnviadas.map((m) => m.numero), [daLista], 'só o número da lista de teste recebe a mensagem automática');
+  assert.strictEqual(obterOuCriarConversa(deFora).status, 'finalizado', 'o de fora é fechado do mesmo jeito, só que em silêncio');
+
+  console.log('OK: modo de teste bloqueia mensagem automática pra quem não está na lista, sem travar o fechamento');
+});

@@ -77,6 +77,8 @@ form label.linha {
 form input[type="text"],
 form input[type="email"],
 form input[type="password"],
+form input[type="number"],
+form select,
 form textarea {
   display: block;
   width: 100%;
@@ -89,6 +91,11 @@ form textarea {
 }
 
 form textarea { resize: vertical; }
+
+/* grupo de botões de escolha (radio), ex.: "Ao desistir" da inatividade em Configurações */
+.grupo-opcoes { margin-bottom: 1rem; }
+.grupo-opcoes-titulo { display: block; font-size: 0.85rem; font-weight: 600; color: var(--azul-marinho); margin-bottom: 0.4rem; }
+.grupo-opcoes label.linha { margin-bottom: 0.4rem; font-size: 0.9rem; color: var(--cinza-texto); }
 
 fieldset {
   border: 1px solid var(--cinza-borda);

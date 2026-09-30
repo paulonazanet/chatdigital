@@ -106,6 +106,14 @@ if (!colunaExiste('conversas', 'nome_contato')) {
   db.exec('ALTER TABLE conversas ADD COLUMN nome_contato TEXT');
   db.exec('ALTER TABLE conversas ADD COLUMN nome_editado INTEGER NOT NULL DEFAULT 0');
 }
+if (!colunaExiste('conversas', 'aberta_em')) {
+  // quando o atendimento atual foi aberto (1a mensagem depois de estar parado/finalizado) — é de
+  // onde conta o fechamento automático. NULL = sem atendimento aberto. `criado_em` não serve: a
+  // linha da conversa é reaproveitada pra sempre pro mesmo número.
+  db.exec('ALTER TABLE conversas ADD COLUMN aberta_em TEXT');
+  // quem já estava em andamento conta a partir da última atividade (não fecha tudo de uma vez)
+  db.exec("UPDATE conversas SET aberta_em = atualizado_em WHERE status IN ('aguardando', 'atendendo', 'bot')");
+}
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
