@@ -9,6 +9,7 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const { processarMensagem, transferirParaHumano } = require('./flow-engine');
+const { carregarFluxo } = require('./fluxo');
 const { registrarMensagem, sincronizarConversa, definirNumeroExibicao, definirNomeDoPerfil } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
 const { salvarBufferDeMidia } = require('./midia');
@@ -78,7 +79,7 @@ async function enviarComSeguranca(sock, numero, texto) {
   }
 }
 
-async function iniciarBot(negocio, fluxo) {
+async function iniciarBot(negocio, fluxoDoBoot) {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   const sock = makeWASocket({
@@ -104,7 +105,7 @@ async function iniciarBot(negocio, fluxo) {
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       console.log('Conexão do WhatsApp fechada.', deveReconectar ? 'Reconectando...' : 'Sessão encerrada (escaneie o QR de novo).');
       whatsappStatus.definirDesconectado();
-      if (deveReconectar) iniciarBot(negocio, fluxo);
+      if (deveReconectar) iniciarBot(negocio, fluxoDoBoot);
     } else if (connection === 'open') {
       console.log(`Bot da ${negocio.nome} conectado e pronto para atender.`);
       whatsappStatus.definirConectado();
@@ -113,6 +114,15 @@ async function iniciarBot(negocio, fluxo) {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
+
+    // relê o fluxo a cada lote de mensagens: o editor do painel só grava o arquivo, então sem isto
+    // uma edição só valeria depois de reiniciar o serviço
+    let fluxo = fluxoDoBoot;
+    try {
+      fluxo = carregarFluxo();
+    } catch (erro) {
+      console.error('Não consegui reler o fluxo, usando o último carregado:', erro.message);
+    }
 
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
