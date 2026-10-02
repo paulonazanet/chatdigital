@@ -113,6 +113,10 @@ async function iniciarBot(negocio, fluxoDoBoot) {
   });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    // [diag] log temporário: registra tudo que o WhatsApp entrega, antes de qualquer filtro
+    for (const m of messages) {
+      console.log(`[diag] upsert type=${type} jid=${m.key.remoteJid} alt=${m.key.remoteJidAlt || '-'} fromMe=${m.key.fromMe} temTexto=${Boolean(m.message?.conversation || m.message?.extendedTextMessage?.text)}`);
+    }
     if (type !== 'notify') return;
 
     // relê o fluxo a cada lote de mensagens: o editor do painel só grava o arquivo, então sem isto
