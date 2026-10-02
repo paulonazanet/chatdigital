@@ -73,8 +73,12 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
  * Sincroniza a tabela `conversas` com o estado em memória do motor de fluxo (obterEstadoConversa),
  * depois de processarMensagem. Chame sempre que uma conversa puder ter mudado de "bot" para
  * "aguardando atendente" (ou vice-versa, ao digitar "menu" de novo).
+ * `vinhaDoBot`: antes desta mensagem o motor ainda não tinha passado a conversa pra um humano — se
+ * agora passou, é uma transferência nova e a conversa volta pra fila mesmo que estivesse finalizada
+ * (senão, num fluxo que transfere logo depois da boas-vindas, o cliente que volta depois de uma
+ * finalização fica mudo e invisível na fila).
  */
-function sincronizarConversa(numero, fluxo) {
+function sincronizarConversa(numero, fluxo, { vinhaDoBot = false } = {}) {
   const estado = obterEstadoConversa(numero, fluxo);
   const conversa = obterOuCriarConversa(numero);
 
@@ -86,7 +90,8 @@ function sincronizarConversa(numero, fluxo) {
 
   let status = 'bot';
   if (estado.humano) {
-    status = conversa.status === 'atendendo' || conversa.status === 'finalizado' ? conversa.status : 'aguardando';
+    const mantem = conversa.status === 'atendendo' || (conversa.status === 'finalizado' && !vinhaDoBot);
+    status = mantem ? conversa.status : 'aguardando';
   }
 
   // de volta ao início do fluxo sem ninguém atendendo = atendimento encerrado (ex.: o fluxo chegou

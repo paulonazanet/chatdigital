@@ -8,7 +8,7 @@ const {
   DisconnectReason,
 } = require('@whiskeysockets/baileys');
 
-const { processarMensagem, transferirParaHumano } = require('./flow-engine');
+const { processarMensagem, transferirParaHumano, obterEstadoConversa } = require('./flow-engine');
 const { carregarFluxo } = require('./fluxo');
 const { registrarMensagem, sincronizarConversa, definirNumeroExibicao, definirNomeDoPerfil } = require('./conversas');
 const { definirSocket } = require('./socket-atual');
@@ -157,8 +157,9 @@ async function iniciarBot(negocio, fluxoDoBoot) {
         registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
         if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
         definirNomeDoPerfil(numero, msg.pushName);
+        const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
         transferirParaHumano(numero, fluxo);
-        const sincronizacao = sincronizarConversa(numero, fluxo);
+        const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
         const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
         if (await enviarComSeguranca(sock, numero, aviso)) {
           registrarMensagem(numero, 'bot', aviso);
@@ -170,8 +171,9 @@ async function iniciarBot(negocio, fluxoDoBoot) {
       registrarMensagem(numero, 'cliente', texto);
       if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
       definirNomeDoPerfil(numero, msg.pushName);
+      const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
       const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
-      const sincronizacao = sincronizarConversa(numero, fluxo);
+      const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
       if (resposta) {
         registrarMensagem(numero, 'bot', resposta);
         await enviarComSeguranca(sock, numero, resposta);
