@@ -32,7 +32,7 @@ O `.env` (não commitado) tem `NUMEROS_TESTE` com os dois números de teste do P
 Ações manuais do atendente no painel não passam por esse filtro. Em produção (sem a variável)
 vale pra todo mundo.
 
-## Como está hoje (30/09/2026)
+## Como está hoje (30/09/2026; produção desde 02/10, ver a seção abaixo)
 Tudo abaixo está commitado e no GitHub. Os cards de alteração do ChatDigital no Trello (board
 **Nazagas**) estão todos em FEITO. Continuam em "A FAZER":
 - **Instalar e testar na Naza Gás com o Carlos atendendo** (prazo era 29/09 — atrasado);
@@ -87,6 +87,44 @@ torná-lo privado (é produto pra vender); o histórico antigo tem os telefones 
 Em 30/09 também: as 7 conversas simuladas (`5581900000…`) foram finalizadas em silêncio direto
 no banco (cópia antes em `data/copias/`), pra o fechamento automático não mandar mensagem pra
 números que podem ser de gente real.
+
+## O que foi feito em 02/10/2026 (instalação em produção e correções)
+
+**Em produção:** VM Ubuntu da Nazanet, endereço **https://nazagas.eunodigital.com** (domínio
+`eunodigital.com` na Cloudflare, registro A `nazagas`, DNS "somente DNS"; **não** é `.com.br`, que é
+de terceiros). Guia seguido: `INSTALACAO_eunodigital.md` (cópia do `INSTALACAO.md` original, que era
+do domínio antigo nazagas.com.br). Carlos entrou, o WhatsApp da Naza Gás foi conectado e ele atendeu
+3 clientes reais: teste completo OK. Fluxo atual no servidor: boas-vindas → transferir pro atendente.
+
+Commits do dia (todos em `main`):
+- `10542f5` — o bot relê o `config/fluxo.json` a cada lote de mensagens (antes só lia no boot, e o
+  editor do painel só gravava o arquivo: edição só valia depois de reiniciar o serviço).
+- `133f72c` — `sincronizarConversa` ganhou `{ vinhaDoBot }`: se a conversa estava `finalizado` e o
+  motor transfere pra humano na mesma volta (fluxo boas-vindas → atendente), ela volta pra
+  `aguardando`. Antes ficava `finalizado`: fora da Fila e o bot mudo pra esse cliente.
+- `daa1871` / `d90fcbf` — log temporário `[diag]` colocado e removido.
+
+Lições:
+- O bot responde **uma vez por atendimento**: depois da transferência ele fica mudo até o atendente
+  finalizar (esperado). Ao testar do próprio número, finalize a conversa antes de cada teste.
+- Conversa só com o bot não aparece na Fila (só `aguardando`/`atendendo`).
+- Na VM a pasta é do usuário `chatdigital`: `git` precisa de `sudo -u chatdigital git ...`.
+- Pasta `auth` (sessão do WhatsApp) tem ~4.500 arquivos: no backup vai compactada (`.tgz`).
+
+Infra criada fora do código:
+- **Backup:** `/usr/local/bin/backup-chat.sh` + `cron` às 3h (log `/var/log/backup-chat.log`); `rclone`
+  com remote `dropcrypt` (criptografado) sobre o Dropbox da conta nazagascomercio@gmail.com, pasta
+  `chatdigital-backup`; guarda 30 dias. A senha e o salt da criptografia estão anotados pelo Paulo
+  fora da VM. Detalhes e restauração: Parte N do `INSTALACAO_eunodigital.md`.
+- **Zabbix:** host `CHATDIGITAL NAZA GAS`, cenário web 200 em `/login` a cada 1 min, trigger Alta
+  (3 falhas), aviso só no Telegram "Nazanet Alertas" (Action GERAL). Detalhes em
+  `Nazanet\zabbix\zabbix.md`.
+- **Trello** (board Nazagas): card da instalação em FEITO; cards de lembrete: conferir o backup
+  (03/10) e revisar erros com o Carlos (10/10).
+
+Pendências: conferir o backup automático em 03/10; revisar com o Carlos em ~10/10; só depois novas
+funcionalidades. Repositório público no GitHub (decidir tornar privado: o `git pull` na VM passaria a
+precisar de chave de acesso).
 
 ## Decisões do Paulo (não mudar sem perguntar)
 - Botão "+ Nova conversa" continua azul-marinho (laranja foi descartado).
