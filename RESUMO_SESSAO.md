@@ -112,6 +112,7 @@ Lições:
 - Acesso à VM: `ssh paulo@177.39.103.178` (IP do `nazagas.eunodigital.com`; o `.182` é a VM dos
   cursos). O código fica em **`/opt/chatdigital/app`** (não em `/opt/chatdigital`). Atualizar:
   Parte P do `INSTALACAO_eunodigital.md` (cópia do banco, `git pull`, restart, `journalctl`).
+  Em produção o Express guarda as telas (`.ejs`) em cache: **até mudança só de tela precisa de restart**.
 - Pasta `auth` (sessão do WhatsApp) tem ~4.500 arquivos: no backup vai compactada (`.tgz`).
 
 Infra criada fora do código:
