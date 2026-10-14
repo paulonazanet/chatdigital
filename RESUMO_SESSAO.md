@@ -126,7 +126,16 @@ Pendências: conferir o backup automático em 03/10; revisar com o Carlos em ~10
 funcionalidades. Repositório público no GitHub (decidir tornar privado: o `git pull` na VM passaria a
 precisar de chave de acesso).
 
+## Retorno do Carlos (13/10/2026)
+1. **Aviso automático de mídia alongava a conversa**: todo áudio/imagem/vídeo do cliente gerava
+   "Recebemos o áudio sua!...", mesmo com o Carlos já atendendo. Agora (`src/bot.js`) o aviso só vai
+   quando a mídia chega com o cliente no bot (`vinhaDoBot`); com atendente, fica em silêncio. O aviso
+   de "sem atendente disponível" segue a regra própria dele. Precisa `git pull` + reiniciar na VM.
+2. **Texto da pesquisa de satisfação** ("...nosso atendimento...") pode citar a Naza Gás: não precisa
+   de código, é editável em Configurações > Mensagens automáticas.
+
 ## Decisões do Paulo (não mudar sem perguntar)
+- Com atendente, mídia do cliente não gera aviso automático (só quando tira o cliente do bot).
 - Botão "+ Nova conversa" continua azul-marinho (laranja foi descartado).
 - `aguardandoAvaliacao` (esperando a nota da pesquisa) fica só em memória — reiniciar nos 30 min
   após finalizar pode fazer a nota abrir o menu; aceitável.

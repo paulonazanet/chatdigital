@@ -119,7 +119,9 @@ estiver com uma resposta digitada, mostra "Chegou mensagem nova… Atualizar" em
 
 ## O que o sistema faz sozinho (sem ninguém clicar)
 - **Bot**: responde pelo fluxo; transfere pra atendente quando o fluxo manda ou quando o cliente
-  manda mídia (imagem, áudio, PDF...), avisando o cliente.
+  manda mídia (imagem, áudio, PDF...), avisando o cliente. Esse aviso ("Recebemos o áudio
+  sua!...") só vai quando a mídia chega com o cliente ainda no bot; se a conversa já está com
+  atendente, a mídia aparece na tela e o cliente não recebe mensagem automática.
 - **Nome do cliente**: guarda o nome do perfil do WhatsApp (se ninguém trocou pelo lápis).
 - **Lembrete e desistência por inatividade** (cliente parado no bot) — ver Configurações.
 - **Fechamento automático** do atendimento aberto há tempo demais — ver Configurações.

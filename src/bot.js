@@ -156,9 +156,14 @@ async function iniciarBot(negocio, fluxoDoBoot) {
         const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
         transferirParaHumano(numero, fluxo);
         const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
-        const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
-        if (await enviarComSeguranca(sock, numero, aviso)) {
-          registrarMensagem(numero, 'bot', aviso);
+        // o aviso só vai quando é a mídia que tira o cliente do bot; se a conversa já está com
+        // atendente (aguardando ou atendendo), ele vê a mídia na tela e o aviso só alongava a
+        // conversa (pedido do Carlos, 13/10)
+        if (vinhaDoBot) {
+          const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
+          if (await enviarComSeguranca(sock, numero, aviso)) {
+            registrarMensagem(numero, 'bot', aviso);
+          }
         }
         await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
         continue;
