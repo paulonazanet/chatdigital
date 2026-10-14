@@ -26,6 +26,7 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
   - Responder conversas
   - Finalizar conversas
   - Ver e editar Configurações do negócio
+  - Ver o Relatório (atendimentos, tempos e notas)
 
 ---
 
@@ -36,6 +37,21 @@ Resumo rápido da operação (precisa da permissão "Ver Painel"; sem ela, cai d
 - Situação do WhatsApp (conectado ou não).
 - Quem está online agora (quem está com o painel aberto).
 
+## Menu: Relatório
+Números do atendimento (só administrador, ou atendente com a permissão "Ver o Relatório").
+- **Período**: Hoje, 7 dias, 30 dias ou Mês passado; e filtro por atendente.
+- **Cartões**: total de atendimentos (e quantos foram finalizados sem nenhuma resposta do
+  atendente), espera na fila até alguém assumir, tempo até a 1ª resposta e nota média da pesquisa
+  (com quantas respostas). Os tempos são o valor típico (mediana: metade esperou menos que isso),
+  pra um cliente que escreveu de madrugada não distorcer.
+- **Atendimentos por dia** (ou por hora, no filtro Hoje): gráfico de barras.
+- **Horários de pico**: quadro dia da semana × hora; quanto mais escuro, mais clientes chegaram.
+  Mostra das 7h às 19h, ou mais se chegou cliente fora disso.
+- **Notas da pesquisa**: data, cliente, atendente e nota (verde 9–10, amarelo 7–8, vermelho 0–6);
+  clicar abre a conversa. A nota vale qualquer jeito de responder ("10", "nota 9", "dez").
+- Conta como **atendimento** cada vez que o cliente entra na fila (pelo bot) ou que um atendente
+  começa a falar com alguém (Nova conversa, Puxar). Atendimentos de antes do Relatório existir
+  foram montados pelas mensagens (aproximado: "assumiu" = 1ª resposta).
 ## Menu: Fila (a tela principal do atendente)
 **Lista de conversas (lado esquerdo)**
 - **Filtros** (duas linhas): **Minhas** (as que você está atendendo) · **Na fila** (o bot passou

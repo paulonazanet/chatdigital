@@ -115,6 +115,30 @@ if (!colunaExiste('conversas', 'aberta_em')) {
   db.exec("UPDATE conversas SET aberta_em = atualizado_em WHERE status IN ('aguardando', 'atendendo', 'bot')");
 }
 
+// Livro de atendimentos (base do menu Relatório): uma linha por atendimento, porque a linha de
+// `conversas` é reaproveitada pra sempre pro mesmo número e só sabe o estado de agora.
+// origem 'cliente' = entrou na fila pelo bot; 'ativo' = começou pelo atendente (Nova conversa,
+// Puxar...), sem espera de fila pra medir. Com o livro vazio, o boot reconstrói os atendimentos
+// antigos pelas mensagens (ver atendimentos.js e app.js).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS atendimentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    origem TEXT NOT NULL CHECK (origem IN ('cliente', 'ativo')),
+    setor_id INTEGER REFERENCES setores(id) ON DELETE SET NULL,
+    atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    aberto_em TEXT NOT NULL,
+    assumido_em TEXT,
+    primeira_resposta_em TEXT,
+    finalizado_em TEXT,
+    finalizado_como TEXT CHECK (finalizado_como IN ('atendente', 'automatico', 'outro')),
+    nota INTEGER,
+    reconstruido INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_atendimentos_conversa ON atendimentos (conversa_id, finalizado_em);
+  CREATE INDEX IF NOT EXISTS idx_atendimentos_aberto ON atendimentos (aberto_em);
+`);
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

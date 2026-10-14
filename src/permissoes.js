@@ -9,6 +9,7 @@ const CHAVES = [
   'responder_conversas',
   'finalizar_conversas',
   'gerenciar_configuracoes',
+  'ver_relatorio',
 ];
 
 const ROTULOS = {
@@ -20,6 +21,7 @@ const ROTULOS = {
   responder_conversas: 'Responder conversas',
   finalizar_conversas: 'Finalizar conversas',
   gerenciar_configuracoes: 'Ver e editar Configurações do negócio',
+  ver_relatorio: 'Ver o Relatório (atendimentos, tempos e notas)',
 };
 
 function permissoesPadraoAtendente() {

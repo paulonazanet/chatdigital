@@ -12,6 +12,7 @@ const rotasFila = require('./routes/fila');
 const rotasEventos = require('./routes/eventos');
 const rotasFluxoEditor = require('./routes/fluxo');
 const rotasConfiguracoes = require('./routes/configuracoes');
+const rotasRelatorio = require('./routes/relatorio');
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/painel/fila', exigirLogin, rotasFila);
 app.use('/painel/eventos', exigirLogin, rotasEventos);
 app.use('/painel/fluxo', exigirLogin, exigirPermissao('editar_fluxo'), rotasFluxoEditor);
 app.use('/painel/configuracoes', exigirLogin, exigirPermissao('gerenciar_configuracoes'), rotasConfiguracoes);
+app.use('/painel/relatorio', exigirLogin, exigirPermissao('ver_relatorio'), rotasRelatorio);
 app.use('/painel', exigirLogin, rotasPainel);
 
 app.get('/', (req, res) => res.redirect(req.atendente ? '/painel' : '/login'));

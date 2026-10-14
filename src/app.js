@@ -10,6 +10,8 @@ const { iniciarBackupDiario } = require('./backup');
 const { iniciarRetencaoDiaria } = require('./retencao');
 const { iniciarChecagemAvaliacaoVencida } = require('./avaliacao-vencida');
 const { iniciarFechamentoAutomatico } = require('./fechamento-automatico');
+const { livroDeAtendimentosVazio, reconstruirAtendimentosAntigos } = require('./atendimentos');
+const { MENSAGEM_ENCERRAMENTO_PADRAO } = require('./routes/fila');
 
 async function iniciar() {
   const negocio = carregarNegocio();
@@ -22,6 +24,16 @@ async function iniciar() {
   // HOST=127.0.0.1 no servidor: só o Caddy (na mesma máquina) acessa; sem HOST, escuta em tudo
   const host = process.env.HOST || '0.0.0.0';
   app.listen(porta, host, () => console.log(`Painel do ChatDigital em http://${host === '0.0.0.0' ? 'localhost' : host}:${porta}`));
+
+  // 1o boot com o Relatório (livro vazio): monta os atendimentos de antes pelas mensagens
+  if (livroDeAtendimentosVazio()) {
+    const reconstruidos = reconstruirAtendimentosAntigos({
+      textosFinalizacao: [negocio.mensagem_encerramento, MENSAGEM_ENCERRAMENTO_PADRAO, negocio.pesquisa_satisfacao],
+      textosFechamentoAutomatico: [negocio.mensagem_fechamento_automatico],
+      horasLimite: negocio.fechamento_automatico_horas,
+    });
+    console.log(`Relatório: ${reconstruidos} atendimento(s) antigo(s) reconstruído(s) a partir das mensagens.`);
+  }
 
   const restauradas = restaurarAtendimentosEmAndamento(fluxo);
   if (restauradas) console.log(`${restauradas} conversa(s) com atendente restaurada(s) — o bot continua em silêncio com elas.`);

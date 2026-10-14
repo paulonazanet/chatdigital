@@ -137,7 +137,24 @@ precisar de chave de acesso).
 2. **Texto da pesquisa de satisfação** ("...nosso atendimento...") pode citar a Naza Gás: não precisa
    de código, é editável em Configurações > Mensagens automáticas.
 
+## Menu Relatório (13/10/2026)
+- **Livro de atendimentos**: tabela `atendimentos` (1 linha por atendimento; `conversas` é
+  reaproveitada pra sempre e não serve pra histórico). Grava em `src/atendimentos.js`, chamado de
+  `conversas.js` (entrar na fila em `sincronizarConversa`, assumir, resposta de atendente,
+  transferir, `finalizarConversa(id, como)`), `fechamento-automatico.js` ('automatico') e
+  `flow-engine.js` (nota da pesquisa → `registrarNota`, lê "10", "nota 9", "dez").
+- `origem`: 'cliente' (entrou na fila pelo bot; mede espera) ou 'ativo' (começou pelo atendente).
+- **Reconstrução**: no boot, se o livro está vazio, `reconstruirAtendimentosAntigos` monta os
+  antigos pelas mensagens (`reconstruido = 1`; fim = encerramento/pesquisa "De 0 a 10"/fechamento
+  automático ou prazo de 24h; só entra quem teve resposta de atendente ou está em andamento;
+  "assumido" = 1ª resposta; notas vêm de `registros` 'avaliacoes'). Testado numa cópia do banco local.
+- Cálculo em `src/relatorio.js` (UTC-3 fixo, mediana pros tempos); tela `views/relatorio.ejs`,
+  rota `/painel/relatorio`, permissão nova `ver_relatorio` (admin sempre tem).
+- Os testes antigos que não definem `CHATDIGITAL_DB` abrem o banco padrão `data/chatdigital.db`
+  (criaram a tabela vazia no banco local; inofensivo). O teste novo fecha o banco no `after()`.
+
 ## Decisões do Paulo (não mudar sem perguntar)
+- Relatório: só o Paulo (admin) vê; atendente só com a permissão "Ver o Relatório".
 - Com atendente, mídia do cliente não gera aviso automático (só quando tira o cliente do bot).
 - Botão "+ Nova conversa" continua azul-marinho (laranja foi descartado).
 - `aguardandoAvaliacao` (esperando a nota da pesquisa) fica só em memória — reiniciar nos 30 min

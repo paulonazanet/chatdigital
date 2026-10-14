@@ -1080,3 +1080,48 @@ html.menu-recolhido .botao-ativar-notificacoes { display: none; }
   padding: 1rem;
   width: 260px;
 }
+
+/* Relatório */
+.relatorio-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.relatorio-topo h1 { margin: 0; }
+.relatorio-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.filtro-periodo {
+  border: 1px solid var(--cinza-borda); border-radius: 4px; padding: 0.35rem 0.8rem;
+  font-size: 0.85rem; color: var(--cinza-texto); background: var(--branco);
+}
+.filtro-periodo:hover { text-decoration: none; border-color: var(--azul-destaque); }
+.filtro-periodo.ativo { background: var(--azul-marinho); border-color: var(--azul-marinho); color: var(--branco); }
+.relatorio-filtros select { padding: 0.35rem 0.5rem; font-size: 0.85rem; border: 1px solid var(--cinza-borda); border-radius: 4px; }
+.cartao .rotulo-extra { display: block; font-size: 0.75rem; color: #8a97a3; margin-top: 0.15rem; }
+.subtitulo-detalhe { font-weight: 400; font-size: 0.8rem; color: #8a97a3; margin-left: 0.4rem; }
+.grafico-barras {
+  display: flex; align-items: stretch; gap: 3px; height: 190px; padding: 0.75rem 0.75rem 0;
+  background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px;
+}
+.barra-coluna { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.barra { width: 100%; max-width: 22px; background: var(--azul-destaque); border-radius: 3px 3px 0 0; min-height: 0; }
+.barra-valor { font-size: 0.7rem; color: var(--cinza-texto); line-height: 1.2; }
+.barra-rotulo { font-size: 0.65rem; color: #8a97a3; padding: 0.3rem 0; white-space: nowrap; overflow: visible; width: 0; display: flex; justify-content: center; }
+.mapa-pico {
+  display: grid; gap: 3px; padding: 0.75rem; font-size: 0.7rem; color: #8a97a3;
+  background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px;
+}
+.mapa-hora { text-align: center; }
+.mapa-dia { display: flex; align-items: center; }
+.mapa-celula { height: 22px; border-radius: 3px; background: var(--cinza-fundo); }
+.mapa-celula.tom-1 { background: #e6f1fb; }
+.mapa-celula.tom-2 { background: #b5d4f4; }
+.mapa-celula.tom-3 { background: #85b7eb; }
+.mapa-celula.tom-4 { background: #378add; }
+.mapa-celula.tom-5 { background: #185fa5; }
+.tabela-notas tbody tr { cursor: pointer; }
+.tabela-notas tbody tr:hover { background: var(--cinza-fundo); }
+.tabela-notas .coluna-nota { text-align: right; }
+.nota { display: inline-block; min-width: 2rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; }
+.nota-boa { background: #e3f3ea; color: var(--verde-ativo); }
+.nota-media { background: #fbf0d9; color: #8a5a00; }
+.nota-ruim { background: #fbe6e7; color: var(--vermelho-erro); }
+@media (max-width: 700px) {
+  .barra-rotulo { display: none; }
+  .mapa-hora { font-size: 0.55rem; }
+}

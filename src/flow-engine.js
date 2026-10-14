@@ -1,4 +1,5 @@
 const { salvarRegistro } = require('./registros');
+const { registrarNota } = require('./atendimentos');
 
 const MAX_PASSOS_POR_TURNO = 25; // trava contra fluxo mal configurado (ciclo sem nó de pergunta/fim)
 
@@ -258,6 +259,7 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
     estado.aguardandoAvaliacaoDesde = null;
     if (dentroDoPrazo) {
       salvarRegistro('avaliacoes', { numero, nota: msg });
+      registrarNota(numero, msg);
       return 'Muito obrigado pela sua avaliação! 🙏';
     }
   }

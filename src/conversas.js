@@ -2,6 +2,7 @@ const { db } = require('./db');
 const { obterEstadoConversa, transferirParaHumano } = require('./flow-engine');
 const { barramento } = require('./eventos');
 const { haAtendenteDisponivel } = require('./atendentes');
+const atendimentos = require('./atendimentos');
 
 function obterOuCriarConversa(numero) {
   const existente = db.prepare('SELECT * FROM conversas WHERE numero = ?').get(numero);
@@ -57,6 +58,7 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
   if (remetente !== 'bot') {
     db.prepare('UPDATE conversas SET aberta_em = COALESCE(aberta_em, ?) WHERE id = ?').run(agora, conversa.id);
   }
+  if (remetente === 'atendente') atendimentos.registrarRespostaDoAtendente(conversa.id, atendenteId);
   // Cliente voltou a escrever — se tinha lembrete de inatividade pendente, não faz mais sentido.
   if (remetente === 'cliente') {
     db.prepare('UPDATE conversas SET lembrete_inatividade_em = NULL WHERE id = ?').run(conversa.id);
@@ -103,6 +105,7 @@ function sincronizarConversa(numero, fluxo, { vinhaDoBot = false } = {}) {
 
   const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
   if (acabouDeEntrarNaFila) {
+    atendimentos.abrirAtendimentoDoCliente(conversa.id, setorId);
     barramento.emit('atencao', { motivo: 'novo-atendimento', numero, setorId, numeroExibicao: conversa.numero_exibicao });
   }
 
@@ -223,6 +226,7 @@ function transferirConversa(id, { setorId, atendenteId }) {
     new Date().toISOString(),
     id,
   );
+  atendimentos.registrarTransferencia(id, { setorId, atendenteId });
 }
 
 function obterConversaPorId(id) {
@@ -255,13 +259,16 @@ function assumirConversa(id, atendenteId) {
     agora,
     id,
   );
+  atendimentos.registrarAssumido(id, atendenteId);
 }
 
-function finalizarConversa(id) {
+/** `como` vai pro livro de atendimentos: 'atendente' (botão Finalizar) ou 'automatico'. */
+function finalizarConversa(id, como = 'atendente') {
   db.prepare("UPDATE conversas SET status = 'finalizado', atualizado_em = ?, aberta_em = NULL, lembrete_inatividade_em = NULL WHERE id = ?").run(
     new Date().toISOString(),
     id,
   );
+  atendimentos.fecharAtendimento(id, como);
 }
 
 module.exports = {

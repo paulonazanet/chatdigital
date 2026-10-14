@@ -1,0 +1,93 @@
+<%- include('partials/inicio', { titulo: 'Relatório' }) %>
+<%- include('partials/nav', { atendenteLogado }) %>
+<%
+  const r = relatorio;
+  const link = (periodo, atendente) => `/painel/relatorio?periodo=${periodo}${atendente ? `&atendente=${atendente}` : ''}`;
+  const corDaNota = (n) => (n >= 9 ? 'nota-boa' : n >= 7 ? 'nota-media' : 'nota-ruim');
+  const tomDoPico = (n) => (!n || !r.pico.maior ? 0 : Math.max(1, Math.ceil((n / r.pico.maior) * 5)));
+%>
+<main class="conteudo">
+  <div class="relatorio-topo">
+    <h1>Relatório</h1>
+    <form method="get" action="/painel/relatorio" class="relatorio-filtros">
+      <% r.periodos.forEach(([valor, rotulo]) => { %>
+        <a href="<%= link(valor, atendenteId) %>" class="filtro-periodo<%= r.periodo === valor ? ' ativo' : '' %>"><%= rotulo %></a>
+      <% }) %>
+      <input type="hidden" name="periodo" value="<%= r.periodo %>" />
+      <select name="atendente" onchange="this.form.submit()" aria-label="Atendente">
+        <option value="">Todos os atendentes</option>
+        <% atendentes.forEach((a) => { %>
+          <option value="<%= a.id %>" <%= atendenteId === a.id ? 'selected' : '' %>><%= a.nome %></option>
+        <% }) %>
+      </select>
+    </form>
+  </div>
+
+  <div class="cartoes">
+    <div class="cartao">
+      <span class="numero"><%= r.total %></span><span class="rotulo">Atendimentos</span>
+      <% if (r.semResposta) { %><span class="rotulo-extra"><%= r.semResposta %> finalizado(s) sem resposta</span><% } %>
+    </div>
+    <div class="cartao">
+      <span class="numero"><%= r.esperaFila %></span><span class="rotulo">Espera na fila</span>
+      <span class="rotulo-extra">até alguém assumir</span>
+    </div>
+    <div class="cartao">
+      <span class="numero"><%= r.primeiraResposta %></span><span class="rotulo">1ª resposta</span>
+      <span class="rotulo-extra">desde que o cliente chegou</span>
+    </div>
+    <div class="cartao">
+      <span class="numero"><%= r.notaMedia %></span><span class="rotulo">Nota média</span>
+      <span class="rotulo-extra"><%= r.totalNotas %> resposta(s) da pesquisa</span>
+    </div>
+  </div>
+  <p class="dica">Os tempos mostram o tempo típico: metade dos clientes esperou menos que isso. Assim um cliente que escreveu de madrugada não distorce o resultado.</p>
+
+  <h2 class="subtitulo-painel">Atendimentos <%= r.porHora ? 'por hora' : 'por dia' %></h2>
+  <% if (!r.total) { %>
+    <p class="dica">Nenhum atendimento nesse período.</p>
+  <% } else { %>
+    <div class="grafico-barras" role="img" aria-label="Atendimentos <%= r.porHora ? 'por hora' : 'por dia' %>">
+      <% r.barras.forEach((b) => { %>
+        <div class="barra-coluna" title="<%= b.rotulo %>: <%= b.total %> atendimento(s)">
+          <span class="barra-valor"><%= b.total || '' %></span>
+          <div class="barra" style="height: <%= Math.round((b.total / r.maiorBarra) * 100) %>%"></div>
+          <span class="barra-rotulo"><%= b.mostrarRotulo ? b.rotulo : '' %>&nbsp;</span>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <h2 class="subtitulo-painel">Horários de pico <span class="subtitulo-detalhe">clientes que chegaram, por dia da semana e hora</span></h2>
+  <div class="mapa-pico" style="grid-template-columns: 2.5rem repeat(<%= r.pico.horas.length %>, minmax(0, 1fr));">
+    <span></span>
+    <% r.pico.horas.forEach((h) => { %><span class="mapa-hora"><%= h %>h</span><% }) %>
+    <% r.pico.dias.forEach((dia) => { %>
+      <span class="mapa-dia"><%= dia.nome %></span>
+      <% dia.valores.forEach((n, i) => { %>
+        <span class="mapa-celula tom-<%= tomDoPico(n) %>" title="<%= dia.nome %> <%= r.pico.horas[i] %>h: <%= n %> cliente(s)"></span>
+      <% }) %>
+    <% }) %>
+  </div>
+
+  <h2 class="subtitulo-painel">Notas da pesquisa</h2>
+  <% if (!r.notas.length) { %>
+    <p class="dica">Nenhuma nota nesse período.</p>
+  <% } else { %>
+    <table class="tabela tabela-notas">
+      <thead><tr><th>Quando</th><th>Cliente</th><th>Atendente</th><th class="coluna-nota">Nota</th></tr></thead>
+      <tbody>
+        <% r.notas.forEach((n) => { %>
+          <tr onclick="location.href='/painel/fila/<%= n.conversaId %>'">
+            <td><%= n.quando %></td>
+            <td><a href="/painel/fila/<%= n.conversaId %>"><%= n.cliente %></a></td>
+            <td><%= n.atendente %></td>
+            <td class="coluna-nota"><span class="nota <%= corDaNota(n.nota) %>"><%= n.nota %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="dica">Clique numa linha para abrir a conversa. Notas de 0 a 6 em vermelho, 7 e 8 em amarelo, 9 e 10 em verde.</p>
+  <% } %>
+</main>
+<%- include('partials/fim-painel') %>

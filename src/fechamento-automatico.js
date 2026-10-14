@@ -37,7 +37,7 @@ async function fecharAtendimentosVencidos() {
         console.error(`Falha ao avisar fechamento automático pra ${conversa.numero}:`, erro);
       }
     }
-    finalizarConversa(conversa.id);
+    finalizarConversa(conversa.id, 'automatico');
     encerrarAtendimento(conversa.numero, fluxo); // bot volta a atender normalmente na próxima mensagem
   }
 }

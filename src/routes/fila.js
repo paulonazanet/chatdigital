@@ -351,3 +351,4 @@ router.post('/:id/responder', (req, res) => {
 });
 
 module.exports = router;
+module.exports.MENSAGEM_ENCERRAMENTO_PADRAO = MENSAGEM_ENCERRAMENTO_PADRAO;
