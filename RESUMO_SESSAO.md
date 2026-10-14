@@ -109,6 +109,9 @@ Lições:
   finalizar (esperado). Ao testar do próprio número, finalize a conversa antes de cada teste.
 - Conversa só com o bot não aparece na Fila (só `aguardando`/`atendendo`).
 - Na VM a pasta é do usuário `chatdigital`: `git` precisa de `sudo -u chatdigital git ...`.
+- Acesso à VM: `ssh paulo@177.39.103.178` (IP do `nazagas.eunodigital.com`; o `.182` é a VM dos
+  cursos). O código fica em **`/opt/chatdigital/app`** (não em `/opt/chatdigital`). Atualizar:
+  Parte P do `INSTALACAO_eunodigital.md` (cópia do banco, `git pull`, restart, `journalctl`).
 - Pasta `auth` (sessão do WhatsApp) tem ~4.500 arquivos: no backup vai compactada (`.tgz`).
 
 Infra criada fora do código:
