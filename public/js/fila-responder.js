@@ -15,6 +15,26 @@
   var inputArquivo = form.querySelector('input[type="file"]');
   var nomeAnexo = form.querySelector('.anexo-nome');
 
+  // Rascunho guardado na aba (sessionStorage, uma chave por conversa): se a tela recarregar ou o
+  // atendente trocar de conversa e voltar, o texto que ele estava digitando volta pro campo.
+  // Some ao enviar. Anexo/áudio não dá pra guardar assim — esses o recarregamento automático
+  // já respeita (notificacoes.js não recarrega com anexo pendente).
+  var chaveRascunho = 'chatdigital-rascunho-' + form.getAttribute('action');
+  function lerRascunho() {
+    try { return sessionStorage.getItem(chaveRascunho) || ''; } catch (e) { return ''; }
+  }
+  function gravarRascunho(texto) {
+    try {
+      if (texto.trim()) sessionStorage.setItem(chaveRascunho, texto);
+      else sessionStorage.removeItem(chaveRascunho);
+    } catch (e) {}
+  }
+  if (textarea) {
+    if (!textarea.value) textarea.value = lerRascunho();
+    textarea.addEventListener('input', function () { gravarRascunho(textarea.value); });
+    form.addEventListener('submit', function () { gravarRascunho(''); });
+  }
+
   if (botaoEmoji && painelEmoji && textarea) {
     if (painelEmoji.children.length === 0) {
       EMOJIS.forEach(function (emoji) {
@@ -27,6 +47,7 @@
           textarea.value = textarea.value.slice(0, inicio) + emoji + textarea.value.slice(fim);
           textarea.focus();
           textarea.selectionStart = textarea.selectionEnd = inicio + emoji.length;
+          gravarRascunho(textarea.value);
           painelEmoji.hidden = true; // escolheu, fecha — igual ao WhatsApp
         });
         painelEmoji.appendChild(botao);

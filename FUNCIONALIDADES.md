@@ -89,7 +89,9 @@ tem WhatsApp, já abre a conversa assumida por quem criou e manda a primeira men
 
 **Avisos de mensagem nova**: bipe + aviso na tela + notificação do Windows (botão "🔔 Ativar
 avisos na tela" na barra lateral). Com o painel aberto em várias abas, avisa uma vez só. Se você
-estiver com uma resposta digitada, mostra "Chegou mensagem nova… Atualizar" em vez de recarregar.
+estiver digitando (resposta, anexo ou áudio pendente, "+ Nova conversa" preenchida ou qualquer
+campo em foco), mostra "Chegou mensagem nova. Atualizar" em vez de recarregar. O texto da resposta
+fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar, ele continua lá.
 
 ## Menu: Atendentes
 - Lista com nome, e-mail, papel, status (ativo/inativo), último login e bolinha de online.

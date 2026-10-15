@@ -45,9 +45,22 @@
     return !!document.querySelector('main[data-conversa-numero]');
   }
 
+  // Qualquer coisa que o atendente perderia com um recarregamento: texto da resposta, anexo ou
+  // áudio gravado/gravando, a "+ Nova conversa" preenchida, ou um campo em foco (renomear,
+  // transferir...). Antes olhava só o 1º textarea da página — que é o da "+ Nova conversa", quase
+  // sempre vazio — e a tela recarregava apagando a resposta que o Carlos estava digitando.
   function temRascunhoDeResposta() {
-    var campo = document.querySelector('textarea[name="texto"]');
-    return !!campo && campo.value.trim().length > 0;
+    var resposta = document.querySelector('.form-responder textarea[name="texto"]');
+    if (resposta && resposta.value.trim().length > 0) return true;
+    var anexo = document.querySelector('.form-responder input[type="file"]');
+    if (anexo && anexo.files && anexo.files.length > 0) return true;
+    if (document.querySelector('.botao-gravar-audio.gravando')) return true;
+    var novaConversa = document.querySelectorAll('.nova-conversa-popover input, .nova-conversa-popover textarea');
+    for (var i = 0; i < novaConversa.length; i++) {
+      if (novaConversa[i].value.trim().length > 0) return true;
+    }
+    var emFoco = document.activeElement;
+    return !!emFoco && /^(TEXTAREA|INPUT|SELECT)$/.test(emFoco.tagName) && emFoco.type !== 'search';
   }
 
   function mostrarBannerAtualizar() {
@@ -57,7 +70,7 @@
 
     var banner = document.createElement('div');
     banner.className = 'banner-atualizar';
-    banner.textContent = 'Chegou mensagem nova nesta conversa. ';
+    banner.textContent = 'Chegou mensagem nova. ';
 
     var link = document.createElement('a');
     link.href = '#';
@@ -171,14 +184,15 @@
 
     if (!estaNaFila()) return;
 
-    if (temConversaAberta() && temRascunhoDeResposta()) {
-      // Só avisa em vez de recarregar sozinho quando tem uma resposta sendo digitada — recarregar
-      // nesse caso perderia o rascunho. Sem rascunho, atualiza automaticamente (e nesse caso a
-      // lista toda já vem fresca do recarregamento).
+    // Só avisa em vez de recarregar sozinho quando tem algo sendo digitado — recarregar nesse caso
+    // perderia o rascunho. Sem rascunho, atualiza automaticamente (e a lista toda já vem fresca).
+    // Confere de novo na hora de recarregar: o atendente pode ter começado a digitar nesse 1,5 s.
+    if (temRascunhoDeResposta()) {
       mostrarBannerAtualizar();
     } else {
       setTimeout(function () {
-        window.location.reload();
+        if (temRascunhoDeResposta()) mostrarBannerAtualizar();
+        else window.location.reload();
       }, 1500);
     }
   });

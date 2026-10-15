@@ -138,6 +138,16 @@ precisar de chave de acesso).
 2. **Texto da pesquisa de satisfação** ("...nosso atendimento...") pode citar a Naza Gás: não precisa
    de código, é editável em Configurações > Mensagens automáticas.
 
+## Retorno do Carlos (15/10/2026): resposta digitada sumia
+Ao chegar mensagem (áudio/imagem/texto) do cliente, a Fila recarregava sozinha e apagava o que o
+Carlos estava digitando. Causa (`public/js/notificacoes.js`): `temRascunhoDeResposta` olhava o
+1º `textarea[name="texto"]` da página, que é o da "+ Nova conversa" (vazio), não o da resposta;
+e só conferia no momento do aviso, não 1,5 s depois, na hora de recarregar. Agora confere a
+resposta, anexo/áudio, "+ Nova conversa" e campo em foco, de novo antes de recarregar.
+Rede de segurança em `fila-responder.js`: rascunho da resposta em `sessionStorage` por conversa
+(volta depois de recarregar; some ao enviar). Testado no navegador com cópia da tela e evento
+simulado. Só `public/`: na VM basta `git pull` + restart.
+
 ## Menu Relatório (13/10/2026)
 - **Livro de atendimentos**: tabela `atendimentos` (1 linha por atendimento; `conversas` é
   reaproveitada pra sempre e não serve pra histórico). Grava em `src/atendimentos.js`, chamado de
