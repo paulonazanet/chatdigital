@@ -1,0 +1,20 @@
+<script>
+  // Avisa quando há mudança não salva no formulário (na barra do Salvar e ao tentar sair da página).
+  // Escuta no documento porque os campos podem estar fora do <form> (ligados por form="...").
+  (function () {
+    var formId = '<%= formId %>';
+    var aviso = document.getElementById('aviso-nao-salvo');
+    var mudou = false;
+    function marcar(e) {
+      if (!e.target.form || e.target.form.id !== formId) return;
+      mudou = true;
+      if (aviso) aviso.hidden = false;
+    }
+    document.addEventListener('input', marcar);
+    document.addEventListener('change', marcar);
+    document.getElementById(formId).addEventListener('submit', function () { mudou = false; });
+    window.addEventListener('beforeunload', function (e) {
+      if (mudou) { e.preventDefault(); e.returnValue = ''; }
+    });
+  })();
+</script>

@@ -1,125 +1,179 @@
 <%- include('../partials/inicio', { titulo: 'Configurações' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo conteudo-estreita">
+<main class="conteudo pagina-config">
   <h1>Configurações</h1>
-  <p class="dica">Dados do negócio e mensagens automáticas. Produtos e perguntas frequentes ainda
-    são editados direto em <code>config/negocio.json</code> — essa tela cuida do resto.</p>
+  <p class="dica">Produtos e perguntas frequentes ainda são ajustados pelo suporte. O resto fica aqui.</p>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
   <% if (salvo) { %><p class="sucesso">Configurações salvas.</p><% } %>
 
-  <p class="dica">Ver status da conexão do WhatsApp e escanear o QR Code:
-    <a href="/painel/configuracoes/whatsapp">Configurações &gt; WhatsApp</a></p>
-  <p class="dica">Lista de motivos que o atendente escolhe ao finalizar:
-    <a href="/painel/configuracoes/motivos">Configurações &gt; Motivos de encerramento</a></p>
-  <p class="dica">Etiquetas coloridas que o atendente põe na conversa (Ações &gt; Marcadores) e usa pra filtrar a fila:
-    <a href="/painel/configuracoes/marcadores">Configurações &gt; Marcadores</a></p>
+  <nav class="cartoes-config" aria-label="Outras configurações">
+    <a class="cartao-config" href="/painel/configuracoes/whatsapp">
+      <span class="cartao-config-nome">WhatsApp</span>
+      <% if (resumo.whatsappConectado) { %>
+        <span class="cartao-config-info"><span class="ponto-status ponto-status-ok"></span>Conectado</span>
+      <% } else { %>
+        <span class="cartao-config-info"><span class="ponto-status ponto-status-falha"></span>Desconectado</span>
+      <% } %>
+      <span class="cartao-config-texto">Ver a conexão e o QR Code</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/motivos">
+      <span class="cartao-config-nome">Motivos de encerramento</span>
+      <span class="cartao-config-info"><%= resumo.motivosAtivos %> motivo<%= resumo.motivosAtivos === 1 ? '' : 's' %> ativo<%= resumo.motivosAtivos === 1 ? '' : 's' %></span>
+      <span class="cartao-config-texto">O que o atendente escolhe ao finalizar</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/marcadores">
+      <span class="cartao-config-nome">Marcadores</span>
+      <span class="cartao-config-info"><%= resumo.marcadoresAtivos %> marcador<%= resumo.marcadoresAtivos === 1 ? '' : 'es' %> ativo<%= resumo.marcadoresAtivos === 1 ? '' : 's' %></span>
+      <span class="cartao-config-texto">Etiquetas coloridas das conversas</span>
+    </a>
+  </nav>
 
-  <form method="post" action="/painel/configuracoes">
-    <fieldset>
+  <nav class="atalhos-config" aria-label="Ir para o quadro">
+    <a href="#quadro-negocio">Negócio</a>
+    <a href="#quadro-mensagens">Mensagens</a>
+    <a href="#quadro-fila">Fila</a>
+    <a href="#quadro-bot-parado">Cliente parado no bot</a>
+    <a href="#quadro-finalizar">Ao finalizar</a>
+    <a href="#quadro-fechamento">Fechamento automático</a>
+  </nav>
+
+  <form method="post" action="/painel/configuracoes" id="form-configuracoes">
+    <fieldset id="quadro-negocio">
       <legend>Dados do negócio</legend>
-      <label>Nome do negócio<input type="text" name="nome" value="<%= negocio.nome %>" required></label>
-      <label>Horário de funcionamento<input type="text" name="horario_funcionamento" value="<%= negocio.horario_funcionamento || '' %>"></label>
+      <div class="campos-lado-a-lado">
+        <label>Nome do negócio<input type="text" name="nome" value="<%= negocio.nome %>" required></label>
+        <label>Horário de funcionamento<input type="text" name="horario_funcionamento" value="<%= negocio.horario_funcionamento || '' %>"></label>
+      </div>
       <label>Endereço<input type="text" name="endereco" value="<%= negocio.endereco || '' %>"></label>
-      <label>Formas de pagamento (separadas por vírgula)
+      <label>Formas de pagamento
         <input type="text" name="formas_pagamento" value="<%= (negocio.formas_pagamento || []).join(', ') %>">
+        <span class="ajuda">Separe por vírgula. Ex.: Dinheiro, Pix, Cartão</span>
       </label>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="quadro-mensagens">
       <legend>Mensagens automáticas</legend>
-      <label>Boas-vindas do atendente (mandada quando alguém "Assume" uma conversa)
+      <label>Boas-vindas do atendente
         <textarea name="mensagem_boas_vindas_atendente" rows="2"><%= negocio.mensagem_boas_vindas_atendente || '' %></textarea>
+        <span class="ajuda">Vai quando alguém clica em "Assumir" a conversa.</span>
       </label>
-      <label>Mensagem de encerramento (mandada ao "Finalizar" uma conversa)
-        <textarea name="mensagem_encerramento" rows="2"><%= negocio.mensagem_encerramento || '' %></textarea>
-      </label>
-      <label>Pesquisa de satisfação (mandada logo depois do encerramento — deixe em branco pra não mandar)
-        <textarea name="pesquisa_satisfacao" rows="2"><%= negocio.pesquisa_satisfacao || '' %></textarea>
-      </label>
-      <label>Avaliação não respondida (mandada automaticamente 30min depois da pesquisa de satisfação, se o cliente não responder — deixe em branco pra não mandar)
-        <textarea name="mensagem_avaliacao_nao_respondida" rows="2"><%= negocio.mensagem_avaliacao_nao_respondida || '' %></textarea>
-      </label>
-      <label>Sem atendente disponível (mandada quando o cliente é transferido pro humano e ninguém do setor está online — deixe em branco pra não mandar)
+      <label>Sem atendente disponível
         <textarea name="mensagem_sem_atendente_disponivel" rows="2"><%= negocio.mensagem_sem_atendente_disponivel || '' %></textarea>
+        <span class="ajuda">Vai quando o cliente pede um atendente e ninguém do setor está online. Em branco = não manda.</span>
       </label>
+      <details class="referencia-variaveis">
+        <summary>Ver variáveis que dá para usar nas mensagens (<code>{{ }}</code>)</summary>
+        <ul>
+          <li><code>{{atendente.nome}}</code>: nome de quem assumiu a conversa (só na boas-vindas do atendente)</li>
+          <li><code>{{atendimento.protocolo}}</code>: protocolo do atendimento (só na boas-vindas do atendente)</li>
+          <li><code>{{cliente.nome}}</code> e <code>{{saudacao}}</code> (bom dia/boa tarde/boa noite): só na boas-vindas do atendente</li>
+          <li><code>{{negocio.nome}}</code>: nome do negócio</li>
+          <li><code>{{negocio.horario_funcionamento}}</code></li>
+          <li><code>{{negocio.endereco}}</code></li>
+          <li><code>{{negocio.formas_pagamento}}</code></li>
+          <li><code>{{negocio.numero_atendente_legivel}}</code>: número de WhatsApp em formato legível</li>
+        </ul>
+        <p class="dica">No editor de Fluxo também tem <code>{{vars.X}}</code>:
+          variáveis capturadas durante aquele fluxo (mudam de fluxo para fluxo, por isso não têm lista fixa aqui).</p>
+      </details>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="quadro-fila">
       <legend>Fila de atendimento</legend>
       <p class="dica">A bolinha aparece na fila quando é a vez do atendente responder. A cor muda conforme o tempo que o cliente está esperando.</p>
-      <label>🟡 Amarela depois de quantos minutos esperando
-        <input type="number" name="fila_minutos_amarelo" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_amarelo %>" required>
-      </label>
-      <label>🔴 Vermelha depois de quantos minutos esperando
-        <input type="number" name="fila_minutos_vermelho" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_vermelho %>" required>
-      </label>
+      <div class="campos-lado-a-lado">
+        <label>🟡 Amarela depois de
+          <span class="campo-com-unidade"><input type="number" name="fila_minutos_amarelo" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_amarelo %>" required> minutos</span>
+        </label>
+        <label>🔴 Vermelha depois de
+          <span class="campo-com-unidade"><input type="number" name="fila_minutos_vermelho" min="0" max="1440" step="1" value="<%= negocio.fila_minutos_vermelho %>" required> minutos</span>
+        </label>
+      </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="quadro-bot-parado">
       <legend>Cliente parado no meio do bot</legend>
       <p class="dica">Quando o cliente para de responder no meio de uma pergunta do bot (ex.: o endereço do pedido). Não mexe em conversa que já está com atendente.</p>
-      <label>Mandar o lembrete depois de quantos minutos sem resposta
-        <input type="number" name="inatividade_minutos_lembrete" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_lembrete %>" required>
-      </label>
-      <label>Mensagem do lembrete (deixe em branco pra não mandar)
+      <div class="campos-lado-a-lado">
+        <label>Mandar lembrete depois de
+          <span class="campo-com-unidade"><input type="number" name="inatividade_minutos_lembrete" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_lembrete %>" required> minutos</span>
+        </label>
+        <label>Desistir depois de
+          <span class="campo-com-unidade"><input type="number" name="inatividade_minutos_limite" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_limite %>" required> minutos</span>
+          <span class="ajuda">Contando desde que ele parou de responder.</span>
+        </label>
+      </div>
+      <label>Mensagem do lembrete
         <textarea name="mensagem_inatividade" rows="2"><%= negocio.mensagem_inatividade || '' %></textarea>
-      </label>
-      <label>Desistir depois de quantos minutos sem resposta (contando desde que ele parou)
-        <input type="number" name="inatividade_minutos_limite" min="1" max="1440" step="1" value="<%= negocio.inatividade_minutos_limite %>" required>
+        <span class="ajuda">Em branco = não manda lembrete.</span>
       </label>
       <div class="grupo-opcoes">
         <span class="grupo-opcoes-titulo">Ao desistir:</span>
-        <label class="linha"><input type="radio" name="inatividade_acao" value="reiniciar" <%= negocio.inatividade_acao !== 'transferir' ? 'checked' : '' %>> Reiniciar o fluxo (em silêncio — a próxima mensagem do cliente recebe o menu)</label>
-        <label class="linha"><input type="radio" name="inatividade_acao" value="transferir" <%= negocio.inatividade_acao === 'transferir' ? 'checked' : '' %>> Transferir pra um atendente (vai pra "Na fila")</label>
+        <label class="linha"><input type="radio" name="inatividade_acao" value="reiniciar" <%= negocio.inatividade_acao !== 'transferir' ? 'checked' : '' %>> Reiniciar o fluxo em silêncio (a próxima mensagem do cliente recebe o menu)</label>
+        <label class="linha"><input type="radio" name="inatividade_acao" value="transferir" <%= negocio.inatividade_acao === 'transferir' ? 'checked' : '' %>> Transferir para um atendente (vai para "Na fila")</label>
       </div>
-      <label>Setor que recebe a transferência
-        <select name="inatividade_setor_id">
-          <option value="">Geral</option>
-          <% setores.filter((s) => s.nome.toLowerCase() !== 'geral').forEach((s) => { %>
-            <option value="<%= s.id %>" <%= String(negocio.inatividade_setor_id) === String(s.id) ? 'selected' : '' %>><%= s.nome %></option>
-          <% }) %>
-        </select>
-      </label>
-      <label>Mensagem pro cliente ao transferir (deixe em branco pra não mandar)
-        <textarea name="mensagem_inatividade_transferencia" rows="2"><%= negocio.mensagem_inatividade_transferencia || '' %></textarea>
-      </label>
+      <%# só aparece com "Transferir" marcado; escondido os campos continuam sendo enviados %>
+      <div class="campos-transferencia" id="campos-transferencia" <%= negocio.inatividade_acao === 'transferir' ? '' : 'hidden' %>>
+        <label>Setor que recebe a transferência
+          <select name="inatividade_setor_id">
+            <option value="">Geral</option>
+            <% setores.filter((s) => s.nome.toLowerCase() !== 'geral').forEach((s) => { %>
+              <option value="<%= s.id %>" <%= String(negocio.inatividade_setor_id) === String(s.id) ? 'selected' : '' %>><%= s.nome %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Mensagem para o cliente ao transferir
+          <textarea name="mensagem_inatividade_transferencia" rows="2"><%= negocio.mensagem_inatividade_transferencia || '' %></textarea>
+          <span class="ajuda">Em branco = transfere sem avisar.</span>
+        </label>
+      </div>
     </fieldset>
 
-    <fieldset>
-      <legend>Encerramento</legend>
+    <fieldset id="quadro-finalizar">
+      <legend>Ao finalizar a conversa</legend>
       <input type="hidden" name="exigir_motivo_encerramento_enviado" value="1">
       <label class="linha"><input type="checkbox" name="exigir_motivo_encerramento" value="1" <%= negocio.exigir_motivo_encerramento ? 'checked' : '' %>> Exigir motivo ao finalizar (o atendente não finaliza sem escolher um)</label>
+      <p class="ajuda ajuda-solta">A lista de motivos fica em <a href="/painel/configuracoes/motivos">Motivos de encerramento</a>.</p>
+      <label>Mensagem de encerramento
+        <textarea name="mensagem_encerramento" rows="2"><%= negocio.mensagem_encerramento || '' %></textarea>
+        <span class="ajuda">Vai quando o atendente clica em "Finalizar".</span>
+      </label>
+      <label>Pesquisa de satisfação
+        <textarea name="pesquisa_satisfacao" rows="2"><%= negocio.pesquisa_satisfacao || '' %></textarea>
+        <span class="ajuda">Vai logo depois da mensagem de encerramento. Em branco = não manda.</span>
+      </label>
+      <label>Lembrete se o cliente não avaliar
+        <textarea name="mensagem_avaliacao_nao_respondida" rows="2"><%= negocio.mensagem_avaliacao_nao_respondida || '' %></textarea>
+        <span class="ajuda">Vai 30 minutos depois da pesquisa, se o cliente não responder. Em branco = não manda.</span>
+      </label>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="quadro-fechamento">
       <legend>Fechamento automático</legend>
-      <p class="dica">Fecha sozinho o atendimento que ficou aberto por tempo demais — com o bot, na fila ou com atendente —, contando desde que ele foi aberto.</p>
-      <label>Fechar depois de quantas horas aberto (0 = nunca fechar sozinho)
-        <input type="number" name="fechamento_automatico_horas" min="0" max="720" step="1" value="<%= negocio.fechamento_automatico_horas %>" required>
+      <p class="dica">Fecha sozinho o atendimento que ficou aberto por tempo demais (com o bot, na fila ou com atendente), contando desde que ele foi aberto.</p>
+      <label>Fechar depois de
+        <span class="campo-com-unidade"><input type="number" name="fechamento_automatico_horas" min="0" max="720" step="1" value="<%= negocio.fechamento_automatico_horas %>" required> horas aberto</span>
+        <span class="ajuda">0 = nunca fecha sozinho.</span>
       </label>
-      <label>Mensagem pro cliente ao fechar (deixe em branco pra fechar em silêncio)
+      <label>Mensagem para o cliente ao fechar
         <textarea name="mensagem_fechamento_automatico" rows="2"><%= negocio.mensagem_fechamento_automatico || '' %></textarea>
+        <span class="ajuda">Em branco = fecha em silêncio.</span>
       </label>
     </fieldset>
 
-    <button type="submit">Salvar</button>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar alterações</button>
+    </div>
   </form>
-
-  <details class="referencia-variaveis">
-    <summary>Variáveis disponíveis (<code>{{ }}</code>)</summary>
-    <ul>
-      <li><code>{{atendente.nome}}</code> — nome de quem assumiu a conversa (só funciona na boas-vindas do atendente)</li>
-      <li><code>{{atendimento.protocolo}}</code> — protocolo do atendimento (só na boas-vindas do atendente)</li>
-      <li><code>{{cliente.nome}}</code> e <code>{{saudacao}}</code> (bom dia/boa tarde/boa noite) — só na boas-vindas do atendente</li>
-      <li><code>{{negocio.nome}}</code> — nome do negócio</li>
-      <li><code>{{negocio.horario_funcionamento}}</code></li>
-      <li><code>{{negocio.endereco}}</code></li>
-      <li><code>{{negocio.formas_pagamento}}</code></li>
-      <li><code>{{negocio.numero_atendente_legivel}}</code> — número de WhatsApp em formato legível</li>
-    </ul>
-    <p class="dica">No editor de Fluxo também tem <code>{{vars.X}}</code> — variáveis capturadas
-      durante aquele fluxo específico (mudam de fluxo pra fluxo, por isso não têm uma lista fixa
-      aqui).</p>
-  </details>
 </main>
 <%- include('../partials/fim-painel') %>
+<%- include('aviso-nao-salvo', { formId: 'form-configuracoes' }) %>
+<script>
+  (function () {
+    var campos = document.getElementById('campos-transferencia');
+    document.querySelectorAll('input[name="inatividade_acao"]').forEach(function (r) {
+      r.addEventListener('change', function () { campos.hidden = r.value !== 'transferir' || !r.checked; });
+    });
+  })();
+</script>

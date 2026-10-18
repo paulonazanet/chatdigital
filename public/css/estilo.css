@@ -151,7 +151,7 @@ button:hover { background: var(--azul-destaque); }
 .referencia-variaveis ul { margin: 0.6rem 0; padding-left: 1.2rem; }
 .referencia-variaveis code { background: #eef1f4; padding: 0.05rem 0.35rem; border-radius: 3px; }
 
-.dica { color: #8a97a3; font-size: 0.85rem; }
+.dica { color: #5f6d7a; font-size: 0.85rem; }
 
 .qr-codigo { text-align: center; }
 .qr-codigo img {
@@ -1201,3 +1201,81 @@ form input[type="date"] { display: block; margin-top: 0.35rem; padding: 0.5rem 0
 .form-marcador input[type="color"] { width: 2.4rem; height: 2.2rem; padding: 0.1rem; border: 1px solid var(--cinza-borda); border-radius: 4px; background: var(--branco); flex: none; }
 .form-marcador .linha-check { margin: 0; font-weight: normal; white-space: nowrap; }
 .form-marcador input[type="text"] { min-width: 14rem; }
+
+/* Configurações (tela principal e subtelas): cartões das subtelas, quadros, ajuda, barra de salvar */
+.pagina-config:not(.conteudo-estreita) { max-width: 820px; }
+.pagina-config h1,
+.pagina-config h2,
+.pagina-config fieldset legend { font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-weight: 600; }
+.pagina-config fieldset {
+  background: var(--branco);
+  border-left: 3px solid var(--marca-laranja);
+  padding: 0.9rem 1.25rem 0.4rem;
+  margin-bottom: 1.25rem;
+  scroll-margin-top: 1rem;
+}
+.pagina-config fieldset legend { font-size: 1.05rem; }
+.pagina-config fieldset > .dica:first-of-type { margin-top: 0.2rem; }
+/* campos ligados por form="..." ficam fora de um <form> e não pegam o estilo de "form input" */
+.pagina-config input[type="text"] {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.trilha-config { font-size: 0.85rem; color: var(--cinza-texto); margin: 0 0 0.25rem; }
+.trilha-config a { color: var(--azul-destaque); }
+
+.cartoes-config { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1.25rem 0 1rem; }
+.cartao-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  color: var(--cinza-texto);
+  text-decoration: none;
+}
+.cartao-config:hover { border-color: var(--azul-destaque); }
+.cartao-config:hover .cartao-config-nome { text-decoration: underline; }
+.cartao-config:focus-visible { outline: 2px solid var(--marca-laranja); outline-offset: 2px; }
+.cartao-config-nome { font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-weight: 600; color: var(--azul-marinho); }
+.cartao-config-info { font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
+.cartao-config-texto { font-size: 0.8rem; color: #5f6d7a; }
+.ponto-status { width: 0.55rem; height: 0.55rem; border-radius: 50%; display: inline-block; }
+.ponto-status-ok { background: var(--verde-ativo); }
+.ponto-status-falha { background: var(--vermelho-erro); }
+
+.atalhos-config { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--cinza-borda); font-size: 0.85rem; }
+.atalhos-config a { color: var(--azul-destaque); }
+
+.campos-lado-a-lado { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.25rem; }
+.campo-com-unidade { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; font-weight: 400; color: var(--cinza-texto); }
+form .campo-com-unidade input[type="number"] { width: 6.5rem; margin-top: 0; }
+
+.ajuda { display: block; margin-top: 0.3rem; font-size: 0.8rem; font-weight: 400; color: #5f6d7a; }
+.ajuda-solta { margin: -0.6rem 0 1rem 1.6rem; }
+
+.barra-salvar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin: 0 -0.5rem;
+  padding: 0.75rem 0.5rem;
+  background: var(--cinza-fundo);
+  border-top: 1px solid var(--cinza-borda);
+}
+.barra-salvar-aviso { font-size: 0.85rem; font-weight: 600; color: #b0561b; }
+
+@media (max-width: 720px) {
+  .cartoes-config, .campos-lado-a-lado { grid-template-columns: 1fr; }
+}
+.grupo-motivo .nome-grupo { font-weight: 600; color: var(--azul-marinho); }

@@ -39,8 +39,25 @@ const CAMPOS_NUMERICOS = [
   ['fechamento_automatico_horas', 0, 720, 'As horas do fechamento automático'],
 ];
 
+// Resumo dos cartões do topo (WhatsApp, Motivos, Marcadores)
+function resumoDasSubtelas() {
+  const motivosAtivos = motivos.listarArvore({ soAtivos: true }).reduce((total, g) => total + g.motivos.length, 0);
+  return {
+    whatsappConectado: whatsappStatus.obterEstado().conectado,
+    motivosAtivos,
+    marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }).length,
+  };
+}
+
 function renderizar(req, res, extra) {
-  res.render('configuracoes/editar', { atendenteLogado: req.atendente, setores: listarSetores(), erro: null, salvo: false, ...extra });
+  res.render('configuracoes/editar', {
+    atendenteLogado: req.atendente,
+    setores: listarSetores(),
+    resumo: resumoDasSubtelas(),
+    erro: null,
+    salvo: false,
+    ...extra,
+  });
 }
 
 router.get('/', (req, res) => renderizar(req, res, { negocio: carregarNegocio() }));
@@ -90,7 +107,7 @@ router.post('/', (req, res) => {
 
 // Motivos de encerramento: grupos (ex.: "Resolvido") com motivos dentro.
 function renderizarMotivos(req, res, erro = null) {
-  res.render('configuracoes/motivos', { atendenteLogado: req.atendente, grupos: motivos.listarArvore(), erro });
+  res.render('configuracoes/motivos', { atendenteLogado: req.atendente, grupos: motivos.listarArvore(), erro, salvo: !!req.query.salvo });
 }
 
 router.get('/motivos', (req, res) => renderizarMotivos(req, res));
@@ -102,6 +119,18 @@ router.post('/motivos', (req, res) => {
   if (paiId && !motivos.listarArvore().some((g) => g.id === paiId)) return res.redirect('/painel/configuracoes/motivos');
   motivos.criarMotivo(nome, paiId);
   res.redirect('/painel/configuracoes/motivos');
+});
+
+// Salvar tudo de uma vez: cada grupo/motivo da tela vem como nome_<id> e ativo_<id>
+router.post('/motivos/salvar', (req, res) => {
+  for (const g of motivos.listarArvore()) {
+    for (const item of [g, ...g.motivos]) {
+      const nome = req.body[`nome_${item.id}`];
+      if (nome === undefined || !String(nome).trim()) continue;
+      motivos.atualizarMotivo(item.id, { nome, ativo: !!req.body[`ativo_${item.id}`] });
+    }
+  }
+  res.redirect('/painel/configuracoes/motivos?salvo=1');
 });
 
 router.post('/motivos/:id', (req, res) => {
@@ -122,6 +151,7 @@ function renderizarMarcadores(req, res, erro = null) {
     marcadores: marcadores.listarMarcadores(),
     cores: marcadores.CORES,
     erro,
+    salvo: !!req.query.salvo,
   });
 }
 
@@ -132,6 +162,16 @@ router.post('/marcadores', (req, res) => {
   if (!nome) return renderizarMarcadores(req, res, 'Escreva o nome do marcador.');
   marcadores.criarMarcador(nome, req.body.cor);
   res.redirect('/painel/configuracoes/marcadores');
+});
+
+// Salvar tudo de uma vez: cada marcador da tela vem como nome_<id>, cor_<id> e ativo_<id>
+router.post('/marcadores/salvar', (req, res) => {
+  for (const m of marcadores.listarMarcadores()) {
+    const nome = req.body[`nome_${m.id}`];
+    if (nome === undefined || !String(nome).trim()) continue;
+    marcadores.atualizarMarcador(m.id, { nome, cor: req.body[`cor_${m.id}`], ativo: !!req.body[`ativo_${m.id}`] });
+  }
+  res.redirect('/painel/configuracoes/marcadores?salvo=1');
 });
 
 router.post('/marcadores/:id', (req, res) => {

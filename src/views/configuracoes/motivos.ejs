@@ -1,31 +1,32 @@
 <%- include('../partials/inicio', { titulo: 'Motivos de encerramento' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo conteudo-estreita">
+<main class="conteudo conteudo-estreita pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Motivos de encerramento</p>
   <h1>Motivos de encerramento</h1>
-  <p><a href="/painel/configuracoes">← Voltar para Configurações</a></p>
   <p class="dica">O atendente escolhe um motivo ao finalizar (ex.: "Resolvido › Pedido feito"). Para obrigar a
     escolha, marque "Exigir motivo ao finalizar" em Configurações. Desativar esconde o motivo sem apagar o
     histórico; excluir um grupo apaga os motivos dele.</p>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Motivos salvos.</p><% } %>
+
+  <%# Um formulário só para salvar nomes e "Ativo" de tudo; Adicionar e Excluir usam formulários próprios (form="...") %>
+  <form method="post" action="/painel/configuracoes/motivos/salvar" id="form-motivos"></form>
 
   <% grupos.forEach((g) => { %>
     <section class="grupo-motivo">
-      <form method="post" action="/painel/configuracoes/motivos/<%= g.id %>" class="linha-form linha-form-inline">
-        <input type="text" name="nome" value="<%= g.nome %>" maxlength="80" aria-label="Nome do grupo">
-        <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= g.ativo ? 'checked' : '' %>> Ativo</label>
-        <button type="submit" class="botao-pequeno">Salvar grupo</button>
-      </form>
+      <div class="linha-form linha-form-inline">
+        <input type="text" form="form-motivos" name="nome_<%= g.id %>" value="<%= g.nome %>" maxlength="80" aria-label="Nome do grupo" class="nome-grupo">
+        <label class="linha-check"><input type="checkbox" form="form-motivos" name="ativo_<%= g.id %>" value="1" <%= g.ativo ? 'checked' : '' %>> Ativo</label>
+        <button type="submit" form="excluir-<%= g.id %>" class="botao-link botao-link-perigo">Excluir grupo</button>
+      </div>
       <ul>
         <% g.motivos.forEach((m) => { %>
           <li>
-            <form method="post" action="/painel/configuracoes/motivos/<%= m.id %>" class="linha-form linha-form-inline">
-              <input type="text" name="nome" value="<%= m.nome %>" maxlength="80" aria-label="Nome do motivo">
-              <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
-              <button type="submit" class="botao-pequeno">Salvar</button>
-            </form>
-            <form method="post" action="/painel/configuracoes/motivos/<%= m.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir este motivo?')">
-              <button type="submit" class="botao-link botao-link-perigo">Excluir</button>
-            </form>
+            <div class="linha-form linha-form-inline">
+              <input type="text" form="form-motivos" name="nome_<%= m.id %>" value="<%= m.nome %>" maxlength="80" aria-label="Nome do motivo">
+              <label class="linha-check"><input type="checkbox" form="form-motivos" name="ativo_<%= m.id %>" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
+            </div>
+            <button type="submit" form="excluir-<%= m.id %>" class="botao-link botao-link-perigo">Excluir</button>
           </li>
         <% }) %>
         <% if (g.motivos.length === 0) { %><li class="dica">Nenhum motivo neste grupo (grupo vazio não aparece no Finalizar).</li><% } %>
@@ -35,11 +36,22 @@
         <input type="text" name="nome" maxlength="80" placeholder="Novo motivo em <%= g.nome %>" required>
         <button type="submit" class="botao-pequeno">Adicionar</button>
       </form>
-      <form method="post" action="/painel/configuracoes/motivos/<%= g.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir o grupo e todos os motivos dele?')">
-        <button type="submit" class="botao-link botao-link-perigo">Excluir grupo</button>
-      </form>
     </section>
   <% }) %>
+
+  <% grupos.forEach((g) => { %>
+    <form method="post" action="/painel/configuracoes/motivos/<%= g.id %>/excluir" id="excluir-<%= g.id %>" hidden onsubmit="return confirm('Excluir o grupo e todos os motivos dele?')"></form>
+    <% g.motivos.forEach((m) => { %>
+      <form method="post" action="/painel/configuracoes/motivos/<%= m.id %>/excluir" id="excluir-<%= m.id %>" hidden onsubmit="return confirm('Excluir este motivo?')"></form>
+    <% }) %>
+  <% }) %>
+
+  <% if (grupos.length) { %>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit" form="form-motivos">Salvar alterações</button>
+    </div>
+  <% } %>
 
   <h2>Novo grupo</h2>
   <form method="post" action="/painel/configuracoes/motivos" class="linha-form">
@@ -48,3 +60,4 @@
   </form>
 </main>
 <%- include('../partials/fim-painel') %>
+<%- include('aviso-nao-salvo', { formId: 'form-motivos' }) %>

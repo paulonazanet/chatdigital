@@ -1,12 +1,16 @@
 <%- include('../partials/inicio', { titulo: 'Marcadores' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo">
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Marcadores</p>
   <h1>Marcadores</h1>
-  <p><a href="/painel/configuracoes">← Voltar para Configurações</a></p>
   <p class="dica">Etiquetas coloridas pra classificar as conversas (ex.: "Urgente", "Aguardando retorno"). O atendente
     põe e tira em <strong>Ações &gt; Marcadores</strong> na conversa, e filtra a fila pelo botão de marcador. Ficam no
     cliente até alguém tirar. Desativar esconde sem apagar.</p>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Marcadores salvos.</p><% } %>
+
+  <%# Um formulário só para salvar tudo; Excluir usa formulários próprios (form="...") %>
+  <form method="post" action="/painel/configuracoes/marcadores/salvar" id="form-marcadores"></form>
 
   <table class="tabela">
     <thead><tr><th>Marcador</th><th>Em uso</th><th></th></tr></thead>
@@ -14,12 +18,11 @@
       <% marcadores.forEach((m) => { %>
         <tr>
           <td>
-            <form method="post" action="/painel/configuracoes/marcadores/<%= m.id %>" class="linha-form linha-form-inline form-marcador">
-              <input type="color" name="cor" value="<%= m.cor %>" aria-label="Cor">
-              <input type="text" name="nome" value="<%= m.nome %>" maxlength="40" aria-label="Nome do marcador">
-              <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
-              <button type="submit" class="botao-pequeno">Salvar</button>
-            </form>
+            <div class="linha-form linha-form-inline form-marcador">
+              <input type="color" form="form-marcadores" name="cor_<%= m.id %>" value="<%= m.cor %>" aria-label="Cor">
+              <input type="text" form="form-marcadores" name="nome_<%= m.id %>" value="<%= m.nome %>" maxlength="40" aria-label="Nome do marcador">
+              <label class="linha-check"><input type="checkbox" form="form-marcadores" name="ativo_<%= m.id %>" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
+            </div>
           </td>
           <td><%= m.em_uso %> conversa<%= m.em_uso === 1 ? '' : 's' %></td>
           <td>
@@ -33,6 +36,13 @@
     </tbody>
   </table>
 
+  <% if (marcadores.length) { %>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit" form="form-marcadores">Salvar alterações</button>
+    </div>
+  <% } %>
+
   <h2>Novo marcador</h2>
   <form method="post" action="/painel/configuracoes/marcadores" class="linha-form form-marcador">
     <input type="color" name="cor" value="<%= cores[(marcadores.length) % cores.length] %>" aria-label="Cor">
@@ -41,3 +51,4 @@
   </form>
 </main>
 <%- include('../partials/fim-painel') %>
+<%- include('aviso-nao-salvo', { formId: 'form-marcadores' }) %>
