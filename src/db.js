@@ -188,6 +188,28 @@ db.exec(`
   );
 `);
 
+// Marcadores: etiquetas coloridas que o atendente põe na conversa (ex.: "Urgente", "Aguardando
+// retorno") pra achar e filtrar na fila. Ficam na conversa (no cliente) até alguém tirar.
+// Conversas fixadas: cada atendente fixa as dele no topo da lista.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS marcadores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cor TEXT NOT NULL DEFAULT '#2f6690',
+    ativo INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS conversas_marcadores (
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    marcador_id INTEGER NOT NULL REFERENCES marcadores(id) ON DELETE CASCADE,
+    PRIMARY KEY (conversa_id, marcador_id)
+  );
+  CREATE TABLE IF NOT EXISTS conversas_fixadas (
+    atendente_id INTEGER NOT NULL REFERENCES atendentes(id) ON DELETE CASCADE,
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    PRIMARY KEY (atendente_id, conversa_id)
+  );
+`);
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

@@ -1183,3 +1183,21 @@ form input[type="date"] { display: block; margin-top: 0.35rem; padding: 0.5rem 0
 .grupo-motivo .linha-form { align-items: center; margin-bottom: 0.4rem; }
 .grupo-motivo li .linha-form { flex: 1; margin-bottom: 0; }
 .grupo-motivo .linha-check { margin: 0; font-weight: normal; white-space: nowrap; }
+
+/* Marcadores, fixar e Ações da conversa (E1, 2a parte) */
+.chip-marcador { display: inline-block; font-size: 0.68rem; line-height: 1.3; padding: 0.05rem 0.45rem; border-radius: 999px; color: var(--cor); border: 1px solid var(--cor); background: color-mix(in srgb, var(--cor) 10%, white); margin-right: 0.25rem; white-space: nowrap; }
+.item-marcadores { grid-column: 1 / -1; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.marcadores-conversa { margin: 0.25rem 0 0; }
+.ponto-marcador { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
+.icone-fixada { font-size: 0.75rem; }
+.menu-acoes { min-width: 250px; display: flex; flex-direction: column; gap: 0.5rem; }
+.menu-acoes form { margin: 0; display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+.menu-acoes .linha-check { margin: 0; font-weight: normal; font-size: 0.85rem; color: var(--cinza-texto); }
+.menu-acoes-titulo { font-size: 0.75rem; font-weight: 600; color: var(--azul-marinho); text-transform: uppercase; letter-spacing: 0.03em; }
+.cabecalho-conversa .acoes-conversa .menu-acoes button.botao-link,
+.cabecalho-conversa .acoes-conversa .menu-acoes button.botao-pequeno { height: auto; min-width: 0; padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.cabecalho-conversa .acoes-conversa .menu-acoes button.botao-link { padding: 0.2rem 0; }
+.form-marcador { align-items: center; }
+.form-marcador input[type="color"] { width: 2.4rem; height: 2.2rem; padding: 0.1rem; border: 1px solid var(--cinza-borda); border-radius: 4px; background: var(--branco); flex: none; }
+.form-marcador .linha-check { margin: 0; font-weight: normal; white-space: nowrap; }
+.form-marcador input[type="text"] { min-width: 14rem; }

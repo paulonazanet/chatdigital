@@ -298,6 +298,16 @@ function encerrarAtendimento(numero, fluxo) {
 }
 
 /**
+ * Atendente devolveu a conversa pro bot ("Devolver ao bot"): começa o fluxo do início, como se o
+ * cliente tivesse digitado "menu", e devolve o texto pra mandar (o menu inicial).
+ */
+async function iniciarFluxo({ numero, negocio, fluxo }) {
+  const estado = obterEstado(numero, fluxo);
+  Object.assign(estado, estadoInicial(fluxo, numero));
+  return executar(estado, { negocio, vars: estado.vars }, fluxo);
+}
+
+/**
  * Marca a conversa como transferida pra um humano sem passar por um nó "transferir" do fluxo —
  * usado quando o cliente manda algo que o bot não consegue processar sozinho (ex.: mídia).
  */
@@ -350,6 +360,7 @@ module.exports = {
   processarMensagem,
   obterEstadoConversa,
   encerrarAtendimento,
+  iniciarFluxo,
   transferirParaHumano,
   aguardarAvaliacao,
   listarAguardandoAvaliacaoVencidos,

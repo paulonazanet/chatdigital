@@ -6,6 +6,7 @@ const { carregarNegocio, salvarConfiguracoes } = require('../negocio');
 const whatsappStatus = require('../whatsapp-status');
 const { listarSetores } = require('../setores');
 const motivos = require('../motivos-encerramento');
+const marcadores = require('../marcadores');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -112,6 +113,36 @@ router.post('/motivos/:id', (req, res) => {
 router.post('/motivos/:id/excluir', (req, res) => {
   motivos.excluirMotivo(Number(req.params.id));
   res.redirect('/painel/configuracoes/motivos');
+});
+
+// Marcadores da conversa (etiquetas coloridas que o atendente põe em Ações > Marcadores)
+function renderizarMarcadores(req, res, erro = null) {
+  res.render('configuracoes/marcadores', {
+    atendenteLogado: req.atendente,
+    marcadores: marcadores.listarMarcadores(),
+    cores: marcadores.CORES,
+    erro,
+  });
+}
+
+router.get('/marcadores', (req, res) => renderizarMarcadores(req, res));
+
+router.post('/marcadores', (req, res) => {
+  const nome = String(req.body.nome || '').trim();
+  if (!nome) return renderizarMarcadores(req, res, 'Escreva o nome do marcador.');
+  marcadores.criarMarcador(nome, req.body.cor);
+  res.redirect('/painel/configuracoes/marcadores');
+});
+
+router.post('/marcadores/:id', (req, res) => {
+  const nome = String(req.body.nome || '').trim();
+  if (nome) marcadores.atualizarMarcador(Number(req.params.id), { nome, cor: req.body.cor, ativo: !!req.body.ativo });
+  res.redirect('/painel/configuracoes/marcadores');
+});
+
+router.post('/marcadores/:id/excluir', (req, res) => {
+  marcadores.excluirMarcador(Number(req.params.id));
+  res.redirect('/painel/configuracoes/marcadores');
 });
 
 router.get('/whatsapp', (req, res) => {

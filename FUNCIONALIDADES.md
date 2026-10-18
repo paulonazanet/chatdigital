@@ -64,7 +64,10 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
   acha o número com ou sem o nono dígito. Em Finalizadas, procura no histórico inteiro (a lista
   mostra só as 50 mais recentes).
 - **Setor**: botão com ícone de filtro; mostra o nome do setor escolhido quando tem um.
-- **Cada conversa** mostra: número · nome do cliente, "há X min" (anda sozinho), última mensagem
+- **Marcador**: botão com ícone de etiqueta; filtra pelas conversas com aquele marcador (fica
+  lembrado, como o setor).
+- **Fixadas** (📌): as conversas que você fixou ficam no topo da sua lista (só na sua).
+- **Cada conversa** mostra: 📌 se fixada, número · nome do cliente, marcadores coloridos, "há X min" (anda sozinho), última mensagem
   ("Você:" / "Bot:" quando não foi o cliente), setor e a **bolinha**.
 - **Bolinha**: aparece só quando é a vez do atendente responder. Amarela/vermelha conforme o
   tempo que o cliente está esperando (tempos em Configurações > Fila de atendimento). Quem espera
@@ -77,6 +80,9 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
   (outro setor e, se quiser, um atendente específico) e **Finalizar**.
 - **Protocolo**: cada atendimento ganha um número (data + sequência, ex.: 202610180012), mostrado
   no topo da conversa. Pode ir na boas-vindas do atendente com `{{atendimento.protocolo}}`.
+- **Ações ▾** (topo da conversa): **Fixar/Desfixar no topo da lista**, **Marcadores** (marca e
+  desmarca, Salvar) e **Devolver ao bot** (fecha o atendimento sem mensagem de encerramento nem
+  pesquisa, grava nota "Devolvida ao bot por Fulano" e o cliente recebe o menu inicial do fluxo).
 - **Lápis ao lado do nome**: troca o nome do cliente, quantas vezes quiser. Em branco volta pro
   nome do perfil do WhatsApp.
 - **Histórico**: só ele rola; abre já na última mensagem. Cliente em cinza, bot em azul-marinho,
@@ -149,6 +155,9 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   desistir; ao desistir, **reiniciar o fluxo** (em silêncio) ou **transferir pra um atendente**
   (setor e mensagem pro cliente).
 - **Encerramento**: "Exigir motivo ao finalizar".
+- **Marcadores** (link no topo de Configurações): nome, cor, ativo, quantas conversas usam;
+  criar, editar e excluir (sai de todas as conversas). Vem com Urgente, Aguardando retorno,
+  Reclamação, Cliente novo e VIP. O marcador fica no cliente até alguém tirar.
 - **Motivos de encerramento** (link no topo de Configurações): grupos (Resolvido, Não resolvido,
   Sem contato...) com motivos dentro; criar, renomear, desativar (some do Finalizar sem apagar o
   histórico) e excluir. Vem com uma lista inicial pra revenda de gás. O motivo escolhido fica

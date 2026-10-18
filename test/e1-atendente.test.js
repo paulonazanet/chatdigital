@@ -211,3 +211,58 @@ test('histórico separa os atendimentos anteriores do atual com faixas', async (
   const depoisDaFaixaAtual = corpo.slice(corpo.indexOf('· atual</span>'));
   assert.match(depoisDaFaixaAtual, /<p>oi<\/p>/, 'o "oi" que abriu o atendimento novo fica dentro da faixa dele, não antes');
 });
+
+test('marcadores: lista padrão, aplicar na conversa, filtro da fila e cadastro', async () => {
+  const id = await conversaAssumida('5511900000008@s.whatsapp.net');
+  const outro = await conversaAssumida('5511900000009@s.whatsapp.net');
+  const urgente = db.prepare("SELECT id FROM marcadores WHERE nome = 'Urgente'").get();
+  assert.ok(urgente, 'a lista padrão é criada na 1a vez');
+
+  await post(`/painel/fila/${id}/marcadores`, { marcadores: String(urgente.id) });
+  let corpo = await pagina(`/painel/fila/${id}?filtro=minhas&marcador=${urgente.id}`);
+  assert.match(corpo, /chip-marcador[^>]*>Urgente</);
+  assert.match(corpo, /5511900000008/);
+  assert.doesNotMatch(corpo, /href="\/painel\/fila\/\d+"[^>]*>\s*<span class="item-numero">5511900000009/, 'filtro por marcador esconde a conversa sem ele');
+
+  // sem nenhum marcado = tira todos; limpa o filtro (fica no cookie)
+  await post(`/painel/fila/${id}/marcadores`, {});
+  assert.ok(!db.prepare('SELECT 1 FROM conversas_marcadores WHERE conversa_id = ?').get(id));
+  corpo = await pagina(`/painel/fila/${outro}?marcador=`);
+
+  await post('/painel/configuracoes/marcadores', { nome: 'Entrega agendada', cor: '#123456' });
+  const novo = db.prepare("SELECT * FROM marcadores WHERE nome = 'Entrega agendada'").get();
+  assert.strictEqual(novo.cor, '#123456');
+  await post('/painel/configuracoes/marcadores', { nome: 'Cor ruim', cor: 'vermelho' });
+  assert.strictEqual(db.prepare("SELECT cor FROM marcadores WHERE nome = 'Cor ruim'").get().cor, '#2f6690', 'cor inválida vira a padrão');
+  assert.match(await pagina('/painel/configuracoes/marcadores'), /Entrega agendada/);
+});
+
+test('fixar conversa: fica no topo da lista de quem fixou', async () => {
+  const primeira = await conversaAssumida('5511900000010@s.whatsapp.net');
+  await conversaAssumida('5511900000011@s.whatsapp.net');
+  await post(`/painel/fila/${primeira}/fixar`);
+  const corpo = await pagina('/painel/fila?filtro=minhas&setor=&marcador=');
+  const ordem = [...corpo.matchAll(/class="item-numero">(?:<span class="icone-fixada"[^>]*>📌<\/span> )?(\d+)/g)].map((m) => m[1]);
+  assert.strictEqual(ordem[0], '5511900000010', 'a fixada vem primeiro');
+  assert.match(corpo, /icone-fixada/);
+  await post(`/painel/fila/${primeira}/fixar`); // desfixa
+  assert.ok(!db.prepare('SELECT 1 FROM conversas_fixadas WHERE conversa_id = ?').get(primeira));
+});
+
+test('devolver ao bot: fecha o atendimento, manda o menu inicial e a conversa volta pro bot', async () => {
+  const numero = '5511900000012@s.whatsapp.net';
+  const id = await conversaAssumida(numero);
+  enviadas.length = 0;
+  const resp = await post(`/painel/fila/${id}/devolver-bot`);
+  assert.strictEqual(resp.status, 302);
+  assert.strictEqual(enviadas.length, 1);
+  assert.match(enviadas[0].texto, /Loja Exemplo/, 'manda o menu inicial do fluxo');
+  assert.strictEqual(db.prepare('SELECT status FROM conversas WHERE id = ?').get(id).status, 'bot');
+  const atendimento = db.prepare('SELECT finalizado_como FROM atendimentos WHERE conversa_id = ? ORDER BY id DESC').get(id);
+  assert.strictEqual(atendimento.finalizado_como, 'outro');
+  assert.ok(db.prepare("SELECT 1 FROM mensagens WHERE conversa_id = ? AND interna = 1 AND texto LIKE 'Devolvida ao bot%'").get(id));
+
+  // o cliente responde e o bot segue o fluxo normalmente (pede atendente de novo → fila)
+  await clienteEscreve(numero, '3');
+  assert.strictEqual(db.prepare('SELECT status FROM conversas WHERE id = ?').get(id).status, 'aguardando');
+});

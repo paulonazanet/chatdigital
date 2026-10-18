@@ -204,6 +204,17 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   número de produção pela pasta `auth/`).
 - **Produção**: mudou `src/` → na VM `git pull` + reiniciar. As migrações rodam sozinhas no boot.
 
+## E1, 2ª parte (18/10/2026): marcadores, fixar conversa, devolver ao bot
+- Tabelas `marcadores`, `conversas_marcadores` (marcador fica na conversa = no cliente) e
+  `conversas_fixadas` (por atendente). Módulo `src/marcadores.js` (lista inicial só com a tabela vazia).
+- `routes/fila.js`: filtro `marcador` (3º campo do cookie `filtroFila`), fixadas no topo em
+  `montarListaFila`; rotas `POST /:id/marcadores`, `/:id/fixar`, `/:id/devolver-bot`.
+- Devolver ao bot: nota interna + `finalizarConversa(id, 'outro')` + `iniciarFluxo` (novo em
+  `flow-engine.js`, executa o fluxo do início) + `sincronizarConversa(..., { vinhaDoBot: true })`.
+  Precisa do WhatsApp conectado (manda o menu).
+- Cadastro em `/painel/configuracoes/marcadores` (`views/configuracoes/marcadores.ejs`).
+- Testes no fim de `test/e1-atendente.test.js`.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -229,7 +240,7 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
 - `src/modo-teste.js` — regra do `NUMEROS_TESTE` (chegando e saindo).
 - `src/flow-engine.js` — motor do fluxo do bot (estado em memória).
 - `src/conversas.js` — banco: conversas, mensagens, notas internas, fila, finalizadas, busca, nome do contato.
-- `src/respostas-rapidas.js`, `src/motivos-encerramento.js` — cadastros da E1.
+- `src/respostas-rapidas.js`, `src/motivos-encerramento.js`, `src/marcadores.js` — cadastros da E1.
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

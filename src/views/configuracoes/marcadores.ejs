@@ -1,0 +1,43 @@
+<%- include('../partials/inicio', { titulo: 'Marcadores' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <h1>Marcadores</h1>
+  <p><a href="/painel/configuracoes">← Voltar para Configurações</a></p>
+  <p class="dica">Etiquetas coloridas pra classificar as conversas (ex.: "Urgente", "Aguardando retorno"). O atendente
+    põe e tira em <strong>Ações &gt; Marcadores</strong> na conversa, e filtra a fila pelo botão de marcador. Ficam no
+    cliente até alguém tirar. Desativar esconde sem apagar.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+  <table class="tabela">
+    <thead><tr><th>Marcador</th><th>Em uso</th><th></th></tr></thead>
+    <tbody>
+      <% marcadores.forEach((m) => { %>
+        <tr>
+          <td>
+            <form method="post" action="/painel/configuracoes/marcadores/<%= m.id %>" class="linha-form linha-form-inline form-marcador">
+              <input type="color" name="cor" value="<%= m.cor %>" aria-label="Cor">
+              <input type="text" name="nome" value="<%= m.nome %>" maxlength="40" aria-label="Nome do marcador">
+              <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
+              <button type="submit" class="botao-pequeno">Salvar</button>
+            </form>
+          </td>
+          <td><%= m.em_uso %> conversa<%= m.em_uso === 1 ? '' : 's' %></td>
+          <td>
+            <form method="post" action="/painel/configuracoes/marcadores/<%= m.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir este marcador? Ele sai de todas as conversas.')">
+              <button type="submit" class="botao-link botao-link-perigo">Excluir</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (marcadores.length === 0) { %><tr><td colspan="3" class="dica">Nenhum marcador ainda.</td></tr><% } %>
+    </tbody>
+  </table>
+
+  <h2>Novo marcador</h2>
+  <form method="post" action="/painel/configuracoes/marcadores" class="linha-form form-marcador">
+    <input type="color" name="cor" value="<%= cores[(marcadores.length) % cores.length] %>" aria-label="Cor">
+    <input type="text" name="nome" maxlength="40" placeholder="Ex.: Entrega agendada" required>
+    <button type="submit">Adicionar</button>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

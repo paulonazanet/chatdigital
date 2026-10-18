@@ -16,16 +16,18 @@ const {
   conversaCasaComBusca,
   renomearContato,
   registrarNotaInterna,
+  sincronizarConversa,
 } = require('../conversas');
 const atendimentos = require('../atendimentos');
 const respostasRapidas = require('../respostas-rapidas');
 const motivosEncerramento = require('../motivos-encerramento');
+const marcadores = require('../marcadores');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
-const { encerrarAtendimento, transferirParaHumano, aguardarAvaliacao, substituirVariaveis } = require('../flow-engine');
+const { encerrarAtendimento, iniciarFluxo, transferirParaHumano, aguardarAvaliacao, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus } = require('../midia');
@@ -75,17 +77,18 @@ function lerFiltros(req, res) {
   const salvo = req.cookies?.filtroFila ? String(req.cookies.filtroFila).split('|') : [];
   const filtro = FILTROS.includes(req.query.filtro) ? req.query.filtro : FILTROS.includes(salvo[0]) ? salvo[0] : 'minhas';
   const setor = req.query.setor !== undefined ? String(req.query.setor) : salvo[1] || '';
-  if (req.query.filtro !== undefined || req.query.setor !== undefined) {
-    res.cookie('filtroFila', `${filtro}|${setor}`, { httpOnly: true, sameSite: 'lax' });
+  const marcador = req.query.marcador !== undefined ? String(req.query.marcador).replace(/\D/g, '') : salvo[2] || '';
+  if (req.query.filtro !== undefined || req.query.setor !== undefined || req.query.marcador !== undefined) {
+    res.cookie('filtroFila', `${filtro}|${setor}|${marcador}`, { httpOnly: true, sameSite: 'lax' });
   }
   // a busca não fica no cookie: é de momento, trocar de filtro já limpa
-  return { filtro, setor, busca: String(req.query.q || '').trim().slice(0, 60) };
+  return { filtro, setor, marcador, busca: String(req.query.q || '').trim().slice(0, 60) };
 }
 
 // Uma lista só (opção "A ajustada" aprovada pelo Paulo): quem está esperando resposta há mais
 // tempo em cima; `esperandoResposta` = a vez é do atendente (conversa ainda na fila, ou o
 // cliente escreveu depois da última resposta) — é quem ganha a bolinha amarela/vermelha.
-function montarListaFila(atendente, fluxo, { filtro, setor, busca }) {
+function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
   const naFila = listarFila()
     .filter((c) => podeVerConversa(atendente, c))
     .map((c) => ({
@@ -107,15 +110,25 @@ function montarListaFila(atendente, fluxo, { filtro, setor, busca }) {
     filtro === 'finalizadas'
       ? listarFinalizadas({ busca }).filter((c) => podeVerConversa(atendente, c)).map((c) => ({ ...c, tipo: 'finalizada', esperandoResposta: false }))
       : [];
-  const contagens = Object.fromEntries(['minhas', 'fila', 'bot', 'todas'].map((f) => [f, porFiltro[f].filter(doSetor).length]));
+  const todasAsVisiveis = [...porFiltro.todas, ...porFiltro.finalizadas];
+  const marcadoresDe = marcadores.marcadoresPorConversa([...new Set(todasAsVisiveis.map((c) => c.id))]);
+  const doMarcador = (c) => !marcador || (marcadoresDe[c.id] || []).some((m) => String(m.id) === marcador);
+  const passa = (c) => doSetor(c) && doMarcador(c);
+  const contagens = Object.fromEntries(['minhas', 'fila', 'bot', 'todas'].map((f) => [f, porFiltro[f].filter(passa).length]));
+  const fixadas = marcadores.idsFixados(atendente.id);
 
   const desde = (c) => (c.esperandoResposta ? c.esperando_desde || c.ultima_mensagem_em : c.ultima_mensagem_em) || c.atualizado_em;
-  const itens = porFiltro[filtro].filter(doSetor).filter((c) => conversaCasaComBusca(c, busca)).sort((a, b) => {
+  const itens = porFiltro[filtro].filter(passa).filter((c) => conversaCasaComBusca(c, busca)).sort((a, b) => {
+    // fixadas pelo atendente ficam no topo (entre elas, a mesma ordem de sempre)
+    if (fixadas.has(a.id) !== fixadas.has(b.id)) return fixadas.has(a.id) ? -1 : 1;
     if (a.esperandoResposta !== b.esperandoResposta) return a.esperandoResposta ? -1 : 1;
     // esperando: quem espera há mais tempo primeiro; o resto: atividade mais recente primeiro
     return a.esperandoResposta ? desde(a).localeCompare(desde(b)) : desde(b).localeCompare(desde(a));
   });
-  return { itens: itens.map((c) => ({ ...c, desde: desde(c) })), contagens };
+  return {
+    itens: itens.map((c) => ({ ...c, desde: desde(c), marcadores: marcadoresDe[c.id] || [], fixada: fixadas.has(c.id) })),
+    contagens,
+  };
 }
 
 // Variáveis que as respostas rápidas e a boas-vindas do atendente podem usar.
@@ -183,6 +196,10 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     contagens,
     filtro: filtros.filtro,
     setorFiltro: filtros.setor,
+    marcadorFiltro: filtros.marcador,
+    marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }),
+    marcadoresDaConversa: conversaSelecionada ? marcadores.marcadoresPorConversa([conversaSelecionada.id])[conversaSelecionada.id] || [] : [],
+    conversaFixada: conversaSelecionada ? marcadores.idsFixados(req.atendente.id).has(conversaSelecionada.id) : false,
     busca: filtros.busca,
     minutosAmarelo: negocio.fila_minutos_amarelo,
     minutosVermelho: negocio.fila_minutos_vermelho,
@@ -316,6 +333,48 @@ router.post('/:id/nota', (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
   registrarNotaInterna(conversa.id, req.body.texto, req.atendente.id);
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Marcadores da conversa (Ações > Marcadores): troca pelos marcados no formulário.
+router.post('/:id/marcadores', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  marcadores.definirMarcadoresDaConversa(conversa.id, [].concat(req.body.marcadores || []).map(Number));
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Fixar / desfixar no topo da lista (só pra quem fixou)
+router.post('/:id/fixar', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  marcadores.alternarFixada(req.atendente.id, conversa.id);
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Devolver ao bot: fecha o atendimento (sem mensagem de encerramento nem pesquisa) e o bot
+// recomeça o fluxo do início, mandando o menu pro cliente. Se o fluxo transferir de novo, abre
+// um atendimento novo normalmente.
+router.post('/:id/devolver-bot', async (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) {
+    return res.status(403).send('Você não tem permissão para mexer nas conversas.');
+  }
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const sock = obterSocket();
+  if (!sock) {
+    return renderizarFila(req, res, {
+      conversaSelecionada: conversa,
+      mensagens: listarMensagens(conversa.id),
+      erro: 'O bot não está conectado ao WhatsApp agora — não dá pra devolver a conversa pra ele.',
+    });
+  }
+  const fluxo = carregarFluxo();
+  registrarNotaInterna(conversa.id, `Devolvida ao bot (menu inicial) por ${req.atendente.nome}.`);
+  finalizarConversa(conversa.id, 'outro');
+  const texto = await iniciarFluxo({ numero: conversa.numero, negocio: carregarNegocio(), fluxo });
+  if (texto && (await enviarComSeguranca(sock, conversa.numero, texto))) registrarMensagem(conversa.numero, 'bot', texto);
+  sincronizarConversa(conversa.numero, fluxo, { vinhaDoBot: true });
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 

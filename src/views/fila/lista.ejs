@@ -96,14 +96,29 @@
               <a class="<%= setorFiltro === 'sem' ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&setor=sem">Sem setor</a>
             </div>
           </details>
+          <% if (marcadoresAtivos.length) { const marcadorEscolhido = marcadoresAtivos.find((m) => String(m.id) === marcadorFiltro); %>
+            <details class="filtro-setor filtro-marcador">
+              <summary class="<%= marcadorEscolhido ? 'ativo' : '' %>" title="Filtrar por marcador">
+                <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3z"/></svg>
+                <% if (marcadorEscolhido) { %><span><%= marcadorEscolhido.nome %></span><% } %>
+              </summary>
+              <div class="filtro-setor-menu">
+                <a class="<%= !marcadorFiltro ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&marcador=">Todos os marcadores</a>
+                <% marcadoresAtivos.forEach((m) => { %>
+                  <a class="<%= marcadorFiltro === String(m.id) ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&marcador=<%= m.id %>"><span class="ponto-marcador" style="background: <%= m.cor %>"></span><%= m.nome %></a>
+                <% }) %>
+              </div>
+            </details>
+          <% } %>
         </div>
       </div>
 
       <% itens.forEach((c) => { %>
         <div class="item-conversa <%= conversaSelecionada && conversaSelecionada.id === c.id ? 'selecionado' : '' %>" data-busca="<%= textoDeBusca(c) %>">
           <a class="item-link" href="/painel/fila/<%= c.id %>">
-            <span class="item-numero"><%= exibirNumero(c) %><% if (c.nome_contato) { %> <span class="item-nome">· <%= c.nome_contato %></span><% } %></span>
+            <span class="item-numero"><% if (c.fixada) { %><span class="icone-fixada" title="Fixada por você">📌</span> <% } %><%= exibirNumero(c) %><% if (c.nome_contato) { %> <span class="item-nome">· <%= c.nome_contato %></span><% } %></span>
             <span class="item-tempo" data-desde="<%= c.desde %>"><%= haQuanto(c.desde) %></span>
+            <% if (c.marcadores.length) { %><span class="item-marcadores"><% c.marcadores.forEach((m) => { %><span class="chip-marcador" style="--cor: <%= m.cor %>"><%= m.nome %></span><% }) %></span><% } %>
             <span class="item-ultima"><%= c.ultima_mensagem_remetente === 'atendente' ? 'Você: ' : c.tipo === 'bot' ? 'Bot: ' : '' %><%= c.ultima_mensagem || '' %></span>
             <span class="item-lado">
               <% if (c.esperandoResposta) { %><span class="bolinha bolinha-<%= corDaBolinha(c.desde) %>" data-desde="<%= c.desde %>" title="Cliente esperando sua resposta"></span><% } %>
@@ -119,7 +134,7 @@
       <% }) %>
 
       <% if (itens.length === 0) { %>
-        <p class="dica fila-vazia"><%= busca ? `Nada encontrado pra "${busca}" aqui.` : {
+        <p class="dica fila-vazia"><%= busca ? `Nada encontrado pra "${busca}" aqui.` : marcadorFiltro ? 'Nenhuma conversa com esse marcador aqui.' : {
           minhas: 'Nenhuma conversa com você agora.',
           fila: 'Ninguém esperando um atendente assumir.',
           bot: 'Nenhum cliente parado no meio do fluxo do bot.',
@@ -165,8 +180,31 @@
               }[conversaSelecionada.status] %> · <%= conversaSelecionada.setor_nome || 'Sem setor' %>
               <% if (protocoloAtual) { %> · Protocolo <span class="protocolo"><%= protocoloAtual %></span><% } %>
             </p>
+            <% if (marcadoresDaConversa.length) { %><p class="marcadores-conversa"><% marcadoresDaConversa.forEach((m) => { %><span class="chip-marcador" style="--cor: <%= m.cor %>"><%= m.nome %></span><% }) %></p><% } %>
           </div>
           <div class="acoes-conversa">
+            <details class="transferir-popover acoes-popover">
+              <summary class="botao-secundario botao-como-summary" title="Marcadores, fixar e mais">Ações ▾</summary>
+              <div class="form-transferir menu-acoes">
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/fixar">
+                  <button type="submit" class="botao-link"><%= conversaFixada ? '📌 Desfixar da lista' : '📌 Fixar no topo da lista' %></button>
+                </form>
+                <% if (marcadoresAtivos.length) { %>
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/marcadores">
+                    <span class="menu-acoes-titulo">Marcadores</span>
+                    <% marcadoresAtivos.forEach((m) => { %>
+                      <label class="linha-check"><input type="checkbox" name="marcadores" value="<%= m.id %>" <%= marcadoresDaConversa.some((x) => x.id === m.id) ? 'checked' : '' %>> <span class="ponto-marcador" style="background: <%= m.cor %>"></span><%= m.nome %></label>
+                    <% }) %>
+                    <button type="submit" class="botao-pequeno">Salvar marcadores</button>
+                  </form>
+                <% } %>
+                <% if (conversaSelecionada.status === 'aguardando' || conversaSelecionada.status === 'atendendo') { %>
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/devolver-bot" onsubmit="return confirm('Devolver ao bot? O atendimento é fechado (sem pesquisa) e o cliente recebe o menu inicial de novo.')">
+                    <button type="submit" class="botao-link">🤖 Devolver ao bot (menu inicial)</button>
+                  </form>
+                <% } %>
+              </div>
+            </details>
             <% if (conversaSelecionada.status === 'bot') { %>
               <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/puxar">
                 <button type="submit">Puxar pra mim</button>
