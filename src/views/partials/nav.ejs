@@ -69,6 +69,14 @@
           <span class="recolhivel">Fluxo</span>
         </a>
       <% } %>
+      <% if (podeAcessar('gerenciar_respostas_rapidas')) { %>
+        <a href="/painel/respostas-rapidas">
+          <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"></path>
+          </svg>
+          <span class="recolhivel">Respostas rápidas</span>
+        </a>
+      <% } %>
       <% if (podeAcessar('ver_relatorio')) { %>
         <a href="/painel/relatorio">
           <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

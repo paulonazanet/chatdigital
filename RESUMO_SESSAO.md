@@ -176,6 +176,34 @@ simulado. Só `public/`: na VM basta `git pull` + restart.
 - Bolinha só aparece quando é a vez do atendente; amarela 0 min / vermelha 10 min (editável).
 - Cliente pode ter o nome trocado quantas vezes quiser; em branco volta pro nome do perfil.
 
+## E1, 1ª parte (18/10/2026): notas internas, protocolo, respostas rápidas, motivo de encerramento
+Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDigital\comparacao_syntor_chatdigital.md`).
+- **Banco** (`src/db.js`, migrações): `mensagens.interna` (nota interna, remetente 'atendente');
+  `atendimentos.protocolo` (AAAAMMDD + id 4 dígitos; preenchido também nos antigos),
+  `atendimentos.motivo_id`/`motivo_texto` ("Grupo › Motivo" guardado como texto); tabelas
+  `respostas_rapidas` (+ `respostas_rapidas_setores`) e `motivos_encerramento` (2 níveis, `pai_id`).
+- **Notas internas**: `registrarNotaInterna` em `conversas.js` não mexe no atendimento. As consultas
+  da fila (`listarFila`, `listarConversasComBot`, `listarFinalizadas`) e a reconstrução do livro
+  ignoram `interna = 1`. Rotas: `POST /painel/fila/:id/nota` e chave `interna` no `/responder`.
+  Transferir grava nota do sistema (`atendente_id` nulo).
+- **Protocolo**: gerado em `atendimentos.js` (`inserirAtendimento`). Variáveis novas na boas-vindas e
+  nas respostas rápidas (`contextoDaConversa` em `routes/fila.js`): `atendimento.protocolo`,
+  `cliente.nome`, `cliente.telefone`, `setor.nome`, `saudacao`.
+- **Faixas no histórico**: `marcarFaixasDeAtendimento` em `routes/fila.js`. A mensagem do cliente
+  que chega com o atendimento anterior já fechado já é do próximo (o atendimento só abre depois
+  dela), menos a nota da pesquisa e conversa só com o bot mais de 6 h antes.
+- **Respostas rápidas**: `src/respostas-rapidas.js`, rotas `src/routes/respostas-rapidas.js`
+  (`/painel/respostas-rapidas`, permissão nova `gerenciar_respostas_rapidas`), telas
+  `views/respostas-rapidas/`, script `public/js/respostas-rapidas.js` ("/" + setas + Enter; também
+  cuida da chave Nota interna). Os textos vão pra tela já com as variáveis trocadas (JSON no
+  `<script id="respostas-rapidas-dados">`). Anexo na resposta rápida: ainda não.
+- **Motivos**: `src/motivos-encerramento.js` (lista inicial pra gás, só se a tabela estiver vazia),
+  tela `/painel/configuracoes/motivos`, chave `exigir_motivo_encerramento` no `negocio.json`.
+- Testes: `test/e1-atendente.test.js` (fecha o banco no `after()`). Conferido no navegador com
+  `node src/server.js` + banco e negocio.json de teste (sem WhatsApp; `npm start` aqui conectaria o
+  número de produção pela pasta `auth/`).
+- **Produção**: mudou `src/` → na VM `git pull` + reiniciar. As migrações rodam sozinhas no boot.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -200,7 +228,8 @@ simulado. Só `public/`: na VM basta `git pull` + restart.
 - `src/bot.js` — conexão com o WhatsApp, recebe mensagens, grava nome do perfil (pushName).
 - `src/modo-teste.js` — regra do `NUMEROS_TESTE` (chegando e saindo).
 - `src/flow-engine.js` — motor do fluxo do bot (estado em memória).
-- `src/conversas.js` — banco: conversas, mensagens, fila, finalizadas, busca, nome do contato.
+- `src/conversas.js` — banco: conversas, mensagens, notas internas, fila, finalizadas, busca, nome do contato.
+- `src/respostas-rapidas.js`, `src/motivos-encerramento.js` — cadastros da E1.
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

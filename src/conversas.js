@@ -72,6 +72,19 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
 }
 
 /**
+ * Nota interna: fica no histórico pra equipe, o cliente não recebe. Não mexe em nada do
+ * atendimento (não conta como resposta, não abre atendimento, não reordena a fila).
+ * `atendenteId` nulo = nota do sistema (ex.: registro de transferência).
+ */
+function registrarNotaInterna(conversaId, texto, atendenteId = null) {
+  const limpo = String(texto || '').trim().slice(0, 4000);
+  if (!limpo) return;
+  db.prepare(
+    "INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, atendente_id, interna) VALUES (?, 'atendente', ?, ?, ?, 1)",
+  ).run(conversaId, limpo, new Date().toISOString(), atendenteId);
+}
+
+/**
  * Sincroniza a tabela `conversas` com o estado em memória do motor de fluxo (obterEstadoConversa),
  * depois de processarMensagem. Chame sempre que uma conversa puder ter mudado de "bot" para
  * "aguardando atendente" (ou vice-versa, ao digitar "menu" de novo).
@@ -116,13 +129,13 @@ function listarFila() {
   return db
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
-              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em,
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em,
               -- desde quando o cliente espera: a 1a mensagem dele depois da última resposta de um
               -- atendente (é isso que a cor da bolinha na fila mede)
               (SELECT MIN(m.criado_em) FROM mensagens m WHERE m.conversa_id = c.id AND m.remetente = 'cliente'
-                 AND m.id > COALESCE((SELECT MAX(a2.id) FROM mensagens a2 WHERE a2.conversa_id = c.id AND a2.remetente = 'atendente'), 0)
+                 AND m.id > COALESCE((SELECT MAX(a2.id) FROM mensagens a2 WHERE a2.conversa_id = c.id AND a2.remetente = 'atendente' AND a2.interna = 0), 0)
               ) AS esperando_desde
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
@@ -141,8 +154,8 @@ function listarFila() {
 function listarConversasComBot() {
   return db
     .prepare(
-      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
+      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
        FROM conversas c WHERE c.status = 'bot' ORDER BY c.atualizado_em ASC`,
     )
     .all();
@@ -202,9 +215,9 @@ function listarFinalizadas({ busca = '', limite = 50 } = {}) {
   const todas = db
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
-              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
        LEFT JOIN atendentes a ON a.id = c.atendente_id
@@ -262,18 +275,22 @@ function assumirConversa(id, atendenteId) {
   atendimentos.registrarAssumido(id, atendenteId);
 }
 
-/** `como` vai pro livro de atendimentos: 'atendente' (botão Finalizar) ou 'automatico'. */
-function finalizarConversa(id, como = 'atendente') {
+/**
+ * `como` vai pro livro de atendimentos: 'atendente' (botão Finalizar) ou 'automatico'.
+ * `motivo`: { id, texto } do motivo de encerramento escolhido (opcional).
+ */
+function finalizarConversa(id, como = 'atendente', motivo = null) {
   db.prepare("UPDATE conversas SET status = 'finalizado', atualizado_em = ?, aberta_em = NULL, lembrete_inatividade_em = NULL WHERE id = ?").run(
     new Date().toISOString(),
     id,
   );
-  atendimentos.fecharAtendimento(id, como);
+  atendimentos.fecharAtendimento(id, como, motivo);
 }
 
 module.exports = {
   obterOuCriarConversa,
   registrarMensagem,
+  registrarNotaInterna,
   definirNumeroExibicao,
   sincronizarConversa,
   listarFila,

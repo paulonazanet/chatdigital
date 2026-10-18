@@ -8,6 +8,19 @@ function agora() {
   return new Date().toISOString();
 }
 
+// AAAAMMDD (data local do servidor) + id com 4 dígitos — o id já garante que não repete
+function gerarProtocolo(id, abertoEm) {
+  const d = new Date(abertoEm);
+  const data = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  return `${data}${String(id).padStart(4, '0')}`;
+}
+
+function inserirAtendimento(sql, parametros, abertoEm) {
+  const id = Number(db.prepare(sql).run(...parametros).lastInsertRowid);
+  db.prepare('UPDATE atendimentos SET protocolo = ? WHERE id = ?').run(gerarProtocolo(id, abertoEm), id);
+  return id;
+}
+
 function atendimentoAberto(conversaId) {
   return db
     .prepare('SELECT * FROM atendimentos WHERE conversa_id = ? AND finalizado_em IS NULL ORDER BY id DESC LIMIT 1')
@@ -21,11 +34,8 @@ function atendimentoAberto(conversaId) {
 function abrirAtendimentoDoCliente(conversaId, setorId) {
   const sobra = atendimentoAberto(conversaId);
   if (sobra) fecharAtendimento(conversaId, 'outro');
-  db.prepare("INSERT INTO atendimentos (conversa_id, origem, setor_id, aberto_em) VALUES (?, 'cliente', ?, ?)").run(
-    conversaId,
-    setorId || null,
-    agora(),
-  );
+  const momento = agora();
+  inserirAtendimento("INSERT INTO atendimentos (conversa_id, origem, setor_id, aberto_em) VALUES (?, 'cliente', ?, ?)", [conversaId, setorId || null, momento], momento);
 }
 
 // Atendente mexeu numa conversa sem atendimento aberto (Nova conversa, Puxar, transferir ou
@@ -33,10 +43,9 @@ function abrirAtendimentoDoCliente(conversaId, setorId) {
 function garantirAtendimento(conversaId) {
   const aberto = atendimentoAberto(conversaId);
   if (aberto) return aberto;
-  const info = db
-    .prepare("INSERT INTO atendimentos (conversa_id, origem, aberto_em) VALUES (?, 'ativo', ?)")
-    .run(conversaId, agora());
-  return db.prepare('SELECT * FROM atendimentos WHERE id = ?').get(Number(info.lastInsertRowid));
+  const momento = agora();
+  const id = inserirAtendimento("INSERT INTO atendimentos (conversa_id, origem, aberto_em) VALUES (?, 'ativo', ?)", [conversaId, momento], momento);
+  return db.prepare('SELECT * FROM atendimentos WHERE id = ?').get(id);
 }
 
 function registrarAssumido(conversaId, atendenteId) {
@@ -68,13 +77,26 @@ function registrarTransferencia(conversaId, { setorId, atendenteId }) {
   );
 }
 
-/** `como`: 'atendente' (botão Finalizar), 'automatico' (fechamento automático) ou 'outro'. */
-function fecharAtendimento(conversaId, como) {
-  db.prepare('UPDATE atendimentos SET finalizado_em = ?, finalizado_como = ? WHERE conversa_id = ? AND finalizado_em IS NULL').run(
-    agora(),
-    como,
-    conversaId,
-  );
+/**
+ * `como`: 'atendente' (botão Finalizar), 'automatico' (fechamento automático) ou 'outro'.
+ * `motivo`: { id, texto } escolhido no Finalizar (opcional).
+ */
+function fecharAtendimento(conversaId, como, motivo = null) {
+  db.prepare(
+    'UPDATE atendimentos SET finalizado_em = ?, finalizado_como = ?, motivo_id = ?, motivo_texto = ? WHERE conversa_id = ? AND finalizado_em IS NULL',
+  ).run(agora(), como, motivo?.id || null, motivo?.texto || null, conversaId);
+}
+
+/** Atendimentos da conversa, do mais antigo ao mais novo (faixas no histórico da Fila). */
+function listarAtendimentosDaConversa(conversaId) {
+  return db
+    .prepare(
+      `SELECT t.*, a.nome AS atendente_nome, s.nome AS setor_nome FROM atendimentos t
+       LEFT JOIN atendentes a ON a.id = t.atendente_id
+       LEFT JOIN setores s ON s.id = t.setor_id
+       WHERE t.conversa_id = ? ORDER BY t.aberto_em ASC, t.id ASC`,
+    )
+    .all(conversaId);
 }
 
 // O cliente responde a pesquisa do jeito que quiser ("10", "nota 9", "dez!") — pega o 1o número de
@@ -124,7 +146,7 @@ function reconstruirAtendimentosAntigos({ textosFinalizacao = [], textosFechamen
   let total = 0;
 
   for (const conversa of db.prepare('SELECT * FROM conversas').all()) {
-    const mensagens = db.prepare('SELECT * FROM mensagens WHERE conversa_id = ? ORDER BY id').all(conversa.id);
+    const mensagens = db.prepare('SELECT * FROM mensagens WHERE conversa_id = ? AND interna = 0 ORDER BY id').all(conversa.id);
     const sessoes = [];
     let atual = null;
     let fechadaEm = null; // pra não abrir atendimento novo com a nota da pesquisa
@@ -210,6 +232,9 @@ function reconstruirAtendimentosAntigos({ textosFinalizacao = [], textosFechamen
     ).run(nota, conversa.id, desde, a.criado_em);
   }
 
+  db.prepare(
+    "UPDATE atendimentos SET protocolo = strftime('%Y%m%d', aberto_em, 'localtime') || printf('%04d', id) WHERE protocolo IS NULL",
+  ).run();
   return total;
 }
 
@@ -220,6 +245,8 @@ function livroDeAtendimentosVazio() {
 module.exports = {
   livroDeAtendimentosVazio,
   atendimentoAberto,
+  listarAtendimentosDaConversa,
+  gerarProtocolo,
   abrirAtendimentoDoCliente,
   registrarAssumido,
   registrarRespostaDoAtendente,

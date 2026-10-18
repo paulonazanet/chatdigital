@@ -1,0 +1,31 @@
+<%- include('../partials/inicio', { titulo: 'Respostas rápidas' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <h1>Respostas rápidas</h1>
+  <p class="dica">Textos prontos pro atendimento. Na conversa, digite <strong>/</strong> no campo de resposta
+    (ou clique no raio) e escolha pelo nome. Só aparecem as ativas, dentro da validade e do setor da conversa.</p>
+  <p><a class="botao" href="/painel/respostas-rapidas/nova">+ Nova resposta rápida</a></p>
+  <table class="tabela">
+    <thead><tr><th>Nome</th><th>Setores</th><th>Resposta</th><th>Validade</th><th></th></tr></thead>
+    <tbody>
+      <% respostas.forEach((r) => { %>
+        <tr>
+          <td>
+            <a href="/painel/respostas-rapidas/<%= r.id %>"><strong><%= r.nome %></strong></a>
+            <% if (!r.ativa) { %> <span class="selo selo-inativo">inativa</span><% } else if (r.vencida) { %> <span class="selo selo-inativo">vencida</span><% } %>
+          </td>
+          <td><%= r.setores.length ? setores.filter((s) => r.setores.includes(s.id)).map((s) => s.nome).join(', ') : 'Todos' %></td>
+          <td><div class="texto-resumo" title="<%= r.texto %>"><%= r.texto %></div></td>
+          <td><%= r.expira_em ? r.expira_em.split('-').reverse().join('/') : 'Sem validade' %></td>
+          <td class="acoes-linha">
+            <a href="/painel/respostas-rapidas/<%= r.id %>">Editar</a>
+            <form method="post" action="/painel/respostas-rapidas/<%= r.id %>/duplicar" class="form-inline"><button type="submit" class="botao-link">Duplicar</button></form>
+            <form method="post" action="/painel/respostas-rapidas/<%= r.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir esta resposta rápida?')"><button type="submit" class="botao-link botao-link-perigo">Excluir</button></form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (respostas.length === 0) { %><tr><td colspan="5" class="dica">Nenhuma resposta rápida ainda.</td></tr><% } %>
+    </tbody>
+  </table>
+</main>
+<%- include('../partials/fim-painel') %>

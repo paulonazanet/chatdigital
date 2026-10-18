@@ -10,6 +10,7 @@ const CHAVES = [
   'finalizar_conversas',
   'gerenciar_configuracoes',
   'ver_relatorio',
+  'gerenciar_respostas_rapidas',
 ];
 
 const ROTULOS = {
@@ -22,6 +23,7 @@ const ROTULOS = {
   finalizar_conversas: 'Finalizar conversas',
   gerenciar_configuracoes: 'Ver e editar Configurações do negócio',
   ver_relatorio: 'Ver o Relatório (atendimentos, tempos e notas)',
+  gerenciar_respostas_rapidas: 'Cadastrar e editar Respostas rápidas',
 };
 
 function permissoesPadraoAtendente() {

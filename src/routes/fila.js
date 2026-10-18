@@ -15,7 +15,11 @@ const {
   listarFinalizadas,
   conversaCasaComBusca,
   renomearContato,
+  registrarNotaInterna,
 } = require('../conversas');
+const atendimentos = require('../atendimentos');
+const respostasRapidas = require('../respostas-rapidas');
+const motivosEncerramento = require('../motivos-encerramento');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
@@ -114,9 +118,63 @@ function montarListaFila(atendente, fluxo, { filtro, setor, busca }) {
   return { itens: itens.map((c) => ({ ...c, desde: desde(c) })), contagens };
 }
 
+// Variáveis que as respostas rápidas e a boas-vindas do atendente podem usar.
+function contextoDaConversa(conversa, atendente, negocio) {
+  const atual = atendimentos.atendimentoAberto(conversa.id);
+  return {
+    negocio,
+    atendente: { nome: atendente.nome },
+    cliente: {
+      nome: conversa.nome_contato || '',
+      telefone: conversa.numero_exibicao || conversa.numero.replace(/@.*/, ''),
+    },
+    atendimento: { protocolo: atual?.protocolo || '' },
+    setor: { nome: conversa.setor_nome || '' },
+    saudacao: respostasRapidas.saudacao(),
+  };
+}
+
+// Marca a 1a mensagem de cada atendimento com a faixa dele ("Atendimento 202610180012 · ..."),
+// pra separar no histórico os atendimentos anteriores do atual. Cada mensagem é do último
+// atendimento aberto até a hora dela (a mensagem de encerramento fica no que acabou de fechar).
+// O atendimento só é aberto DEPOIS da mensagem que o causou (o cliente escreve, o bot transfere),
+// então a mensagem do cliente que chega com o anterior já finalizado já é do próximo — menos a
+// nota da pesquisa, que ainda é do anterior.
+function marcarFaixasDeAtendimento(mensagens, lista) {
+  let indice = -1;
+  let ultimaFaixa = null;
+  return mensagens.map((m) => {
+    while (indice + 1 < lista.length && lista[indice + 1].aberto_em <= m.criado_em) indice += 1;
+    const anterior = lista[indice];
+    const proximo = lista[indice + 1];
+    const fechouAntes = !anterior || (anterior.finalizado_em && anterior.finalizado_em <= m.criado_em);
+    const ehNotaDaPesquisa =
+      anterior && m.texto.trim().length <= 20 && atendimentos.lerNota(m.texto) !== null &&
+      Date.parse(m.criado_em) - Date.parse(anterior.finalizado_em) <= 30 * 60000;
+    // (até 6 h antes de abrir: conversa só com o bot dias antes não entra no atendimento seguinte)
+    const pertoDoProximo = proximo && Date.parse(proximo.aberto_em) - Date.parse(m.criado_em) <= 6 * 3600000;
+    if (pertoDoProximo && fechouAntes && m.remetente === 'cliente' && !m.interna && !ehNotaDaPesquisa) indice += 1;
+    const atendimento = indice >= 0 ? lista[indice] : null;
+    const faixa = atendimento && atendimento.id !== ultimaFaixa ? atendimento : null;
+    if (atendimento) ultimaFaixa = atendimento.id;
+    return { ...m, faixa };
+  });
+}
+
 function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null, erroNovaConversa = null } = {}) {
   const fluxo = carregarFluxo();
   const negocio = carregarNegocio();
+  let respostas = [];
+  let protocoloAtual = null;
+  if (conversaSelecionada) {
+    const lista = atendimentos.listarAtendimentosDaConversa(conversaSelecionada.id);
+    mensagens = marcarFaixasDeAtendimento(mensagens, lista);
+    protocoloAtual = lista.length ? lista[lista.length - 1].protocolo : null;
+    const contexto = contextoDaConversa(conversaSelecionada, req.atendente, negocio);
+    respostas = respostasRapidas
+      .respostasParaConversa(conversaSelecionada.setor_id || null)
+      .map((r) => ({ nome: r.nome, texto: substituirVariaveis(r.texto, contexto) }));
+  }
   const filtros = lerFiltros(req, res);
   const { itens, contagens } = montarListaFila(req.atendente, fluxo, filtros);
   res.render('fila/lista', {
@@ -134,6 +192,10 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     erroNovaConversa,
     setores: listarSetores(),
     atendentes: listarAtendentes().filter((a) => a.ativo),
+    respostas,
+    protocoloAtual,
+    motivos: motivosEncerramento.listarArvore({ soAtivos: true }).filter((g) => g.motivos.length),
+    exigirMotivo: !!negocio.exigir_motivo_encerramento,
   });
 }
 
@@ -197,10 +259,10 @@ router.post('/:id/assumir', async (req, res) => {
   assumirConversa(conversa.id, req.atendente.id);
 
   const negocio = carregarNegocio();
-  const boasVindas = substituirVariaveis(negocio.mensagem_boas_vindas_atendente, {
-    negocio,
-    atendente: { nome: req.atendente.nome },
-  });
+  const boasVindas = substituirVariaveis(
+    negocio.mensagem_boas_vindas_atendente,
+    contextoDaConversa(obterConversaPorId(conversa.id), req.atendente, negocio),
+  );
   const sock = obterSocket();
   if (sock && (await enviarComSeguranca(sock, conversa.numero, boasVindas))) {
     registrarMensagem(conversa.numero, 'bot', boasVindas);
@@ -234,7 +296,26 @@ router.post('/:id/transferir', (req, res) => {
   }
 
   transferirConversa(conversa.id, { setorId, atendenteId });
+  const setorNome = listarSetores().find((x) => x.id === setorId)?.nome || 'setor';
+  const destinoNome = atendenteId ? listarAtendentes().find((a) => a.id === atendenteId)?.nome : null;
+  const origem = [conversa.setor_nome, conversa.atendente_nome].filter(Boolean).join(' · ') || 'sem setor';
+  registrarNotaInterna(
+    conversa.id,
+    `Transferida de ${origem} para ${setorNome}${destinoNome ? ` · ${destinoNome}` : ''}, por ${req.atendente.nome}.`,
+  );
   barramento.emit('atencao', { motivo: 'transferencia', numero: conversa.numero, setorId, numeroExibicao: conversa.numero_exibicao });
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Nota interna: só a equipe vê, o cliente não recebe. Vale em qualquer situação da conversa
+// (na fila, com o bot, finalizada), pra quem pode responder.
+router.post('/:id/nota', (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) {
+    return res.status(403).send('Você não tem permissão para escrever nas conversas.');
+  }
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  registrarNotaInterna(conversa.id, req.body.texto, req.atendente.id);
   res.redirect(`/painel/fila/${conversa.id}`);
 });
 
@@ -255,9 +336,18 @@ router.post('/:id/finalizar', async (req, res) => {
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
 
   const fluxo = carregarFluxo();
-  finalizarConversa(conversa.id);
-
   const negocio = carregarNegocio();
+  const motivo = req.body.motivo_id ? motivosEncerramento.resolverMotivo(Number(req.body.motivo_id)) : null;
+  const temMotivos = motivosEncerramento.listarArvore({ soAtivos: true }).some((g) => g.motivos.length);
+  if (!motivo && negocio.exigir_motivo_encerramento && temMotivos) {
+    return renderizarFila(req, res, {
+      conversaSelecionada: conversa,
+      mensagens: listarMensagens(conversa.id),
+      erro: 'Escolha o motivo do encerramento para finalizar.',
+    });
+  }
+  finalizarConversa(conversa.id, 'atendente', motivo);
+
   const mensagemEncerramento = negocio.mensagem_encerramento || MENSAGEM_ENCERRAMENTO_PADRAO;
   const sock = obterSocket();
   let pesquisaEnviada = false;
@@ -293,6 +383,14 @@ router.post('/:id/responder', (req, res) => {
 
     function reexibirComErro(erro) {
       renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
+    }
+
+    // chave "Nota interna" ligada no campo de resposta: grava pra equipe e não manda nada
+    if (req.body.interna) {
+      if (arquivo) return reexibirComErro('Nota interna é só texto: tire o anexo ou desligue a chave Nota interna.');
+      if (!texto) return reexibirComErro('Escreva a nota antes de salvar.');
+      registrarNotaInterna(conversa.id, texto, req.atendente.id);
+      return res.redirect(`/painel/fila/${conversa.id}`);
     }
 
     if (erroUpload) {

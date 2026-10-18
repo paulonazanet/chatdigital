@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const { carregarNegocio, salvarConfiguracoes } = require('../negocio');
 const whatsappStatus = require('../whatsapp-status');
 const { listarSetores } = require('../setores');
+const motivos = require('../motivos-encerramento');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -66,6 +67,11 @@ router.post('/', (req, res) => {
     erro = 'O tempo pra desistir tem que ser maior que o tempo do lembrete de inatividade.';
   }
 
+  // checkbox desmarcado não vem no envio: o campo escondido diz que o formulário novo foi usado
+  campos.exigir_motivo_encerramento = corpo.exigir_motivo_encerramento_enviado
+    ? !!corpo.exigir_motivo_encerramento
+    : !!atual.exigir_motivo_encerramento;
+
   campos.inatividade_acao = corpo.inatividade_acao === undefined ? atual.inatividade_acao : corpo.inatividade_acao === 'transferir' ? 'transferir' : 'reiniciar';
   if (corpo.inatividade_setor_id === undefined) {
     campos.inatividade_setor_id = atual.inatividade_setor_id;
@@ -79,6 +85,33 @@ router.post('/', (req, res) => {
   }
   const negocio = salvarConfiguracoes({ nome: corpo.nome.trim(), ...campos });
   renderizar(req, res, { negocio, salvo: true });
+});
+
+// Motivos de encerramento: grupos (ex.: "Resolvido") com motivos dentro.
+function renderizarMotivos(req, res, erro = null) {
+  res.render('configuracoes/motivos', { atendenteLogado: req.atendente, grupos: motivos.listarArvore(), erro });
+}
+
+router.get('/motivos', (req, res) => renderizarMotivos(req, res));
+
+router.post('/motivos', (req, res) => {
+  const nome = String(req.body.nome || '').trim();
+  const paiId = req.body.pai_id ? Number(req.body.pai_id) : null;
+  if (!nome) return renderizarMotivos(req, res, 'Escreva o nome.');
+  if (paiId && !motivos.listarArvore().some((g) => g.id === paiId)) return res.redirect('/painel/configuracoes/motivos');
+  motivos.criarMotivo(nome, paiId);
+  res.redirect('/painel/configuracoes/motivos');
+});
+
+router.post('/motivos/:id', (req, res) => {
+  const nome = String(req.body.nome || '').trim();
+  if (nome) motivos.atualizarMotivo(Number(req.params.id), { nome, ativo: !!req.body.ativo });
+  res.redirect('/painel/configuracoes/motivos');
+});
+
+router.post('/motivos/:id/excluir', (req, res) => {
+  motivos.excluirMotivo(Number(req.params.id));
+  res.redirect('/painel/configuracoes/motivos');
 });
 
 router.get('/whatsapp', (req, res) => {

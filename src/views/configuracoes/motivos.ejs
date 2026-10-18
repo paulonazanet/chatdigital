@@ -1,0 +1,50 @@
+<%- include('../partials/inicio', { titulo: 'Motivos de encerramento' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <h1>Motivos de encerramento</h1>
+  <p><a href="/painel/configuracoes">← Voltar para Configurações</a></p>
+  <p class="dica">O atendente escolhe um motivo ao finalizar (ex.: "Resolvido › Pedido feito"). Para obrigar a
+    escolha, marque "Exigir motivo ao finalizar" em Configurações. Desativar esconde o motivo sem apagar o
+    histórico; excluir um grupo apaga os motivos dele.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+  <% grupos.forEach((g) => { %>
+    <section class="grupo-motivo">
+      <form method="post" action="/painel/configuracoes/motivos/<%= g.id %>" class="linha-form linha-form-inline">
+        <input type="text" name="nome" value="<%= g.nome %>" maxlength="80" aria-label="Nome do grupo">
+        <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= g.ativo ? 'checked' : '' %>> Ativo</label>
+        <button type="submit" class="botao-pequeno">Salvar grupo</button>
+      </form>
+      <ul>
+        <% g.motivos.forEach((m) => { %>
+          <li>
+            <form method="post" action="/painel/configuracoes/motivos/<%= m.id %>" class="linha-form linha-form-inline">
+              <input type="text" name="nome" value="<%= m.nome %>" maxlength="80" aria-label="Nome do motivo">
+              <label class="linha-check"><input type="checkbox" name="ativo" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
+              <button type="submit" class="botao-pequeno">Salvar</button>
+            </form>
+            <form method="post" action="/painel/configuracoes/motivos/<%= m.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir este motivo?')">
+              <button type="submit" class="botao-link botao-link-perigo">Excluir</button>
+            </form>
+          </li>
+        <% }) %>
+        <% if (g.motivos.length === 0) { %><li class="dica">Nenhum motivo neste grupo (grupo vazio não aparece no Finalizar).</li><% } %>
+      </ul>
+      <form method="post" action="/painel/configuracoes/motivos" class="linha-form">
+        <input type="hidden" name="pai_id" value="<%= g.id %>">
+        <input type="text" name="nome" maxlength="80" placeholder="Novo motivo em <%= g.nome %>" required>
+        <button type="submit" class="botao-pequeno">Adicionar</button>
+      </form>
+      <form method="post" action="/painel/configuracoes/motivos/<%= g.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir o grupo e todos os motivos dele?')">
+        <button type="submit" class="botao-link botao-link-perigo">Excluir grupo</button>
+      </form>
+    </section>
+  <% }) %>
+
+  <h2>Novo grupo</h2>
+  <form method="post" action="/painel/configuracoes/motivos" class="linha-form">
+    <input type="text" name="nome" maxlength="80" placeholder="Ex.: Vendas" required>
+    <button type="submit">Criar grupo</button>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

@@ -9,6 +9,8 @@
 
   <p class="dica">Ver status da conexão do WhatsApp e escanear o QR Code:
     <a href="/painel/configuracoes/whatsapp">Configurações &gt; WhatsApp</a></p>
+  <p class="dica">Lista de motivos que o atendente escolhe ao finalizar:
+    <a href="/painel/configuracoes/motivos">Configurações &gt; Motivos de encerramento</a></p>
 
   <form method="post" action="/painel/configuracoes">
     <fieldset>
@@ -82,6 +84,12 @@
     </fieldset>
 
     <fieldset>
+      <legend>Encerramento</legend>
+      <input type="hidden" name="exigir_motivo_encerramento_enviado" value="1">
+      <label class="linha"><input type="checkbox" name="exigir_motivo_encerramento" value="1" <%= negocio.exigir_motivo_encerramento ? 'checked' : '' %>> Exigir motivo ao finalizar (o atendente não finaliza sem escolher um)</label>
+    </fieldset>
+
+    <fieldset>
       <legend>Fechamento automático</legend>
       <p class="dica">Fecha sozinho o atendimento que ficou aberto por tempo demais — com o bot, na fila ou com atendente —, contando desde que ele foi aberto.</p>
       <label>Fechar depois de quantas horas aberto (0 = nunca fechar sozinho)
@@ -99,6 +107,8 @@
     <summary>Variáveis disponíveis (<code>{{ }}</code>)</summary>
     <ul>
       <li><code>{{atendente.nome}}</code> — nome de quem assumiu a conversa (só funciona na boas-vindas do atendente)</li>
+      <li><code>{{atendimento.protocolo}}</code> — protocolo do atendimento (só na boas-vindas do atendente)</li>
+      <li><code>{{cliente.nome}}</code> e <code>{{saudacao}}</code> (bom dia/boa tarde/boa noite) — só na boas-vindas do atendente</li>
       <li><code>{{negocio.nome}}</code> — nome do negócio</li>
       <li><code>{{negocio.horario_funcionamento}}</code></li>
       <li><code>{{negocio.endereco}}</code></li>

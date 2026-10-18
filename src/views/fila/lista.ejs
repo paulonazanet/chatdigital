@@ -2,6 +2,7 @@
 <%- include('../partials/nav', { atendenteLogado }) %>
 <script src="/js/fila-responder.js" defer></script>
 <script src="/js/fila-lista.js" defer></script>
+<script src="/js/respostas-rapidas.js" defer></script>
 <%
   // Número legível pra mostrar: o de exibição (guardado quando o WhatsApp manda em conversas
   // @lid, que não trazem o número de telefone no endereço) ou, na falta dele, o próprio número
@@ -162,6 +163,7 @@
                 bot: 'Com o bot',
                 finalizado: 'Finalizada',
               }[conversaSelecionada.status] %> · <%= conversaSelecionada.setor_nome || 'Sem setor' %>
+              <% if (protocoloAtual) { %> · Protocolo <span class="protocolo"><%= protocoloAtual %></span><% } %>
             </p>
           </div>
           <div class="acoes-conversa">
@@ -197,15 +199,45 @@
                   <button type="submit">Confirmar transferência</button>
                 </form>
               </details>
-              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar">
-                <button type="submit" class="botao-secundario">Finalizar</button>
-              </form>
+              <% if (motivos.length) { %>
+                <details class="transferir-popover finalizar-popover">
+                  <summary class="botao-secundario botao-como-summary">Finalizar</summary>
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar" class="form-transferir">
+                    <label>Motivo do encerramento<%= exigirMotivo ? '' : ' (opcional)' %>
+                      <select name="motivo_id" <%= exigirMotivo ? 'required' : '' %>>
+                        <option value="">Escolha o motivo</option>
+                        <% motivos.forEach((g) => { %>
+                          <optgroup label="<%= g.nome %>">
+                            <% g.motivos.forEach((m) => { %><option value="<%= m.id %>"><%= m.nome %></option><% }) %>
+                          </optgroup>
+                        <% }) %>
+                      </select>
+                    </label>
+                    <button type="submit">Finalizar atendimento</button>
+                  </form>
+                </details>
+              <% } else { %>
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/finalizar">
+                  <button type="submit" class="botao-secundario">Finalizar</button>
+                </form>
+              <% } %>
             <% } %>
           </div>
         </div>
 
         <div class="historico">
           <% mensagens.forEach((m) => { %>
+            <% if (m.faixa) { const f = m.faixa; %>
+              <div class="faixa-atendimento">
+                <span>Atendimento <strong><%= f.protocolo %></strong> · <%= new Date(f.aberto_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %><% if (f.setor_nome) { %> · <%= f.setor_nome %><% } %><%= f.finalizado_em ? (f.motivo_texto ? ` · ${f.motivo_texto}` : ' · finalizado') : ' · atual' %></span>
+              </div>
+            <% } %>
+            <% if (m.interna) { %>
+              <div class="mensagem mensagem-nota">
+                <span class="mensagem-remetente">📝 Nota interna<%= m.atendente_nome ? ` · ${m.atendente_nome}` : ' · sistema' %></span>
+                <p><%- formatarWhatsapp(m.texto) %></p>
+              </div>
+            <% return; } %>
             <div class="mensagem mensagem-<%= m.remetente %>">
               <span class="mensagem-remetente"><%= m.remetente === 'atendente' && m.atendente_nome ? m.atendente_nome : m.remetente %></span>
               <% if (m.midia_tipo === 'imagem') { %>
@@ -237,9 +269,16 @@
                   <input type="file" name="midia" accept="image/*,video/*,audio/*,application/pdf" hidden>
                 </label>
                 <button type="button" class="botao-gravar-audio" title="Gravar áudio"><svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5a3 3 0 0 1 6 0v5a3 3 0 0 1 -6 0z"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></button>
+                <% if (respostas.length) { %>
+                  <button type="button" class="botao-respostas" title="Respostas rápidas (ou digite / no campo)"><svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/></svg></button>
+                <% } %>
+                <label class="chave-nota" title="O cliente não recebe: fica só pra equipe">
+                  <input type="checkbox" name="interna" value="1"> Nota interna
+                </label>
                 <span class="anexo-nome"></span>
                 <button type="button" class="botao-remover-anexo" hidden title="Remover">✕</button>
                 <div class="emoji-painel" hidden></div>
+                <div class="respostas-painel" hidden></div>
               </div>
               <div class="form-responder-linha">
                 <textarea name="texto" placeholder="Escreva a resposta para o cliente..."></textarea>
@@ -250,6 +289,16 @@
             <p class="aviso">Assuma a conversa para poder responder direto por aqui.</p>
           <% } %>
         <% } %>
+        <% if (conversaSelecionada.status !== 'atendendo') { %>
+          <details class="nota-avulsa">
+            <summary>📝 Escrever nota interna</summary>
+            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/nota" class="form-nota">
+              <textarea name="texto" rows="2" maxlength="4000" placeholder="Só a equipe vê. O cliente não recebe." required></textarea>
+              <button type="submit">Salvar nota</button>
+            </form>
+          </details>
+        <% } %>
+        <script type="application/json" id="respostas-rapidas-dados"><%- JSON.stringify(respostas).replace(/</g, '\\u003c') %></script>
       <% } %>
     </section>
   </div>

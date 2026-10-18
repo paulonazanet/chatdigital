@@ -1,0 +1,74 @@
+<%- include('../partials/inicio', { titulo: resposta.id ? 'Editar resposta rápida' : 'Nova resposta rápida' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita">
+  <h1><%= resposta.id ? 'Editar resposta rápida' : 'Nova resposta rápida' %></h1>
+  <p><a href="/painel/respostas-rapidas">← Voltar para a lista</a></p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <form method="post" action="/painel/respostas-rapidas<%= resposta.id ? `/${resposta.id}` : '' %>">
+    <label>Nome (é como o atendente acha a resposta ao digitar /)
+      <input type="text" name="nome" maxlength="80" value="<%= resposta.nome %>" placeholder="Ex.: Horário de entrega" required>
+    </label>
+
+    <label for="texto-resposta">Texto</label>
+    <div class="botoes-variaveis">
+      <% variaveis.forEach(([variavel, rotulo]) => { %>
+        <button type="button" class="botao-pequeno botao-variavel" data-variavel="<%= variavel %>" title="<%= variavel %>"><%= rotulo %></button>
+      <% }) %>
+    </div>
+    <textarea id="texto-resposta" name="texto" rows="6" maxlength="4000" required><%= resposta.texto %></textarea>
+    <p class="dica">Use *negrito*, _itálico_ e ~riscado~ como no WhatsApp. As variáveis são trocadas pelos dados da conversa.</p>
+
+    <p><strong>Prévia</strong> (com dados de exemplo)</p>
+    <div class="mensagem mensagem-atendente previa-resposta"><p id="previa-resposta"></p></div>
+
+    <fieldset>
+      <legend>Setores onde ela aparece</legend>
+      <p class="dica">Nenhum marcado = aparece em todos.</p>
+      <div class="lista-setores-check">
+        <% setores.forEach((s) => { %>
+          <label><input type="checkbox" name="setores" value="<%= s.id %>" <%= resposta.setores.includes(s.id) ? 'checked' : '' %>> <%= s.nome %></label>
+        <% }) %>
+      </div>
+    </fieldset>
+
+    <label>Validade (opcional: depois desse dia ela some da conversa)
+      <input type="date" name="expira_em" value="<%= resposta.expira_em || '' %>">
+    </label>
+    <label class="linha-check"><input type="checkbox" name="ativa" value="1" <%= resposta.ativa ? 'checked' : '' %>> Ativa</label>
+
+    <button type="submit">Salvar</button>
+  </form>
+</main>
+<script>
+  (function () {
+    var campo = document.getElementById('texto-resposta');
+    var previa = document.getElementById('previa-resposta');
+    var exemplo = {
+      'saudacao': 'Bom dia', 'cliente.nome': 'Maria', 'cliente.telefone': '81 99999-0000',
+      'atendente.nome': <%- JSON.stringify(atendenteLogado.nome).replace(/</g, '\\u003c') %>, 'atendimento.protocolo': '202610180001',
+      'setor.nome': 'Vendas', 'negocio.nome': 'Seu negócio', 'negocio.horario_funcionamento': 'Seg a Sáb, 8h às 18h',
+      'negocio.endereco': 'Rua Exemplo, 100', 'negocio.formas_pagamento': 'Dinheiro, Pix',
+    };
+    function escapar(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function atualizar() {
+      var texto = campo.value.replace(/\{\{\s*([\w.]+)\s*\}\}/g, function (_, v) { return exemplo[v] !== undefined ? exemplo[v] : ''; });
+      previa.innerHTML = escapar(texto)
+        .replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')
+        .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?]|$)/gm, '$1<em>$2</em>')
+        .replace(/~([^~\n]+)~/g, '<s>$1</s>') || '&nbsp;';
+    }
+    document.querySelectorAll('.botao-variavel').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-variavel');
+        var i = campo.selectionStart, f = campo.selectionEnd;
+        campo.value = campo.value.slice(0, i) + v + campo.value.slice(f);
+        campo.focus();
+        campo.selectionStart = campo.selectionEnd = i + v.length;
+        atualizar();
+      });
+    });
+    campo.addEventListener('input', atualizar);
+    atualizar();
+  })();
+</script>
+<%- include('../partials/fim-painel') %>

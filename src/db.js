@@ -139,6 +139,55 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_atendimentos_aberto ON atendimentos (aberto_em);
 `);
 
+if (!colunaExiste('mensagens', 'interna')) {
+  // nota interna: escrita por atendente (ou pelo sistema, ex.: registro de transferência) que o
+  // cliente NÃO recebe. Fica no histórico, mas não conta como resposta pra fila nem pro Relatório.
+  db.exec('ALTER TABLE mensagens ADD COLUMN interna INTEGER NOT NULL DEFAULT 0');
+}
+if (!colunaExiste('atendimentos', 'protocolo')) {
+  // número do atendimento pra falar com o cliente ("seu protocolo é ...") e achar depois.
+  // Formato AAAAMMDD + id com 4 dígitos (o id já garante que não repete).
+  db.exec('ALTER TABLE atendimentos ADD COLUMN protocolo TEXT');
+  db.exec(
+    "UPDATE atendimentos SET protocolo = strftime('%Y%m%d', aberto_em, 'localtime') || printf('%04d', id) WHERE protocolo IS NULL",
+  );
+}
+if (!colunaExiste('atendimentos', 'motivo_id')) {
+  // motivo de encerramento escolhido ao finalizar; motivo_texto guarda "Grupo › Motivo" como
+  // estava na hora (se o motivo for renomeado ou apagado depois, o histórico não muda)
+  db.exec('ALTER TABLE atendimentos ADD COLUMN motivo_id INTEGER');
+  db.exec('ALTER TABLE atendimentos ADD COLUMN motivo_texto TEXT');
+}
+
+// Respostas rápidas: textos prontos que o atendente puxa com "/" no campo de resposta. Sem setor
+// marcado = aparece pra todos os setores.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS respostas_rapidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    ativa INTEGER NOT NULL DEFAULT 1,
+    expira_em TEXT,
+    criado_por INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    criado_em TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS respostas_rapidas_setores (
+    resposta_id INTEGER NOT NULL REFERENCES respostas_rapidas(id) ON DELETE CASCADE,
+    setor_id INTEGER NOT NULL REFERENCES setores(id) ON DELETE CASCADE,
+    PRIMARY KEY (resposta_id, setor_id)
+  );
+`);
+
+// Motivos de encerramento em 2 níveis: grupo (pai_id NULL, ex.: "Resolvido") e motivo dentro dele.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS motivos_encerramento (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    pai_id INTEGER REFERENCES motivos_encerramento(id) ON DELETE CASCADE,
+    ativo INTEGER NOT NULL DEFAULT 1
+  );
+`);
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

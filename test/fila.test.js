@@ -226,7 +226,7 @@ test('tela dividida: "parado no fluxo" aparece, "puxar pra mim" assume, e transf
 
   resp = await fetch(`${baseUrl}/painel/fila/${idParado}`, { headers: { cookie: cookieAdmin } });
   corpo = await resp.text();
-  assert.match(corpo, /· Suporte\s*<\/p>/, 'transferir deve mudar o setor da conversa');
+  assert.match(corpo, /· Suporte\s*(·|<\/p>)/, 'transferir deve mudar o setor da conversa');
 
   console.log('OK: "parado no fluxo" aparece, "puxar pra mim" assume e silencia o bot, transferir muda o setor');
 });

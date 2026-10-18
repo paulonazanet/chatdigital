@@ -27,6 +27,7 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
   - Finalizar conversas
   - Ver e editar Configurações do negócio
   - Ver o Relatório (atendimentos, tempos e notas)
+  - Cadastrar e editar Respostas rápidas
 
 ---
 
@@ -74,14 +75,26 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
 - **Topo fixo**: número · nome do cliente, situação ("Atendendo: Fulano · Setor", "Na fila…",
   "Com o bot", "Finalizada") e os botões **Assumir** / **Puxar pra mim**, **Transferir**
   (outro setor e, se quiser, um atendente específico) e **Finalizar**.
+- **Protocolo**: cada atendimento ganha um número (data + sequência, ex.: 202610180012), mostrado
+  no topo da conversa. Pode ir na boas-vindas do atendente com `{{atendimento.protocolo}}`.
 - **Lápis ao lado do nome**: troca o nome do cliente, quantas vezes quiser. Em branco volta pro
   nome do perfil do WhatsApp.
 - **Histórico**: só ele rola; abre já na última mensagem. Cliente em cinza, bot em azul-marinho,
   atendente em verde com o nome de quem respondeu. Mostra negrito/itálico/riscado como o WhatsApp,
   imagens, vídeos, áudios e link pra PDF.
+- **Atendimentos separados por faixa**: cada atendimento do mesmo cliente começa com uma linha
+  "Atendimento <protocolo> · data · setor · motivo" (ou "atual"), pra ver o que já aconteceu antes.
+- **Notas internas** (fundo amarelo, "📝 Nota interna · Fulano"): só a equipe vê, o cliente não
+  recebe. Não contam como resposta (a bolinha continua, o Relatório não mede). Toda transferência
+  grava sozinha uma nota do sistema: "Transferida de X para Y, por Fulano".
 - **Responder** (quando a conversa está com você): emoji, anexo (imagem, vídeo, áudio ou PDF),
-  gravar áudio pelo microfone (com cronômetro e cancelar), texto e Enviar.
-- **Finalizar**: manda a mensagem de encerramento e, se configurada, a pesquisa de satisfação.
+  gravar áudio pelo microfone (com cronômetro e cancelar), **respostas rápidas** (botão do raio ou
+  digitar `/` e o começo do nome; setas + Enter escolhem), chave **Nota interna** (o campo fica
+  amarelo e o botão vira "Salvar nota"), texto e Enviar.
+- **Escrever nota interna** (embaixo da conversa quando ela não está com você: na fila, no bot ou
+  finalizada).
+- **Finalizar**: pede o **motivo do encerramento** (lista em grupos, ex.: "Resolvido › Pedido
+  feito"; obrigatório se ligado em Configurações), manda a mensagem de encerramento e, se configurada, a pesquisa de satisfação.
   A nota que o cliente mandar em até 30 min é agradecida e registrada.
 
 **+ Nova conversa** (topo da página): chama um cliente que ainda não escreveu. Confere se o número
@@ -92,6 +105,15 @@ avisos na tela" na barra lateral). Com o painel aberto em várias abas, avisa um
 estiver digitando (resposta, anexo ou áudio pendente, "+ Nova conversa" preenchida ou qualquer
 campo em foco), mostra "Chegou mensagem nova. Atualizar" em vez de recarregar. O texto da resposta
 fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar, ele continua lá.
+
+## Menu: Respostas rápidas
+(Administrador, ou atendente com a permissão "Cadastrar e editar Respostas rápidas".)
+- Lista: nome (+ "inativa"/"vencida"), setores, texto, validade; Editar, **Duplicar**, Excluir.
+- Formulário: nome (é o que o atendente procura com `/`), texto (até 4.000) com botões de
+  **variáveis** — saudação (bom dia/boa tarde/boa noite), nome e telefone do cliente, nome do
+  atendente, protocolo, setor, dados do negócio — e **prévia** com dados de exemplo; **setores**
+  onde aparece (nenhum = todos); **validade** (depois do dia some da conversa); **Ativa**.
+- Na conversa, as variáveis já vêm trocadas pelos dados daquela conversa.
 
 ## Menu: Atendentes
 - Lista com nome, e-mail, papel, status (ativo/inativo), último login e bolinha de online.
@@ -126,6 +148,11 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Cliente parado no meio do bot**: minutos até o lembrete + texto do lembrete; minutos até
   desistir; ao desistir, **reiniciar o fluxo** (em silêncio) ou **transferir pra um atendente**
   (setor e mensagem pro cliente).
+- **Encerramento**: "Exigir motivo ao finalizar".
+- **Motivos de encerramento** (link no topo de Configurações): grupos (Resolvido, Não resolvido,
+  Sem contato...) com motivos dentro; criar, renomear, desativar (some do Finalizar sem apagar o
+  histórico) e excluir. Vem com uma lista inicial pra revenda de gás. O motivo escolhido fica
+  guardado no atendimento.
 - **Fechamento automático**: fecha o atendimento aberto há mais de N horas (padrão 24; 0 = nunca),
   contando desde a abertura, com mensagem opcional.
 
