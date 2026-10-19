@@ -23,6 +23,8 @@ function regrasDeRecompra(negocio = carregarNegocio()) {
     setor: negocio.recompra_setor || 'Geral',
     motivos: Array.isArray(negocio.recompra_motivos) ? negocio.recompra_motivos : null, // null = os que têm "Pedido" no nome
     usarMedia: negocio.recompra_usar_media !== false,
+    // API oficial: modelo aprovado do lembrete ({ nome, idioma, parametros com variáveis })
+    modelo: negocio.recompra_modelo && negocio.recompra_modelo.nome ? negocio.recompra_modelo : null,
   };
 }
 
@@ -121,7 +123,16 @@ function gerarLembretes({ agoraMs = Date.now(), negocio = carregarNegocio(), mes
   let total = 0;
   for (const c of candidatos({ agoraMs, negocio })) {
     if (envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false })) continue;
-    envios.enfileirar({ tipo: 'lembrete', conversaId: c.conversa.id, texto: montarTexto(regras, negocio, c.conversa, c.diasDesde) });
+    const modelo = regras.modelo
+      ? {
+          nome: regras.modelo.nome,
+          idioma: regras.modelo.idioma || 'pt_BR',
+          parametros: (regras.modelo.parametros || []).map((p) => substituirVariaveis(p, { negocio, cliente: { nome: c.conversa.nome_contato || 'cliente' }, dias: String(c.diasDesde) }) || '-'),
+        }
+      : null;
+    const { textoDoModelo } = require('./whatsapp-oficial');
+    const texto = modelo ? textoDoModelo(modelo, modelo.parametros) : montarTexto(regras, negocio, c.conversa, c.diasDesde);
+    envios.enfileirar({ tipo: 'lembrete', conversaId: c.conversa.id, texto, modelo });
     total += 1;
   }
   return total;

@@ -37,6 +37,10 @@ const PADROES = {
   // painel ao vivo para TV (/tv/<token>, sem login): null = desligado
   painel_tv_token: null,
 
+  // E4: como o WhatsApp está ligado: 'celular' (QR Code, Baileys) ou 'oficial' (API da Meta);
+  // trocar só vale depois de reiniciar o sistema
+  whatsapp_conexao: 'celular',
+
   // E3: regras dos envios automáticos (src/envios.js, Campanhas > Regras de envio)
   envio_janelas: ['1,2,3,4,5,6 08:00-19:00'],
   envio_intervalo_min: 45, // segundos entre um envio e outro (sorteado entre min e max)

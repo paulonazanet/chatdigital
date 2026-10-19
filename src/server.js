@@ -17,6 +17,7 @@ const rotasRespostasRapidas = require('./routes/respostas-rapidas');
 const rotasContatos = require('./routes/contatos');
 const rotasTv = require('./routes/tv');
 const rotasCampanhas = require('./routes/campanhas');
+const rotasWebhookWhatsapp = require('./routes/webhook-whatsapp');
 
 const app = express();
 
@@ -47,6 +48,8 @@ app.use(carregarAtendenteLogado);
 
 // painel ao vivo para TV: sem login, pelo link secreto de Configurações > Painel da TV
 app.use('/tv', rotasTv.router);
+// API oficial do WhatsApp: a Meta entrega mensagens e recibos aqui (sem login, assinado pela Meta)
+app.use('/webhook/whatsapp', rotasWebhookWhatsapp.router);
 app.use(rotasAuth);
 app.use('/painel/atendentes', exigirLogin, exigirPermissao('gerenciar_atendentes'), rotasAtendentes);
 app.use('/painel/setores', exigirLogin, exigirPermissao('gerenciar_setores'), rotasSetores);

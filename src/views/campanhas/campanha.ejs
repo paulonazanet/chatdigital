@@ -42,6 +42,10 @@
       <% if (exemplo) { %><p class="dica">Como chega para a Maria:</p><p class="balao-exemplo"><%= exemplo %></p><% } %>
     </fieldset>
 
+    <% if (viaOficial) { let parametrosAtuais = []; try { parametrosAtuais = JSON.parse(k.modelo_parametros || '[]'); } catch (e) {} %>
+      <%- include('escolher-modelo', { modelosAprovados, atual: k.modelo_nome ? { nome: k.modelo_nome, idioma: k.modelo_idioma, parametros: parametrosAtuais } : null, variaveis: '{{cliente.nome}} e {{negocio.nome}}', desabilitado: !editavel }) %>
+    <% } %>
+
     <fieldset <%= editavel ? '' : 'disabled' %>>
       <legend>Para quem</legend>
       <% if (tags.length) { %>

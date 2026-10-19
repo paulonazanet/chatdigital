@@ -146,7 +146,10 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
     let midiaBaixada = null;
     if (midiaInfo.tipo || midiaInfo.baixavel) {
       try {
-        const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
+        // API oficial (E4): a mídia vem com o próprio jeito de baixar; no celular, pelo Baileys
+        const buffer = msg.baixarMidia
+          ? await msg.baixarMidia()
+          : await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
         const mimetype = msg.message[midiaInfo.chave]?.mimetype;
         midiaBaixada = { tipo: midiaInfo.tipo, url: salvarBufferDeMidia(buffer, mimetype) };
       } catch (erro) {

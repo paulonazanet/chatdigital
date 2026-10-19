@@ -419,6 +419,47 @@ if (!colunaExiste('conversas', 'recompra_dias')) {
   db.exec('ALTER TABLE conversas ADD COLUMN recompra_dias INTEGER');
 }
 
+// E4: API oficial do WhatsApp (Meta). Uma linha só (id = 1) com a configuração; a chave e o
+// segredo do app ficam aqui no banco (não no negocio.json, que pode ir para o repositório).
+// modelos_oficiais: os modelos (templates) aprovados, puxados da Meta. envios.modelo: o modelo que
+// o envio usa pela API oficial (JSON { nome, idioma, parametros }).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS whatsapp_oficial (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    numero_id TEXT,
+    conta_id TEXT,
+    chave TEXT,
+    segredo_app TEXT,
+    codigo_verificacao TEXT,
+    versao TEXT,
+    numero_exibicao TEXT,
+    nome_verificado TEXT,
+    qualidade TEXT,
+    testado_em TEXT,
+    erro TEXT
+  );
+  CREATE TABLE IF NOT EXISTS modelos_oficiais (
+    nome TEXT NOT NULL,
+    idioma TEXT NOT NULL,
+    categoria TEXT,
+    situacao TEXT,
+    corpo TEXT,
+    variaveis INTEGER NOT NULL DEFAULT 0,
+    componentes TEXT,
+    atualizado_em TEXT NOT NULL,
+    PRIMARY KEY (nome, idioma)
+  );
+`);
+db.prepare('INSERT OR IGNORE INTO whatsapp_oficial (id, codigo_verificacao, versao) VALUES (1, ?, ?)').run(require('crypto').randomBytes(16).toString('hex'), 'v23.0');
+if (!colunaExiste('envios', 'modelo')) db.exec('ALTER TABLE envios ADD COLUMN modelo TEXT');
+// modelo da campanha pela API oficial: nome, idioma e o que vai em {{1}}, {{2}}... (JSON, com variáveis)
+if (!colunaExiste('campanhas', 'modelo_nome')) {
+  db.exec('ALTER TABLE campanhas ADD COLUMN modelo_nome TEXT');
+  db.exec('ALTER TABLE campanhas ADD COLUMN modelo_idioma TEXT');
+  db.exec('ALTER TABLE campanhas ADD COLUMN modelo_parametros TEXT');
+}
+
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

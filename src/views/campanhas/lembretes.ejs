@@ -48,6 +48,7 @@
         <% }) %>
       </div>
     </fieldset>
+    <% if (viaOficial) { %><%- include('escolher-modelo', { modelosAprovados, atual: r.modelo, variaveis: '{{cliente.nome}}, {{negocio.nome}} e {{dias}}' }) %><% } %>
     <div class="barra-salvar">
       <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
       <button type="submit">Salvar lembrete</button>

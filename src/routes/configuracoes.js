@@ -12,6 +12,8 @@ const { lerMetas } = require('../relatorio');
 const equipe = require('../equipe');
 const crypto = require('crypto');
 const { montarStatus } = require('../status-sistema');
+const oficial = require('../whatsapp-oficial');
+const { modoAtual } = require('../socket-atual');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -351,9 +353,49 @@ router.get('/status', (req, res) => {
   res.render('configuracoes/status', { atendenteLogado: req.atendente, status: montarStatus() });
 });
 
-router.get('/whatsapp', (req, res) => {
+// WhatsApp: a conexão escolhida (celular por QR Code ou API oficial da Meta) e, na oficial, os dados
+// da Meta, o teste, o endereço do webhook e os modelos. A escolha vale depois de reiniciar o sistema.
+function renderizarWhatsapp(req, res, extra = {}) {
   const { conectado, qr } = whatsappStatus.obterEstado();
-  res.render('configuracoes/whatsapp', { atendenteLogado: req.atendente, conectado, temQr: !!qr });
+  res.render('configuracoes/whatsapp', {
+    atendenteLogado: req.atendente,
+    conectado,
+    temQr: !!qr,
+    escolhida: carregarNegocio().whatsapp_conexao === 'oficial' ? 'oficial' : 'celular',
+    emUso: modoAtual(),
+    config: oficial.configParaTela(),
+    enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/whatsapp`,
+    modelos: oficial.listarModelos(),
+    erro: null,
+    aviso: req.query.aviso || null,
+    ...extra,
+  });
+}
+router.get('/whatsapp', (req, res) => renderizarWhatsapp(req, res));
+router.post('/whatsapp/conexao', (req, res) => {
+  salvarConfiguracoes({ whatsapp_conexao: req.body.whatsapp_conexao === 'oficial' ? 'oficial' : 'celular' });
+  res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');
+});
+router.post('/whatsapp/oficial', async (req, res) => {
+  const resultado = oficial.salvarConfig(req.body);
+  if (resultado.erro) return renderizarWhatsapp(req, res, { erro: resultado.erro });
+  const teste = oficial.configurado() ? await oficial.testarConexao() : { ok: false, erro: 'Falta o código do número ou a chave de acesso.' };
+  if (teste.ok && modoAtual() === 'oficial') whatsappStatus.definirConectado();
+  res.redirect(`/painel/configuracoes/whatsapp?aviso=${teste.ok ? 'testado' : 'falhou'}`);
+});
+router.post('/whatsapp/oficial/testar', async (req, res) => {
+  const teste = await oficial.testarConexao();
+  if (modoAtual() === 'oficial') (teste.ok ? whatsappStatus.definirConectado : whatsappStatus.definirDesconectado)();
+  res.redirect(`/painel/configuracoes/whatsapp?aviso=${teste.ok ? 'testado' : 'falhou'}`);
+});
+router.post('/whatsapp/oficial/codigo', (req, res) => {
+  oficial.trocarCodigoVerificacao();
+  res.redirect('/painel/configuracoes/whatsapp?aviso=codigo');
+});
+router.post('/whatsapp/oficial/modelos', async (req, res) => {
+  const resultado = await oficial.sincronizarModelos();
+  if (resultado.erro) return renderizarWhatsapp(req, res, { erro: `Modelos: ${resultado.erro}` });
+  res.redirect('/painel/configuracoes/whatsapp?aviso=modelos');
 });
 
 // Imagem do QR Code atual, gerada a partir da string que o Baileys manda — sem cache, porque o

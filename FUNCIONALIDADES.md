@@ -120,6 +120,10 @@ Os atendimentos **finalizados**, para conferir depois.
   gestão e para a própria pessoa). Quando um alerta aparece ou piora, quem está com o painel aberto
   ouve o bipe e recebe o aviso do Windows (de novo a cada 15 min se continuar).
 
+- **API oficial: regra das 24 horas.** Passadas 24 h da última mensagem do cliente, aparece a faixa
+  "Passaram 24 horas" e só dá para mandar um **modelo aprovado** (escolhe o modelo, preenche as
+  informações {{1}}, {{2}}... e **Mandar modelo**); o texto do modelo fica no histórico.
+
 **Lista de conversas (lado esquerdo)**
 - **Filtros** (duas linhas): **Minhas** (as que você está atendendo) · **Na fila** (o bot passou
   pra atendente e ninguém assumiu ainda) · **No bot** (cliente parou no meio do fluxo do bot) ·
@@ -237,6 +241,10 @@ desconectado, fora do horário, feriado ou limite do dia).
   **Pausar / Retomar**, **Cancelar** (quem está na fila não recebe), **Fazer uma cópia**, e a lista
   dos clientes com a situação de cada um. O rascunho pode ser editado ou excluído.
 
+- **API oficial**: a campanha ganha "Pela API oficial: modelo aprovado" (escolher o modelo e o que vai
+  em cada {{n}}, com `{{cliente.nome}}` e `{{negocio.nome}}`). Cada cliente recebe o modelo com os dados
+  dele. Sem modelo, quem estiver fora das 24 h fica de fora (em Envios, com o motivo).
+
 ### Campanhas > Lembretes de recompra
 - X dias depois da última **compra**, o cliente recebe um aviso para pedir de novo. Compra = pedido
   salvo pelo bot (coleção "pedidos") ou atendimento finalizado com um dos **motivos marcados**
@@ -248,6 +256,8 @@ desconectado, fora do horário, feriado ou limite do dia).
 - **Mensagem** com `{{cliente.nome}}`, `{{negocio.nome}}` e `{{dias}}`, com exemplo na tela.
 - **Quando o cliente responder**: passa para um atendente (no setor escolhido, com nota "Respondeu
   ao lembrete") ou segue o bot.
+- **API oficial**: escolher o modelo aprovado do lembrete (pode usar `{{cliente.nome}}`, `{{negocio.nome}}`
+  e `{{dias}}` em cada {{n}}).
 - Números dos últimos 30 dias (enviados, lidos, responderam, pediram para sair, na fila), lista de
   **quem está na hora agora** (com o motivo se não for receber) e **Pôr na fila agora**, e os
   últimos lembretes.
@@ -398,6 +408,16 @@ desconectado, fora do horário, feriado ou limite do dia).
 - **Gerar novo link** troca o código (o antigo para de funcionar na hora). **Desligar** apaga.
 
 ### Configurações > WhatsApp
+- **Como o WhatsApp está ligado**: **WhatsApp do celular (QR Code)** ou **API oficial da Meta**. A
+  escolha vale depois de reiniciar o sistema (a tela mostra a em uso e avisa quando falta reiniciar).
+- **API oficial da Meta**: código do número (Phone number ID), código da conta (WhatsApp Business
+  Account ID), chave de acesso permanente e segredo do app (os dois só aparecem com o final
+  ••••), versão da API. **Salvar e conferir com a Meta** mostra o número, o nome verificado e a
+  qualidade (ou o erro em português). **Webhook**: a URL de retorno e o token de verificação para
+  colar na Meta (dá para trocar o token). **Modelos aprovados**: **Atualizar modelos da Meta** puxa
+  os modelos (nome, idioma, tipo, situação e texto).
+- Passo a passo da Meta: `passo_a_passo_meta_E4.md` (pasta do ChatDigital no OneDrive).
+
 - Mostra se está conectado; quando não está, mostra o QR Code pra escanear (Aparelhos
   conectados > Conectar aparelho), atualizando sozinho.
 

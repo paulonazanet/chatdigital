@@ -1,0 +1,49 @@
+<%# Escolher o modelo aprovado (API oficial). Recebe: modelosAprovados, atual ({ nome, idioma, parametros }), variaveis (texto de ajuda), desabilitado %>
+<fieldset <%= typeof desabilitado !== 'undefined' && desabilitado ? 'disabled' : '' %>>
+  <legend>Pela API oficial: modelo aprovado</legend>
+  <input type="hidden" name="modelo_enviado" value="1">
+  <p class="dica">Na API oficial, mensagem para quem não escreveu nas últimas 24 h só sai como <strong>modelo aprovado</strong> pela Meta.
+    Sem modelo, quem estiver fora das 24 h fica de fora (aparece em Envios com o motivo).</p>
+  <% if (!modelosAprovados.length) { %>
+    <p class="aviso">Nenhum modelo aprovado ainda. Crie na Meta e clique em "Atualizar modelos" em <a href="/painel/configuracoes/whatsapp">Configurações › WhatsApp</a>.</p>
+  <% } else { %>
+    <label>Modelo
+      <select name="modelo" class="campo-escolher-modelo">
+        <option value="">Sem modelo (só texto, dentro das 24 h)</option>
+        <% modelosAprovados.forEach((m) => { const valor = `${m.nome}|${m.idioma}`; %>
+          <option value="<%= valor %>" data-variaveis="<%= m.variaveis %>" data-corpo="<%= m.corpo %>" <%= atual && atual.nome === m.nome && (atual.idioma || 'pt_BR') === m.idioma ? 'selected' : '' %>><%= m.nome %> (<%= m.idioma %>)</option>
+        <% }) %>
+      </select>
+    </label>
+    <p class="dica corpo-escolher-modelo"></p>
+    <div class="parametros-escolher-modelo" data-atuais="<%= JSON.stringify((atual && atual.parametros) || []) %>"></div>
+    <span class="ajuda">Em cada informação dá para usar <%= variaveis %>.</span>
+    <script>
+      (function () {
+        var campo = document.currentScript.parentElement.querySelector('.campo-escolher-modelo');
+        var corpo = campo.closest('fieldset').querySelector('.corpo-escolher-modelo');
+        var lugar = campo.closest('fieldset').querySelector('.parametros-escolher-modelo');
+        var atuais = JSON.parse(lugar.getAttribute('data-atuais') || '[]');
+        function desenhar() {
+          var opcao = campo.options[campo.selectedIndex];
+          var n = Number(opcao.getAttribute('data-variaveis') || 0);
+          corpo.textContent = opcao.getAttribute('data-corpo') || '';
+          lugar.textContent = '';
+          for (var i = 1; i <= n; i++) {
+            var rotulo = document.createElement('label');
+            rotulo.textContent = 'O que vai em {{' + i + '}}';
+            var entrada = document.createElement('input');
+            entrada.type = 'text';
+            entrada.name = 'modelo_parametros';
+            entrada.value = atuais[i - 1] || (i === 1 ? '{{cliente.nome}}' : '');
+            entrada.disabled = campo.disabled;
+            rotulo.appendChild(entrada);
+            lugar.appendChild(rotulo);
+          }
+        }
+        campo.addEventListener('change', function () { atuais = []; desenhar(); });
+        desenhar();
+      })();
+    </script>
+  <% } %>
+</fieldset>

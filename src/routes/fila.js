@@ -28,7 +28,8 @@ const motivosEncerramento = require('../motivos-encerramento');
 const marcadores = require('../marcadores');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
-const { obterSocket } = require('../socket-atual');
+const { obterSocket, modoAtual } = require('../socket-atual');
+const oficial = require('../whatsapp-oficial');
 const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
@@ -213,6 +214,10 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     meuLimite: { atendendo: equipe.contarConversasAtendendo(req.atendente.id), limite: req.atendente.limite_conversas || 0 },
     alertas: calcularAlertas({ negocio }).filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
     retornosDaConversa: conversaSelecionada ? retornos.retornosDaConversa(conversaSelecionada.id) : [],
+    // API oficial (E4): depois de 24 h sem o cliente escrever, só vai modelo aprovado
+    viaOficial: modoAtual() === 'oficial',
+    foraDaJanela: modoAtual() === 'oficial' && !!conversaSelecionada && !oficial.dentroDaJanela(conversaSelecionada.id),
+    modelosAprovados: modoAtual() === 'oficial' ? oficial.listarModelos({ soAprovados: true }) : [],
     erroRetorno: res.locals.erroRetorno || null,
   });
 }
@@ -258,6 +263,30 @@ router.post('/nova', async (req, res) => {
     res.redirect(`/painel/fila/${conversa.id}`);
   } catch (erro) {
     renderizarFila(req, res, { erroNovaConversa: 'Não consegui iniciar a conversa agora. Tente de novo em instantes.' });
+  }
+});
+
+// Mandar modelo aprovado (API oficial): fora das 24 h é o único jeito de falar com o cliente.
+// `modelo` = "nome|idioma"; `parametros` = o que vai em {{1}}, {{2}}... do texto do modelo.
+router.post('/:id/modelo', async (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) return res.status(403).send('Você não tem permissão para responder conversas.');
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const reexibir = (erro) => renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
+  const canal = obterSocket();
+  if (modoAtual() !== 'oficial' || !canal?.enviarModelo) return reexibir('Modelo só existe na API oficial.');
+  const [nome, idioma] = String(req.body.modelo || '').split('|');
+  const modelo = nome && idioma ? oficial.obterModelo(nome, idioma) : null;
+  if (!modelo || modelo.situacao !== 'APPROVED') return reexibir('Escolha um modelo aprovado.');
+  const parametros = [].concat(req.body.parametros || []).map((p) => String(p).trim()).slice(0, modelo.variaveis);
+  if (parametros.length < modelo.variaveis || parametros.some((p) => !p)) return reexibir(`Preencha as ${modelo.variaveis} informações do modelo.`);
+  const texto = oficial.textoDoModelo(modelo, parametros);
+  try {
+    const enviada = await canal.enviarModelo(conversa.numero, { nome, idioma, parametros });
+    registrarMensagem(conversa.numero, 'atendente', texto, null, req.atendente.id, { waId: enviada?.key?.id, deMim: true });
+    res.redirect(`/painel/fila/${conversa.id}`);
+  } catch (erro) {
+    reexibir(`O modelo não foi enviado: ${erro.message}`);
   }
 });
 
@@ -540,6 +569,9 @@ router.post('/:id/responder', (req, res) => {
     }
     if (!arquivo && !texto) {
       return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo, áudio ou PDF antes de enviar.');
+    }
+    if (modoAtual() === 'oficial' && !oficial.dentroDaJanela(conversa.id)) {
+      return reexibirComErro('Passaram 24 horas desde a última mensagem do cliente: pela API oficial, só dá para mandar um modelo aprovado (botão "Mandar modelo").');
     }
 
     let midia = null;

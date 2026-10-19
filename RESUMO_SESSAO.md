@@ -439,6 +439,43 @@ precisa de uma API do lado dela.
 - **Não testado com WhatsApp de verdade**: recibo de entregue/lido (`messages.update`) e o ritmo
   real da fila. Ficou para a 3ª parte: ligação com a GásDigital.
 
+## E4, 1ª e 2ª parte (19/10/2026, branch `e4`, feito a partir do `e3`): central de envio e API oficial
+- **Mudança de plano (explicada ao Paulo)**: a "base para vários números" virou uma **central de
+  envio** com **uma conexão ativa por instalação** (celular ou oficial). Vários números ao mesmo tempo
+  ficam inteiros para a 3ª parte (precisa trocar o `UNIQUE(numero)` de `conversas` e a memória do
+  motor de fluxo, que é por número).
+- **`src/socket-atual.js`**: `definirSocket` (Baileys), `definirCanalOficial`, `definirModo('celular' |
+  'oficial')`, `modoAtual()`, e `obterSocket()` devolve a conexão do modo em uso. Todos os pontos que
+  mandavam mensagem já usavam `obterSocket()`, então nada mais mudou para eles. O modo é decidido no
+  boot (`app.js` lê `negocio.whatsapp_conexao`; com 'oficial' não liga o Baileys).
+- **`src/whatsapp-oficial.js`**: config na tabela `whatsapp_oficial` (id 1: numero_id, conta_id, chave,
+  segredo_app, codigo_verificacao, versao, e o resultado da conferência), `testarConexao`,
+  `criarAdaptador()` com `sendMessage(numero, conteudo, opcoes)` igual ao Baileys (texto, image/video/
+  audio/document por buffer → sobe em `/{numero_id}/media` e manda pelo id, `quoted` → `context`,
+  `react` → reaction), `enviarModelo`, `onWhatsApp` (sempre "existe"), `sincronizarModelos` (tabela
+  `modelos_oficiais`, conta as variáveis {{n}} do corpo), `dentroDaJanela` (24 h da última mensagem do
+  cliente), `conferirAssinatura` (X-Hub-Signature-256 com o segredo do app, `timingSafeEqual`),
+  `lerWebhook` (Meta → mensagem no formato do Baileys + `baixarMidia()`, e recibos/falhas),
+  `traduzirErro` (190 chave, 131047/131026 24 h, 132001 modelo, 131056 limite). Endereço:
+  `CHATDIGITAL_META_URL` (testes) ou graph.facebook.com.
+- **Webhook** `src/routes/webhook-whatsapp.js` em `/webhook/whatsapp` antes do login: GET confere o
+  token de verificação; POST com `express.raw`, confere a assinatura, responde 200 e trata depois
+  (`tratarWebhook`: mensagem → `tratarMensagemRecebida` com o adaptador; recibo → `atualizarRecibos`;
+  falha → `mensagens.falha = 1` e `envios` 'falhou'). Só trata se o modo em uso for 'oficial'.
+- **bot.js**: mídia com `msg.baixarMidia()` (oficial) ou `downloadMediaMessage` (Baileys).
+- **Fila**: `viaOficial`, `foraDaJanela`, `modelosAprovados`; `POST /:id/responder` recusa texto fora
+  das 24 h; `POST /:id/modelo` (modelo "nome|idioma" + `parametros`), texto do modelo no histórico.
+- **Envios**: `envios.modelo` (JSON); `processarFila` pela oficial manda o modelo, ou texto se dentro
+  das 24 h, senão 'pulado' com o motivo. **Campanhas**: colunas `modelo_nome`, `modelo_idioma`,
+  `modelo_parametros` (com variáveis), `modeloParaCliente`; **lembrete**: `negocio.recompra_modelo`.
+  Tela: `views/campanhas/escolher-modelo.ejs`.
+- **Telas**: Configurações › WhatsApp (escolha da conexão, dados da Meta, webhook, modelos), Status do
+  sistema mostra a API oficial.
+- Testes: `test/e4-oficial.test.js` (8 testes, com uma Meta de mentira em `http.createServer`). Total:
+  110 passam; as 8 "falhas" são o `EPERM` antigo.
+- **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
+  `passo_a_passo_meta_E4.md` no OneDrive.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -472,6 +509,8 @@ precisa de uma API do lado dela.
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
   `public/js/editor-fluxo.js` (editor, simulador, importar).
+- `src/socket-atual.js` (central de envio), `src/whatsapp-oficial.js` (API oficial da Meta),
+  `src/routes/webhook-whatsapp.js` (webhook da Meta).
 - `src/campanhas.js` (campanhas), `src/envios.js` (fila de envios automáticos), `src/lembretes.js` (recompra), `src/retornos.js`,
   `src/resposta-envio.js` (SAIR e respostas a envios), `src/routes/campanhas.js` (menu Campanhas).
 - `src/grupos-permissao.js`, `src/acesso.js` (horário/IP de acesso e histórico),

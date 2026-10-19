@@ -1524,3 +1524,15 @@ fieldset[disabled] { opacity: 0.85; }
 .form-iniciar input[type="date"], .form-iniciar input[type="time"] { display: block; margin-top: 0.25rem; padding: 0.4rem 0.5rem; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; }
 .form-iniciar { align-items: flex-end; }
 .linha-form button { white-space: nowrap; }
+
+/* E4: API oficial (janela de 24 h, modelos, conexão) */
+.faixa-janela { margin: 0 1.75rem 0.5rem; padding: 0.6rem 0.8rem; background: #fff3d6; border: 1px solid #f1d58f; border-radius: 6px; font-size: 0.85rem; color: #7a5a00; }
+.faixa-janela p { margin: 0 0 0.4rem; }
+.form-modelo { display: flex; flex-direction: column; gap: 0.35rem; margin: 0; }
+.form-modelo select, .form-modelo input { margin: 0; padding: 0.4rem 0.5rem; font-size: 0.85rem; }
+#parametros-modelo { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+#parametros-modelo input { flex: 1; min-width: 140px; }
+.form-conexao label.linha { display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.6rem; }
+.texto-modelo { font-size: 0.82rem; white-space: pre-wrap; max-width: 360px; }
+.parametros-escolher-modelo { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.parametros-escolher-modelo label { flex: 1; min-width: 200px; }

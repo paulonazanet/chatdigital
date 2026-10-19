@@ -388,7 +388,47 @@
           <p class="aviso">Essa conversa ainda está com o bot. Use <strong>Puxar pra mim</strong> no topo pra assumir.</p>
         <% } else if (conversaSelecionada.status !== 'finalizado') { %>
           <% if (conversaSelecionada.status === 'atendendo') { %>
-            <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
+            <% if (viaOficial && foraDaJanela) { %>
+            <div class="faixa-janela">
+              <p>⏱ <strong>Passaram 24 horas</strong> desde a última mensagem do cliente. Pela API oficial, só dá para mandar um <strong>modelo aprovado</strong> até ele responder.</p>
+              <% if (modelosAprovados.length) { %>
+                <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/modelo" class="form-modelo">
+                  <select name="modelo" required aria-label="Modelo aprovado" id="campo-modelo">
+                    <option value="">Escolha o modelo…</option>
+                    <% modelosAprovados.forEach((m) => { %><option value="<%= m.nome %>|<%= m.idioma %>" data-variaveis="<%= m.variaveis %>" data-corpo="<%= m.corpo %>"><%= m.nome %> (<%= m.idioma %>)</option><% }) %>
+                  </select>
+                  <p class="dica" id="corpo-modelo"></p>
+                  <div id="parametros-modelo"></div>
+                  <button type="submit" class="botao-pequeno">Mandar modelo</button>
+                </form>
+                <script>
+                  (function () {
+                    var campo = document.getElementById('campo-modelo');
+                    var corpo = document.getElementById('corpo-modelo');
+                    var lugar = document.getElementById('parametros-modelo');
+                    campo.addEventListener('change', function () {
+                      var opcao = campo.options[campo.selectedIndex];
+                      var n = Number(opcao.getAttribute('data-variaveis') || 0);
+                      corpo.textContent = opcao.getAttribute('data-corpo') || '';
+                      lugar.textContent = '';
+                      for (var i = 1; i <= n; i++) {
+                        var entrada = document.createElement('input');
+                        entrada.type = 'text';
+                        entrada.name = 'parametros';
+                        entrada.required = true;
+                        entrada.placeholder = '{{' + i + '}}';
+                        entrada.setAttribute('aria-label', 'Informação ' + i + ' do modelo');
+                        lugar.appendChild(entrada);
+                      }
+                    });
+                  })();
+                </script>
+              <% } else { %>
+                <p class="dica">Nenhum modelo aprovado. Crie na Meta e clique em "Atualizar modelos" em Configurações › WhatsApp.</p>
+              <% } %>
+            </div>
+          <% } %>
+          <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/responder" class="form-responder" enctype="multipart/form-data">
               <div class="form-responder-barra">
                 <button type="button" class="botao-emoji" title="Inserir emoji"><svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></button>
                 <label class="botao-anexo" title="Anexar imagem, vídeo, áudio ou PDF">

@@ -54,6 +54,11 @@ function commitAtual() {
 
 function itemWhatsapp() {
   const { conectado, qr } = whatsappStatus.obterEstado();
+  if (require('./socket-atual').modoAtual() === 'oficial') {
+    const c = require('./whatsapp-oficial').lerConfig();
+    if (conectado && !c.erro) return { nome: 'WhatsApp', nivel: 'ok', texto: `API oficial: ${c.numero_exibicao || 'conectada'}`, detalhe: `Pela Meta${c.nome_verificado ? ` (${c.nome_verificado})` : ''}.` };
+    return { nome: 'WhatsApp', nivel: 'problema', texto: 'API oficial com problema', detalhe: c.erro || 'Confira os dados da Meta em Configurações > WhatsApp.', link: '/painel/configuracoes/whatsapp' };
+  }
   if (conectado) return { nome: 'WhatsApp', nivel: 'ok', texto: 'Conectado', detalhe: 'Recebendo e mandando mensagens.' };
   return {
     nome: 'WhatsApp',

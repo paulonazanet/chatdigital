@@ -40,7 +40,7 @@ const sockFalso = {
 function segundaAs10() {
   const d = new Date();
   d.setHours(10, 0, 0, 0);
-  while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+  while (d.getDay() !== 1 || d <= new Date()) d.setDate(d.getDate() + 1); // a próxima segunda, sempre no futuro
   return d;
 }
 const msg = (numero, texto) => ({ key: { remoteJid: numero, id: `R${Math.random()}`, fromMe: false }, message: { conversation: texto }, pushName: 'Cliente' });

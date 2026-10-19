@@ -91,8 +91,14 @@ function validar(corpo, { blocosDoFluxo = [], setores = [] } = {}) {
     soConsentiu: corpo.so_consentiu === '1',
     excluirDias: Number.isInteger(excluirDias) && excluirDias >= 0 && excluirDias <= 365 ? excluirDias : 7,
   };
+  // modelo da API oficial (opcional): "nome|idioma" e o que vai em {{1}}, {{2}}...
+  const [modeloNome, modeloIdioma] = String(corpo.modelo || '').split('|');
+  const parametrosModelo = [].concat(corpo.modelo_parametros || []).map((p) => String(p).trim().slice(0, 200));
   return {
     campos: {
+      modelo_nome: modeloNome || null,
+      modelo_idioma: modeloNome ? modeloIdioma || 'pt_BR' : null,
+      modelo_parametros: modeloNome ? JSON.stringify(parametrosModelo) : null,
       nome,
       texto,
       publico: JSON.stringify(publico),
@@ -107,15 +113,29 @@ function validar(corpo, { blocosDoFluxo = [], setores = [] } = {}) {
 function criarCampanha(campos, criadoPor) {
   return Number(
     db
-      .prepare('INSERT INTO campanhas (nome, texto, publico, frase_chave, acao_frase, setor_frase, bloco_frase, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(campos.nome, campos.texto, campos.publico, campos.frase_chave, campos.acao_frase, campos.setor_frase, campos.bloco_frase, criadoPor || null, new Date().toISOString()).lastInsertRowid,
+      .prepare('INSERT INTO campanhas (nome, texto, publico, frase_chave, acao_frase, setor_frase, bloco_frase, criado_por, criado_em, modelo_nome, modelo_idioma, modelo_parametros) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(campos.nome, campos.texto, campos.publico, campos.frase_chave, campos.acao_frase, campos.setor_frase, campos.bloco_frase, criadoPor || null, new Date().toISOString(), campos.modelo_nome || null, campos.modelo_idioma || null, campos.modelo_parametros || null).lastInsertRowid,
   );
 }
 
 function atualizarCampanha(id, campos) {
   return db
-    .prepare("UPDATE campanhas SET nome = ?, texto = ?, publico = ?, frase_chave = ?, acao_frase = ?, setor_frase = ?, bloco_frase = ? WHERE id = ? AND status = 'rascunho'")
-    .run(campos.nome, campos.texto, campos.publico, campos.frase_chave, campos.acao_frase, campos.setor_frase, campos.bloco_frase, id).changes > 0;
+    .prepare("UPDATE campanhas SET nome = ?, texto = ?, publico = ?, frase_chave = ?, acao_frase = ?, setor_frase = ?, bloco_frase = ?, modelo_nome = ?, modelo_idioma = ?, modelo_parametros = ? WHERE id = ? AND status = 'rascunho'")
+    .run(campos.nome, campos.texto, campos.publico, campos.frase_chave, campos.acao_frase, campos.setor_frase, campos.bloco_frase, campos.modelo_nome || null, campos.modelo_idioma || null, campos.modelo_parametros || null, id).changes > 0;
+}
+
+// Modelo da campanha pra este cliente (API oficial): { nome, idioma, parametros } com as variáveis
+// trocadas, ou null se a campanha não tem modelo
+function modeloParaCliente(campanha, conversa, negocio = carregarNegocio()) {
+  if (!campanha.modelo_nome) return null;
+  let modelos = [];
+  try {
+    modelos = JSON.parse(campanha.modelo_parametros || '[]');
+  } catch (erro) {
+    modelos = [];
+  }
+  const contexto = { negocio, cliente: { nome: conversa.nome_contato || 'cliente' } };
+  return { nome: campanha.modelo_nome, idioma: campanha.modelo_idioma || 'pt_BR', parametros: modelos.map((p) => substituirVariaveis(p, contexto) || '-') };
 }
 
 function obterCampanha(id) {
@@ -136,8 +156,12 @@ function iniciarCampanha(id, { comecarEm = new Date(), negocio = carregarNegocio
   if (!campanha || campanha.status !== 'rascunho') return { erro: 'Essa campanha já começou.' };
   const { lista } = montarPublico(lerPublico(campanha));
   if (!lista.length) return { erro: 'Ninguém para receber com esse público. Mude as tags ou as opções.' };
+  const { textoDoModelo } = require('./whatsapp-oficial');
   for (const conversa of lista) {
-    envios.enfileirar({ tipo: 'campanha', referenciaId: id, conversaId: conversa.id, texto: textoParaCliente(campanha, conversa, negocio), agendadoPara: comecarEm });
+    const modelo = modeloParaCliente(campanha, conversa, negocio);
+    // com modelo, o histórico guarda o texto do modelo (é o que o cliente recebe pela API oficial)
+    const texto = modelo ? textoDoModelo(modelo, modelo.parametros) : textoParaCliente(campanha, conversa, negocio);
+    envios.enfileirar({ tipo: 'campanha', referenciaId: id, conversaId: conversa.id, texto, agendadoPara: comecarEm, modelo });
   }
   db.prepare("UPDATE campanhas SET status = 'enviando', iniciada_em = ?, comecar_em = ? WHERE id = ?").run(new Date().toISOString(), new Date(comecarEm).toISOString(), id);
   return { total: lista.length };
@@ -209,5 +233,6 @@ module.exports = {
   duplicarCampanha,
   enviarTeste,
   fraseConfere,
+  modeloParaCliente,
   AVISO_SAIR,
 };

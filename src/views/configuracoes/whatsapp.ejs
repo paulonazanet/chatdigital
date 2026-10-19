@@ -1,25 +1,104 @@
 <%- include('../partials/inicio', { titulo: 'Configurações · WhatsApp' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const AVISOS = {
+    conexao: 'Escolha salva. Ela vale depois de reiniciar o sistema (no servidor: systemctl restart).',
+    testado: 'Dados da Meta salvos e conferidos: a conexão com a API oficial funcionou.',
+    falhou: 'Dados salvos, mas a conferência com a Meta falhou. Veja o erro abaixo.',
+    codigo: 'Código de verificação trocado. Atualize na Meta (Webhook > Verify token).',
+    modelos: 'Modelos atualizados com os da Meta.',
+  };
+  const c = config;
+  const SITUACAO = { APPROVED: 'Aprovado', PENDING: 'Em análise', REJECTED: 'Recusado', PAUSED: 'Pausado', DISABLED: 'Desativado' };
+%>
 <main class="conteudo conteudo-estreita pagina-config">
   <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › WhatsApp</p>
   <h1>WhatsApp</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (aviso && AVISOS[aviso]) { %><p class="<%= aviso === 'falhou' ? 'aviso' : 'sucesso' %>"><%= AVISOS[aviso] %></p><% } %>
 
-  <% if (conectado) { %>
-    <p class="sucesso">✅ WhatsApp conectado. O bot está recebendo e enviando mensagens normalmente.</p>
-  <% } else if (temQr) { %>
-    <p class="dica">Abra o WhatsApp do número RESERVA no celular → <strong>Aparelhos conectados</strong> →
-      <strong>Conectar um aparelho</strong> → aponte a câmera pra este QR Code.</p>
-    <p class="qr-codigo">
-      <img src="/painel/configuracoes/whatsapp/qr.png" alt="QR Code para conectar o WhatsApp" width="320" height="320">
-    </p>
-    <p class="dica">O código expira sozinho e é substituído por um novo em alguns segundos — esta
-      página atualiza a imagem automaticamente, não precisa recarregar.</p>
-  <% } else { %>
-    <p class="erro">⚠️ WhatsApp desconectado e nenhum QR Code disponível ainda. Se o servidor
-      acabou de iniciar, aguarde alguns segundos e esta página atualiza sozinha.</p>
+  <fieldset>
+    <legend>Como o WhatsApp está ligado</legend>
+    <form method="post" action="/painel/configuracoes/whatsapp/conexao" class="form-conexao">
+      <label class="linha"><input type="radio" name="whatsapp_conexao" value="celular" <%= escolhida === 'celular' ? 'checked' : '' %>>
+        <span><strong>WhatsApp do celular (QR Code)</strong><br><span class="dica-inline">Lê o QR Code com o WhatsApp do número. Sem custo por mensagem, mas não é oficial: mandar muito pode bloquear o número.</span></span></label>
+      <label class="linha"><input type="radio" name="whatsapp_conexao" value="oficial" <%= escolhida === 'oficial' ? 'checked' : '' %>>
+        <span><strong>API oficial da Meta</strong><br><span class="dica-inline">O jeito oficial para empresas. A Meta cobra por mensagem nas conversas que a empresa começa (lembretes, campanhas). Depois de 24 h sem o cliente escrever, só vai modelo aprovado.</span></span></label>
+      <p><button type="submit" class="botao-pequeno">Salvar escolha</button></p>
+    </form>
+    <p class="dica">Em uso agora: <strong><%= emUso === 'oficial' ? 'API oficial da Meta' : 'WhatsApp do celular' %></strong>.
+      <% if (escolhida !== emUso) { %><span class="selo selo-situacao-ignorado">Reinicie o sistema para passar a usar <%= escolhida === 'oficial' ? 'a API oficial' : 'o celular' %>.</span><% } %></p>
+  </fieldset>
+
+  <% if (emUso === 'celular') { %>
+    <% if (conectado) { %>
+      <p class="sucesso">✅ WhatsApp conectado. O bot está recebendo e enviando mensagens normalmente.</p>
+    <% } else if (temQr) { %>
+      <p class="dica">Abra o WhatsApp do número RESERVA no celular → <strong>Aparelhos conectados</strong> →
+        <strong>Conectar um aparelho</strong> → aponte a câmera pra este QR Code.</p>
+      <p class="qr-codigo">
+        <img src="/painel/configuracoes/whatsapp/qr.png" alt="QR Code para conectar o WhatsApp" width="320" height="320">
+      </p>
+      <p class="dica">O código expira sozinho e é substituído por um novo em alguns segundos — esta
+        página atualiza a imagem automaticamente, não precisa recarregar.</p>
+    <% } else { %>
+      <p class="erro">⚠️ WhatsApp desconectado e nenhum QR Code disponível ainda. Se o servidor
+        acabou de iniciar, aguarde alguns segundos e esta página atualiza sozinha.</p>
+    <% } %>
+  <% } %>
+
+  <% if (escolhida === 'oficial' || emUso === 'oficial') { %>
+    <h2>API oficial da Meta</h2>
+    <% if (c.testado_em) { %>
+      <% if (c.erro) { %><p class="erro">Última conferência falhou: <%= c.erro %></p>
+      <% } else { %><p class="sucesso">✅ Conectado à Meta: <strong><%= c.numero_exibicao %></strong> · <%= c.nome_verificado %><% if (c.qualidade) { %> · qualidade <%= c.qualidade === 'GREEN' ? 'boa' : c.qualidade === 'YELLOW' ? 'média' : c.qualidade === 'RED' ? 'baixa' : c.qualidade %><% } %></p><% } %>
+    <% } %>
+    <form method="post" action="/painel/configuracoes/whatsapp/oficial" autocomplete="off">
+      <fieldset>
+        <legend>Dados da Meta</legend>
+        <p class="dica">Tudo isso aparece no painel de desenvolvedores da Meta, em WhatsApp › Configuração da API (o passo a passo está no documento da E4).</p>
+        <label>Código do número (Phone number ID)<input type="text" name="numero_id" value="<%= c.numero_id || '' %>" inputmode="numeric"></label>
+        <label>Código da conta (WhatsApp Business Account ID)<input type="text" name="conta_id" value="<%= c.conta_id || '' %>" inputmode="numeric">
+          <span class="ajuda">Usado para puxar os modelos aprovados.</span></label>
+        <label>Chave de acesso permanente (token)<input type="password" name="chave" value="" placeholder="<%= c.temChave ? `Guardada (${c.chave}). Deixe em branco para manter.` : 'Cole aqui a chave do usuário do sistema' %>">
+          <span class="ajuda">Fica guardada só no banco do sistema e nunca aparece inteira de novo.</span></label>
+        <label>Segredo do app (App secret)<input type="password" name="segredo_app" value="" placeholder="<%= c.temSegredo ? `Guardado (${c.segredo_app}). Deixe em branco para manter.` : 'Cole aqui o segredo do app' %>">
+          <span class="ajuda">Confere que as mensagens que chegam vieram mesmo da Meta.</span></label>
+        <label>Versão da API<input type="text" name="versao" value="<%= c.versao %>" class="campo-curto"></label>
+        <p><button type="submit">Salvar e conferir com a Meta</button></p>
+      </fieldset>
+    </form>
+    <% if (c.temChave) { %><form method="post" action="/painel/configuracoes/whatsapp/oficial/testar" class="acoes-topo"><button type="submit" class="botao-secundario">Conferir de novo</button></form><% } %>
+
+    <fieldset>
+      <legend>Webhook (onde a Meta entrega as mensagens)</legend>
+      <p class="dica">Na Meta, em WhatsApp › Configuração › Webhook, cole:</p>
+      <label>URL de retorno (Callback URL)<input type="text" readonly value="<%= enderecoWebhook %>" onclick="this.select()"></label>
+      <label>Token de verificação (Verify token)<input type="text" readonly value="<%= c.codigo_verificacao %>" onclick="this.select()"></label>
+      <p class="dica">E marque o campo <strong>messages</strong> em "Campos do webhook". O endereço precisa ser HTTPS e público (o do servidor, não o do computador).</p>
+      <form method="post" action="/painel/configuracoes/whatsapp/oficial/codigo" onsubmit="return confirm('Trocar o token de verificação? Vai ser preciso atualizar na Meta.')"><button type="submit" class="botao-link">Trocar o token de verificação</button></form>
+    </fieldset>
+
+    <h2>Modelos aprovados</h2>
+    <p class="dica">Fora das 24 h, a API oficial só manda <strong>modelo</strong> (template) aprovado pela Meta. Os modelos são criados na Meta
+      (WhatsApp Manager › Modelos de mensagem); aqui você puxa a lista para usar na conversa, nos lembretes e nas campanhas.</p>
+    <% if (c.conta_id && c.temChave) { %><form method="post" action="/painel/configuracoes/whatsapp/oficial/modelos" class="acoes-topo"><button type="submit" class="botao-secundario">Atualizar modelos da Meta</button></form><% } %>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Modelo</th><th>Idioma</th><th>Tipo</th><th>Situação</th><th>Texto</th></tr></thead>
+        <tbody>
+          <% modelos.forEach((m) => { %>
+            <tr><td><strong><%= m.nome %></strong></td><td><%= m.idioma %></td><td><%= m.categoria === 'MARKETING' ? 'Marketing' : m.categoria === 'UTILITY' ? 'Utilidade' : m.categoria === 'AUTHENTICATION' ? 'Autenticação' : m.categoria || '—' %></td>
+              <td><span class="selo <%= m.situacao === 'APPROVED' ? 'selo-equipe-livre' : 'selo-situacao-ignorado' %>"><%= SITUACAO[m.situacao] || m.situacao %></span></td><td class="texto-modelo"><%= m.corpo %></td></tr>
+          <% }) %>
+          <% if (!modelos.length) { %><tr><td colspan="5" class="dica">Nenhum modelo ainda.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
   <% } %>
 </main>
 <%- include('../partials/fim-painel') %>
+<% if (emUso === 'celular' && !conectado) { %>
 <script>
   (function () {
     if (!('EventSource' in window)) return;
@@ -29,3 +108,4 @@
     });
   })();
 </script>
+<% } %>

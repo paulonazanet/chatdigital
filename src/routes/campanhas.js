@@ -12,6 +12,8 @@ const { formatarDataHoraCompleta, formatarTelefone } = require('../relatorio');
 const campanhas = require('../campanhas');
 const contatos = require('../contatos');
 const { carregarFluxo } = require('../fluxo');
+const oficial = require('../whatsapp-oficial');
+const { modoAtual } = require('../socket-atual');
 
 // Menu Campanhas (permissão "gerenciar_campanhas"): Campanhas, Lembretes (recompra), Retornos
 // agendados, Envios (a fila e o histórico) e Regras de envio.
@@ -21,7 +23,16 @@ const ROTULO_TIPO = { lembrete: 'Lembrete de recompra', campanha: 'Campanha', re
 const nomeDoCliente = (linha) => linha.nome_contato || formatarTelefone(linha.numero_exibicao || linha.numero);
 
 function base(req, ativa, extra = {}) {
-  return { atendenteLogado: req.atendente, ativa, fila: envios.situacaoDaFila(), regras: envios.regrasDeEnvio(), ...extra };
+  const viaOficial = modoAtual() === 'oficial' || carregarNegocio().whatsapp_conexao === 'oficial';
+  return {
+    atendenteLogado: req.atendente,
+    ativa,
+    fila: envios.situacaoDaFila(),
+    regras: envios.regrasDeEnvio(),
+    viaOficial,
+    modelosAprovados: viaOficial ? oficial.listarModelos({ soAprovados: true }) : [],
+    ...extra,
+  };
 }
 
 router.get('/', (req, res) => res.redirect('/painel/campanhas/lista'));
@@ -205,6 +216,13 @@ router.post('/lembretes', (req, res) => {
     recompra_setor: setores.includes(req.body.recompra_setor) ? req.body.recompra_setor : 'Geral',
     recompra_usar_media: req.body.recompra_usar_media === '1',
     recompra_motivos: [].concat(req.body.recompra_motivos || []).map(String),
+    ...(req.body.modelo_enviado
+      ? {
+          recompra_modelo: req.body.modelo
+            ? { nome: String(req.body.modelo).split('|')[0], idioma: String(req.body.modelo).split('|')[1] || 'pt_BR', parametros: [].concat(req.body.modelo_parametros || []).map((p) => String(p).trim().slice(0, 200)) }
+            : null,
+        }
+      : {}),
   });
   res.redirect('/painel/campanhas/lembretes?salvo=1');
 });

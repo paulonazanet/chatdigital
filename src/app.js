@@ -4,6 +4,9 @@ const { app } = require('./server');
 const { carregarNegocio } = require('./negocio');
 const { carregarFluxo } = require('./fluxo');
 const { iniciarBot } = require('./bot');
+const { definirModo, definirCanalOficial } = require('./socket-atual');
+const oficial = require('./whatsapp-oficial');
+const whatsappStatus = require('./whatsapp-status');
 const { restaurarAtendimentosEmAndamento } = require('./conversas');
 const { iniciarChecagemInatividade } = require('./inatividade');
 const { iniciarBackupDiario } = require('./backup');
@@ -42,7 +45,17 @@ async function iniciar() {
   const restauradas = restaurarAtendimentosEmAndamento(fluxo);
   if (restauradas) console.log(`${restauradas} conversa(s) com atendente restaurada(s) — o bot continua em silêncio com elas.`);
 
-  await iniciarBot(negocio, fluxo);
+  // conexão escolhida em Configurações > WhatsApp: celular (QR Code) ou API oficial da Meta
+  if (negocio.whatsapp_conexao === 'oficial') {
+    definirModo('oficial');
+    definirCanalOficial(oficial.criarAdaptador());
+    const teste = await oficial.testarConexao();
+    if (teste.ok) whatsappStatus.definirConectado();
+    else whatsappStatus.definirDesconectado();
+    console.log(teste.ok ? `API oficial do WhatsApp ligada (${teste.numero}).` : `API oficial do WhatsApp com problema: ${teste.erro}`);
+  } else {
+    await iniciarBot(negocio, fluxo);
+  }
   iniciarChecagemInatividade();
   iniciarBackupDiario();
   iniciarRetencaoDiaria();

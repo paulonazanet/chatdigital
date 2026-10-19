@@ -5,6 +5,8 @@ const { dentroDasJanelas } = require('./horario');
 const { feriadoAgora } = require('./feriados');
 const { podeEnviarAutomatico } = require('./modo-teste');
 const { PREFIXO_ANONIMO } = require('./retencao');
+const { modoAtual } = require('./socket-atual');
+const oficial = require('./whatsapp-oficial');
 
 // Fila de envios automáticos (E3): lembrete de recompra e campanhas. Nada sai na hora: cada envio
 // entra como "pendente" e a checagem (a cada 10 s) manda UM por vez, só dentro da janela de horário,
@@ -50,12 +52,13 @@ function situacaoDaFila(agora = new Date(), negocio = carregarNegocio()) {
   return { ok: true, enviadosHoje: hoje };
 }
 
-function enfileirar({ tipo, referenciaId = null, conversaId, texto, agendadoPara = new Date() }) {
+// `modelo` (API oficial): { nome, idioma, parametros } do modelo aprovado que vai no lugar do texto
+function enfileirar({ tipo, referenciaId = null, conversaId, texto, agendadoPara = new Date(), modelo = null }) {
   const agora = new Date().toISOString();
   return Number(
     db
-      .prepare('INSERT INTO envios (tipo, referencia_id, conversa_id, texto, agendado_para, criado_em) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(tipo, referenciaId, conversaId, texto, new Date(agendadoPara).toISOString(), agora).lastInsertRowid,
+      .prepare('INSERT INTO envios (tipo, referencia_id, conversa_id, texto, agendado_para, criado_em, modelo) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(tipo, referenciaId, conversaId, texto, new Date(agendadoPara).toISOString(), agora, modelo ? JSON.stringify(modelo) : null).lastInsertRowid,
   );
 }
 
@@ -107,11 +110,20 @@ async function processarFila({ agora = new Date(), forcar = false } = {}) {
     return { pulado: envio.id, motivo };
   }
 
+  // API oficial: com modelo vai o modelo; sem modelo, texto só dentro das 24 h do cliente
+  const viaOficial = modoAtual() === 'oficial';
+  const modelo = envio.modelo ? JSON.parse(envio.modelo) : null;
+  if (viaOficial && !modelo && !oficial.dentroDaJanela(conversa.id)) {
+    db.prepare("UPDATE envios SET status = 'pulado', motivo = ? WHERE id = ?").run('API oficial: passaram 24 h sem o cliente escrever; precisa de um modelo aprovado', envio.id);
+    return { pulado: envio.id, motivo: 'API oficial sem modelo' };
+  }
+
   const regras = regrasDeEnvio(negocio);
   proximoEnvioEm = Date.now() + sortearIntervalo(regras);
   const { registrarMensagem } = require('./conversas'); // aqui: conversas usa módulos que usam este
   try {
-    const resposta = await obterSocket().sendMessage(conversa.numero, { text: envio.texto });
+    const canal = obterSocket();
+    const resposta = viaOficial && modelo ? await canal.enviarModelo(conversa.numero, modelo) : await canal.sendMessage(conversa.numero, { text: envio.texto });
     db.prepare("UPDATE envios SET status = 'enviado', enviado_em = ?, wa_id = ? WHERE id = ?").run(new Date().toISOString(), resposta?.key?.id || null, envio.id);
     registrarMensagem(conversa.numero, 'bot', envio.texto, null, null, { waId: resposta?.key?.id, deMim: true });
     concluirCampanhaSeAcabou(envio);
