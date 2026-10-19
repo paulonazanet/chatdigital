@@ -476,6 +476,13 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## Testes sem as 8 falhas de EPERM (19/10/2026)
+Os 8 testes antigos (atendimento-avancado, configuracoes, eventos, fila, fluxo-editor, painel,
+seguranca, whatsapp) não fechavam o banco antes de apagar a pasta temporária, e o Windows não
+deixava apagar. Agora o `after()` fecha o banco, se ele foi aberto. `npm test`: 92 de 92 no `e2`
+(no `e3`, 102 de 102; no `e4`, 110 de 110),
+**zero falhas** (as notas antigas que falam em "8 falhas de EPERM" ficaram para trás).
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -533,7 +540,6 @@ precisa de uma API do lado dela.
   no Trello (Nazagas). Consulta/registro de marca no INPI: card no board PAULO.
 - Campo em Configurações pro número de "chamar direto" (`{{negocio.numero_atendente_legivel}}`),
   que hoje só vem de `NUMERO_ATENDENTE` no `.env`.
-- Fechar o banco no `after()` dos testes pra sumir o `EPERM`.
 
 ## Como testar
 1. `npm start` (porta 3001); no painel, Configurações > WhatsApp pra escanear o QR se precisar.
