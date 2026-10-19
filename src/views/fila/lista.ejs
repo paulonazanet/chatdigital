@@ -211,6 +211,13 @@
               <% if (protocoloAtual) { %> · Protocolo <span class="protocolo"><%= protocoloAtual %></span><% } %>
               <% if (conversaSelecionada.situacao_contato && conversaSelecionada.situacao_contato !== 'normal') { %> · <span class="selo selo-situacao-<%= conversaSelecionada.situacao_contato %>"><%= conversaSelecionada.situacao_contato === 'ignorado' ? 'Contato ignorado: o bot não atende' : 'Contato bloqueado' %></span><% } %>
             </p>
+            <% retornosDaConversa.forEach((r) => { %>
+              <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/retorno/<%= r.id %>/cancelar" class="faixa-retorno" onsubmit="return confirm('Cancelar este retorno?')">
+                📅 Retorno marcado para <strong><%= new Date(Date.parse(r.quando) - 3 * 3600000).toISOString().slice(0, 16).replace(/^(\d{4})-(\d{2})-(\d{2})T/, '$3/$2 às ') %></strong><%= r.atendente_nome ? ` (${r.atendente_nome})` : '' %><%= r.nota ? `: ${r.nota}` : '' %>
+                <button type="submit" class="botao-link">cancelar</button>
+              </form>
+            <% }) %>
+            <% if (erroRetorno) { %><p class="erro"><%= erroRetorno %></p><% } %>
             <% if (marcadoresDaConversa.length) { %><p class="marcadores-conversa"><% marcadoresDaConversa.forEach((m) => { %><span class="chip-marcador" style="--cor: <%= m.cor %>"><%= m.nome %></span><% }) %></p><% } %>
           </div>
           <div class="acoes-conversa">
@@ -230,6 +237,24 @@
                     <button type="submit" class="botao-pequeno">Salvar marcadores</button>
                   </form>
                 <% } %>
+                <details class="agendar-retorno">
+                  <summary class="botao-link">📅 Agendar retorno</summary>
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/retorno" class="form-retorno">
+                    <div class="linha-form linha-form-inline">
+                      <label>Dia<input type="date" name="data" required value="<%= new Date(Date.now() - 3 * 3600000 + 86400000).toISOString().slice(0, 10) %>"></label>
+                      <label>Hora<input type="time" name="hora" required value="09:00"></label>
+                    </div>
+                    <label>Para quem
+                      <select name="atendente_id">
+                        <% atendentes.forEach((a) => { %><option value="<%= a.id %>" <%= a.id === atendenteLogado.id ? 'selected' : '' %>><%= a.nome %></option><% }) %>
+                      </select>
+                    </label>
+                    <label>Motivo (só a equipe vê)<input type="text" name="nota" maxlength="500" placeholder="Ex.: confirmar entrega do P45"></label>
+                    <label class="linha-check"><input type="checkbox" name="mandar_mensagem" value="1"> Mandar mensagem ao cliente na hora</label>
+                    <textarea name="mensagem" rows="2" maxlength="2000" placeholder="Ex.: Oi! Passando para confirmar seu pedido de hoje. 🙂"></textarea>
+                    <button type="submit" class="botao-pequeno">Agendar</button>
+                  </form>
+                </details>
                 <% if (conversaSelecionada.status === 'aguardando' || conversaSelecionada.status === 'atendendo') { %>
                   <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/devolver-bot" onsubmit="return confirm('Devolver ao bot? O atendimento é fechado (sem pesquisa) e o cliente recebe o menu inicial de novo.')">
                     <button type="submit" class="botao-link">🤖 Devolver ao bot (menu inicial)</button>

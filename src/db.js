@@ -358,6 +358,67 @@ if (gruposNovos) {
   inserir.run('Gerente', JSON.stringify(['ver_painel', 'ver_fila_outros_setores', 'responder_conversas', 'finalizar_conversas', 'ver_relatorio', 'gerenciar_respostas_rapidas', 'gerenciar_contatos']));
 }
 
+// E3: envios automáticos (lembrete de recompra, campanha), um por cliente, mandados devagar por
+// envios.js (janela de horário, intervalo, limite por dia). Guarda o que aconteceu depois: entregue,
+// lido, respondido, pediu pra sair. `referencia_id` = campanha (tipo 'campanha').
+db.exec(`
+  CREATE TABLE IF NOT EXISTS envios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo TEXT NOT NULL CHECK (tipo IN ('lembrete', 'campanha', 'retorno', 'teste')),
+    referencia_id INTEGER,
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    texto TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'enviado', 'falhou', 'pulado', 'cancelado')),
+    motivo TEXT,
+    agendado_para TEXT NOT NULL,
+    criado_em TEXT NOT NULL,
+    enviado_em TEXT,
+    wa_id TEXT,
+    entregue_em TEXT,
+    lido_em TEXT,
+    respondido_em TEXT,
+    saiu_em TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_envios_status ON envios (status, agendado_para);
+  CREATE INDEX IF NOT EXISTS idx_envios_conversa ON envios (conversa_id, enviado_em);
+  CREATE INDEX IF NOT EXISTS idx_envios_wa ON envios (wa_id);
+
+  CREATE TABLE IF NOT EXISTS retornos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    criado_por INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    quando TEXT NOT NULL,
+    nota TEXT,
+    mensagem TEXT,
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'feito', 'cancelado')),
+    criado_em TEXT NOT NULL,
+    feito_em TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_retornos_quando ON retornos (status, quando);
+
+  CREATE TABLE IF NOT EXISTS campanhas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    publico TEXT NOT NULL DEFAULT '{}',
+    frase_chave TEXT,
+    acao_frase TEXT,
+    setor_frase TEXT,
+    bloco_frase TEXT,
+    status TEXT NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho', 'enviando', 'pausada', 'concluida', 'cancelada')),
+    comecar_em TEXT,
+    criado_por INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    criado_em TEXT NOT NULL,
+    iniciada_em TEXT,
+    concluida_em TEXT
+  );
+`);
+if (!colunaExiste('conversas', 'recompra_dias')) {
+  // dias até o lembrete de recompra deste cliente (NULL = o padrão de Configurações)
+  db.exec('ALTER TABLE conversas ADD COLUMN recompra_dias INTEGER');
+}
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

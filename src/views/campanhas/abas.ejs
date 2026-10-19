@@ -1,0 +1,10 @@
+<% const ABAS = [['lembretes', 'Lembretes de recompra', '/painel/campanhas/lembretes'], ['retornos', 'Retornos agendados', '/painel/campanhas/retornos'], ['envios', 'Envios', '/painel/campanhas/envios'], ['regras', 'Regras de envio', '/painel/campanhas/regras']]; %>
+<div class="relatorio-topo"><h1>Campanhas</h1></div>
+<nav class="abas-relatorio" aria-label="Partes de Campanhas">
+  <% ABAS.forEach(([chave, rotulo, link]) => { %><a href="<%= link %>" class="<%= ativa === chave ? 'ativa' : '' %>"<%- ativa === chave ? ' aria-current="page"' : '' %>><%= rotulo %></a><% }) %>
+</nav>
+<p class="faixa-fila-envios <%= fila.ok ? 'faixa-fila-ok' : 'faixa-fila-parada' %>">
+  <% if (fila.ok) { %>✅ Fila de envios funcionando: <strong><%= fila.enviadosHoje %> de <%= regras.limiteDia %></strong> mandados hoje. Um a cada <%= regras.intervaloMin %> a <%= regras.intervaloMax %> segundos.
+  <% } else { %>⏸ Fila de envios parada agora: <strong><%= fila.motivo %></strong>. O que estiver na fila sai quando puder.<% } %>
+  <a href="/painel/campanhas/regras">Regras de envio</a>
+</p>

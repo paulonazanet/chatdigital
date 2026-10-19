@@ -1,0 +1,100 @@
+<%- include('../partials/inicio', { titulo: 'Lembretes de recompra' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const r = recompra; %>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Lembrete salvo.</p><% } %>
+  <% if (gerados !== null) { %><p class="sucesso"><%= gerados %> lembrete<%= gerados === 1 ? '' : 's' %> posto<%= gerados === 1 ? '' : 's' %> na fila de envios.</p><% } %>
+
+  <p class="dica">Alguns dias depois da última compra, o cliente recebe um aviso para pedir de novo. "Compra" é um <strong>pedido feito pelo bot</strong>
+    ou um <strong>atendimento finalizado com um dos motivos marcados abaixo</strong>. Quando a GásDigital estiver ligada (3ª parte da E3), as vendas de lá passam a contar também.</p>
+
+  <div class="cartoes">
+    <div class="cartao"><span class="numero"><%= numeros.enviados %></span><span class="rotulo">Enviados</span><span class="rotulo-extra">nos últimos 30 dias</span></div>
+    <div class="cartao"><span class="numero"><%= numeros.lidos %></span><span class="rotulo">Lidos</span></div>
+    <div class="cartao"><span class="numero"><%= numeros.respondidos %></span><span class="rotulo">Responderam</span></div>
+    <div class="cartao"><span class="numero"><%= numeros.sairam %></span><span class="rotulo">Pediram para sair</span></div>
+    <div class="cartao"><span class="numero"><%= numeros.pendentes %></span><span class="rotulo">Na fila</span></div>
+  </div>
+
+  <form method="post" action="/painel/campanhas/lembretes" id="form-lembrete">
+    <fieldset>
+      <legend>Lembrete de recompra</legend>
+      <label class="linha"><input type="checkbox" name="recompra_ligado" value="1" <%= r.ligado ? 'checked' : '' %>> <strong>Ligado</strong> (manda sozinho; confere de hora em hora)</label>
+      <label>Mandar quantos dias depois da última compra
+        <input type="number" name="recompra_dias" min="3" max="365" value="<%= r.dias %>" class="campo-curto">
+        <span class="ajuda">Dá para mudar para um cliente na ficha dele (Contatos). Lembrete só vai até 30 dias depois do prazo: cliente que sumiu há muito tempo não recebe.</span>
+      </label>
+      <label class="linha"><input type="checkbox" name="recompra_usar_media" value="1" <%= r.usarMedia ? 'checked' : '' %>> Para quem já comprou 3 vezes ou mais, usar o tempo médio entre as compras dele</label>
+      <label>Mensagem
+        <textarea name="recompra_texto" rows="4" maxlength="1000"><%= r.texto %></textarea>
+        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code>, <code>{{negocio.nome}}</code> e <code>{{dias}}</code> (dias desde a última compra). Deixe o "responda SAIR": é o jeito de o cliente parar de receber (LGPD).</span>
+      </label>
+      <p class="dica">Exemplo: <em><%= exemplo %></em></p>
+      <div class="grupo-opcoes">
+        <span class="grupo-opcoes-titulo">Quando o cliente responder</span>
+        <label class="linha"><input type="radio" name="recompra_resposta" value="atendente" <%= r.resposta === 'atendente' ? 'checked' : '' %>> Passar para um atendente, no setor
+          <select name="recompra_setor" class="campo-inline">
+            <% setores.forEach((s) => { %><option value="<%= s.nome %>" <%= s.nome === r.setor ? 'selected' : '' %>><%= s.nome %></option><% }) %>
+          </select></label>
+        <label class="linha"><input type="radio" name="recompra_resposta" value="bot" <%= r.resposta === 'bot' ? 'checked' : '' %>> Seguir o bot (o menu do fluxo)</label>
+      </div>
+      <div class="grupo-opcoes">
+        <span class="grupo-opcoes-titulo">Motivos de encerramento que contam como compra</span>
+        <% if (!motivosUsados.length) { %><p class="dica">Nenhum atendimento finalizado com motivo ainda.</p><% } %>
+        <% motivosUsados.forEach((m) => { %>
+          <label class="linha"><input type="checkbox" name="recompra_motivos" value="<%= m %>" <%= motivosAtivos.has(m) ? 'checked' : '' %>> <%= m %></label>
+        <% }) %>
+      </div>
+    </fieldset>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar lembrete</button>
+    </div>
+  </form>
+
+  <h2 class="subtitulo-painel">Na hora do lembrete agora <span class="subtitulo-detalhe">quem vai receber na próxima checagem</span></h2>
+  <% if (r.ligado && proximos.length) { %>
+    <form method="post" action="/painel/campanhas/lembretes/gerar" class="acoes-topo"><button type="submit" class="botao-secundario">Pôr na fila agora</button></form>
+  <% } %>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Cliente</th><th>Última compra</th><th>Prazo</th><th>Compras</th><th></th></tr></thead>
+      <tbody>
+        <% proximos.forEach((p) => { %>
+          <tr>
+            <td><a href="/painel/fila/<%= p.conversaId %>"><%= p.cliente %></a></td>
+            <td><%= p.ultima %> <span class="dica-inline">(há <%= p.diasDesde %> dias)</span></td>
+            <td><%= p.dias %> dias</td>
+            <td><%= p.compras %></td>
+            <td><% if (p.motivo) { %><span class="selo selo-situacao-bloqueado">Não vai: <%= p.motivo %></span><% } %></td>
+          </tr>
+        <% }) %>
+        <% if (!proximos.length) { %><tr><td colspan="5" class="dica">Ninguém na hora do lembrete agora.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <% if (!r.ligado && proximos.length) { %><p class="dica">O lembrete está desligado: ninguém recebe até você ligar.</p><% } %>
+
+  <h2 class="subtitulo-painel">Últimos lembretes</h2>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Quando</th><th>Cliente</th><th>Situação</th><th>Lido</th><th>Respondeu</th></tr></thead>
+      <tbody>
+        <% ultimos.forEach((e) => { %>
+          <tr>
+            <td class="sem-quebra"><%= e.quando %></td>
+            <td><a href="/painel/fila/<%= e.conversa_id %>"><%= e.cliente %></a></td>
+            <td><span class="selo selo-envio-<%= e.status %>"><%= e.rotulo %></span><% if (e.motivo) { %> <span class="dica-inline"><%= e.motivo %></span><% } %></td>
+            <td><%= e.lido_em ? '✓' : '—' %></td>
+            <td><%= e.saiu_em ? 'Pediu para sair' : e.respondido_em ? '✓' : '—' %></td>
+          </tr>
+        <% }) %>
+        <% if (!ultimos.length) { %><tr><td colspan="5" class="dica">Nenhum lembrete ainda.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('../configuracoes/aviso-nao-salvo', { formId: 'form-lembrete' }) %>

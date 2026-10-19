@@ -12,6 +12,7 @@ const CHAVES = [
   'ver_relatorio',
   'gerenciar_respostas_rapidas',
   'gerenciar_contatos',
+  'gerenciar_campanhas',
 ];
 
 const ROTULOS = {
@@ -26,6 +27,7 @@ const ROTULOS = {
   ver_relatorio: 'Ver o Relatório (atendimentos, tempos e notas)',
   gerenciar_respostas_rapidas: 'Cadastrar e editar Respostas rápidas',
   gerenciar_contatos: 'Ver e editar Contatos (cadastro, ignorar, bloquear, tags)',
+  gerenciar_campanhas: 'Campanhas e lembretes (lembrete de recompra, retornos, campanhas, envios)',
 };
 
 function permissoesPadraoAtendente() {

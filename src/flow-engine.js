@@ -373,9 +373,11 @@ function encerrarAtendimento(numero, fluxo) {
  * Atendente devolveu a conversa pro bot ("Devolver ao bot"): começa o fluxo do início, como se o
  * cliente tivesse digitado "menu", e devolve o texto pra mandar (o menu inicial).
  */
-async function iniciarFluxo({ numero, negocio, fluxo }) {
+async function iniciarFluxo({ numero, negocio, fluxo, bloco = null }) {
   const estado = obterEstado(numero, fluxo);
   Object.assign(estado, estadoInicial(fluxo, numero));
+  // `bloco`: começar num bloco do meio do fluxo (frase-chave de campanha, E3)
+  if (bloco && fluxo.nos[bloco]) estado.no = bloco;
   return executar(estado, { negocio, vars: estado.vars }, fluxo);
 }
 

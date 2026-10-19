@@ -1,0 +1,41 @@
+<%- include('../partials/inicio', { titulo: 'Retornos agendados' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <p class="dica">Retornos marcados pelos atendentes na conversa (<strong>Ações ▾ › Agendar retorno</strong>). Na hora, a conversa vai para a pessoa
+    escolhida, com uma nota do motivo, e ela recebe o aviso. Se foi escrita uma mensagem, ela vai para o cliente na hora.</p>
+
+  <h2 class="subtitulo-painel">Marcados</h2>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Quando</th><th>Cliente</th><th>Para quem</th><th>Motivo</th><th>Mensagem</th><th></th></tr></thead>
+      <tbody>
+        <% pendentes.forEach((r) => { %>
+          <tr>
+            <td class="sem-quebra"><%= r.quandoTexto %><% if (r.atrasado) { %> <span class="selo selo-situacao-ignorado">agora</span><% } %></td>
+            <td><a href="/painel/fila/<%= r.conversa_id %>"><%= r.cliente %></a></td>
+            <td><%= r.atendente_nome || '—' %></td>
+            <td><%= r.nota || '—' %></td>
+            <td><%= r.mensagem ? 'Sim' : '—' %></td>
+            <td><form method="post" action="/painel/campanhas/retornos/<%= r.id %>/cancelar" class="form-inline" onsubmit="return confirm('Cancelar este retorno?')"><button type="submit" class="botao-link botao-link-perigo">Cancelar</button></form></td>
+          </tr>
+        <% }) %>
+        <% if (!pendentes.length) { %><tr><td colspan="6" class="dica">Nenhum retorno marcado.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subtitulo-painel">Feitos <span class="subtitulo-detalhe">os 50 mais recentes</span></h2>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Quando</th><th>Cliente</th><th>Para quem</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <% feitos.forEach((r) => { %>
+          <tr><td class="sem-quebra"><%= r.quandoTexto %></td><td><a href="/painel/fila/<%= r.conversa_id %>"><%= r.cliente %></a></td><td><%= r.atendente_nome || '—' %></td><td><%= r.nota || '—' %></td></tr>
+        <% }) %>
+        <% if (!feitos.length) { %><tr><td colspan="4" class="dica">Nenhum ainda.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('../partials/fim-painel') %>

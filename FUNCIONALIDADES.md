@@ -37,6 +37,7 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
   - Ver o Relatório (atendimentos, tempos e notas)
   - Cadastrar e editar Respostas rápidas
   - Ver e editar Contatos (cadastro, ignorar, bloquear, tags)
+  - Campanhas e lembretes (lembrete de recompra, retornos, campanhas, envios)
 
 ---
 
@@ -206,8 +207,50 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   completado (só os campos vazios; marcando "Trocar os dados que já estão preenchidos", troca
   também); tags são somadas; ignorado/bloqueado nunca mudam. Novos só entram se o número tiver
   WhatsApp (confere um por um; precisa do WhatsApp conectado).
+- **Lembrete de recompra deste cliente (dias)** na ficha: o prazo só dele (em branco = o padrão).
 - **Tags**: criar, renomear, ver quantos contatos têm, tirar de todos, excluir. Tag é do cliente
   (segmentação, futuras campanhas); marcador é do atendimento.
+
+## Menu: Campanhas
+(Administrador, ou atendente com a permissão "Campanhas e lembretes".) No alto de todas as abas, a
+**faixa da fila de envios**: funcionando (quantos saíram hoje do limite) ou parada (WhatsApp
+desconectado, fora do horário, feriado ou limite do dia).
+
+### Campanhas > Lembretes de recompra
+- X dias depois da última **compra**, o cliente recebe um aviso para pedir de novo. Compra = pedido
+  salvo pelo bot (coleção "pedidos") ou atendimento finalizado com um dos **motivos marcados**
+  (padrão: os que têm "Pedido" no nome, ex.: "Resolvido › Pedido feito").
+- **Ligado/desligado** (vem desligado; confere de hora em hora), **dias** (3 a 365; padrão 30),
+  **média do cliente** (com 3 compras ou mais, usa o tempo médio entre as compras dele), e o prazo
+  de cada cliente pode ser mudado na ficha (Contatos). Só lembra até 30 dias depois do prazo
+  (cliente sumido não recebe) e uma vez por compra.
+- **Mensagem** com `{{cliente.nome}}`, `{{negocio.nome}}` e `{{dias}}`, com exemplo na tela.
+- **Quando o cliente responder**: passa para um atendente (no setor escolhido, com nota "Respondeu
+  ao lembrete") ou segue o bot.
+- Números dos últimos 30 dias (enviados, lidos, responderam, pediram para sair, na fila), lista de
+  **quem está na hora agora** (com o motivo se não for receber) e **Pôr na fila agora**, e os
+  últimos lembretes.
+
+### Campanhas > Retornos agendados
+- Os retornos marcados na conversa (**Ações ▾ › Agendar retorno**: dia, hora, para quem, motivo e,
+  se quiser, uma mensagem para o cliente). Na hora, a conversa vai para a pessoa escolhida
+  ("Atendendo"), entra a nota "📅 Retorno agendado…", ela recebe o aviso e a mensagem vai para o
+  cliente. Se outra pessoa estiver atendendo, só entra a nota. Lista dos marcados (cancelar) e dos
+  feitos. Na conversa aparece "📅 Retorno marcado para …" com **cancelar**.
+
+### Campanhas > Envios
+- Tudo o que o sistema manda sozinho: na fila, enviado, não mandado (com o motivo: bloqueado,
+  ignorado, pediu para sair, em atendimento, modo de teste), falhou, cancelado; entregue, lido e
+  respondeu. Filtro por situação; cancelar o que está na fila.
+
+### Campanhas > Regras de envio
+- Valem para lembretes e campanhas: **horário de envio** por dia (até 2 períodos; padrão seg a sáb,
+  8h às 19h), **não mandar em feriado**, **intervalo** sorteado entre um envio e outro (padrão 45 a
+  90 s) e **limite por dia** (padrão 100). Fora disso, fica na fila e sai depois. Aviso do risco de
+  bloqueio do número no WhatsApp não oficial.
+- **SAIR**: quem responde SAIR (ou PARAR, STOP, CANCELAR...) até 7 dias depois de um envio
+  automático, sem estar em atendimento, para de receber lembretes e campanhas (o consentimento é
+  tirado e a data guardada) e recebe uma confirmação.
 
 ## Menu: Respostas rápidas
 (Administrador, ou atendente com a permissão "Cadastrar e editar Respostas rápidas".)
@@ -348,6 +391,9 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Lembrete e desistência por inatividade** (cliente parado no bot) — ver Configurações.
 - **Fechamento automático** do atendimento aberto há tempo demais — ver Configurações.
 - **Aviso de avaliação não respondida** 30 min depois da pesquisa.
+- **Fila de envios automáticos**: a cada 10 s manda no máximo um lembrete/campanha, dentro das regras de envio.
+- **Lembrete de recompra**: de hora em hora põe na fila quem venceu (se estiver ligado).
+- **Retornos agendados**: a cada minuto faz os que chegaram na hora.
 - **Alertas de fila**: confere a cada minuto e avisa quem está com o painel aberto — ver Configurações > Pausas e alertas.
 - **Depois de reiniciar o servidor**: quem estava com atendente continua com atendente (o bot não
   volta a falar).

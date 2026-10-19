@@ -97,6 +97,10 @@ function salvarContato(id, campos) {
     situacao, consentimento, consentimento, agora, consentimento, agora, id,
   );
   if (campos.tags !== undefined) definirTagsDoContato(id, campos.tags);
+  if (campos.recompra_dias !== undefined) {
+    const dias = Number(campos.recompra_dias);
+    db.prepare('UPDATE conversas SET recompra_dias = ? WHERE id = ?').run(Number.isInteger(dias) && dias >= 3 && dias <= 365 ? dias : null, id);
+  }
 }
 
 function definirSituacao(id, situacao) {

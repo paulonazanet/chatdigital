@@ -37,6 +37,7 @@ const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, lerArquivoDeMidia } = require('../midia');
 const equipe = require('../equipe');
+const retornos = require('../retornos');
 const { calcularAlertas, alertaParaAtendente } = require('../alertas');
 
 const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
@@ -211,6 +212,8 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     motivosPausa: equipe.listarMotivosPausa({ soAtivos: true }),
     meuLimite: { atendendo: equipe.contarConversasAtendendo(req.atendente.id), limite: req.atendente.limite_conversas || 0 },
     alertas: calcularAlertas({ negocio }).filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
+    retornosDaConversa: conversaSelecionada ? retornos.retornosDaConversa(conversaSelecionada.id) : [],
+    erroRetorno: res.locals.erroRetorno || null,
   });
 }
 
@@ -256,6 +259,34 @@ router.post('/nova', async (req, res) => {
   } catch (erro) {
     renderizarFila(req, res, { erroNovaConversa: 'Não consegui iniciar a conversa agora. Tente de novo em instantes.' });
   }
+});
+
+// Agendar retorno (Ações > Agendar retorno): dia e hora no horário de Recife (UTC-3)
+router.post('/:id/retorno', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(req.body.data || '') ? req.body.data : '';
+  const hora = /^\d{2}:\d{2}$/.test(req.body.hora || '') ? req.body.hora : '';
+  const atendenteId = listarAtendentes().some((a) => a.ativo && String(a.id) === String(req.body.atendente_id)) ? Number(req.body.atendente_id) : req.atendente.id;
+  const resultado = retornos.agendarRetorno({
+    conversaId: conversa.id,
+    atendenteId,
+    criadoPor: req.atendente.id,
+    quando: data && hora ? `${data}T${hora}:00-03:00` : '',
+    nota: req.body.nota,
+    mensagem: req.body.mandar_mensagem ? req.body.mensagem : '',
+  });
+  if (resultado.erro) {
+    res.locals.erroRetorno = resultado.erro;
+    return renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id) });
+  }
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+router.post('/:id/retorno/:retornoId/cancelar', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  if (retornos.retornosDaConversa(conversa.id).some((r) => r.id === Number(req.params.retornoId))) retornos.cancelarRetorno(Number(req.params.retornoId));
+  res.redirect(`/painel/fila/${conversa.id}`);
 });
 
 // Pausa do atendente (botão no topo da Fila). `voltar`: a tela da Fila onde ele estava.

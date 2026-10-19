@@ -384,6 +384,41 @@ restrição de login, status do sistema, importar/exportar contatos).
 - Não feito (fica para depois, se pedirem): uma sessão por usuário (derrubar o login antigo ao
   entrar em outro lugar).
 
+## E3, 1ª parte (19/10/2026, branch `e3`, feito a partir do `e2`): lembretes e retornos
+A E3 fica no branch **`e3`**, criado a partir do `e2` (decisão do Paulo: a E2 entra antes; juntar
+o e3 depois do e2 não dá conflito). Partes aprovadas: 1ª lembretes e retornos; 2ª campanhas. A 3ª
+(ligação com a GásDigital) ficou para depois, porque a GásDigital ainda não está num servidor e
+precisa de uma API do lado dela.
+- **Banco**: tabelas `envios` (tipo lembrete/campanha, status pendente/enviado/falhou/pulado/
+  cancelado, `wa_id`, entregue/lido/respondido/saiu), `retornos`, `campanhas` (usada na 2ª parte) e
+  `conversas.recompra_dias`.
+- **`src/envios.js`**: a fila. `processarFila()` (a cada 10 s, `iniciarFilaDeEnvios` no app.js)
+  manda **um** pendente por vez se: WhatsApp conectado, não é feriado (opcional), está na janela
+  (`envio_janelas`, formato do bloco Horário, hora local do servidor), não passou do
+  `envio_limite_dia` e já passou o intervalo sorteado (`envio_intervalo_min/max`, em memória).
+  `motivoParaNaoMandar` (anonimizado, bloqueado, ignorado, saiu, em atendimento, modo de teste) →
+  status 'pulado'. Mensagem enviada entra no histórico como 'bot'. `atualizarRecibos` lê o
+  `messages.update` do Baileys (3 entregue, 4 lido) pelo `wa_id`. `registrarResposta` marca a 1ª
+  resposta (até 3 dias) e trata **SAIR** (até 7 dias, fora de atendimento): `consentimento = 0`,
+  `optout_em`, cancela os pendentes do cliente.
+- **`src/lembretes.js`**: compras = registros "pedidos" (`dados.numero`) + atendimentos com
+  `motivo_texto` em `recompra_motivos` (padrão: os com "pedido"); compras a menos de 12 h juntam.
+  Prazo = ficha > média (3+ compras, `recompra_usar_media`) > `recompra_dias`. Só até 30 dias depois
+  do prazo e um lembrete por compra. `gerarLembretes()` de hora em hora (só com `recompra_ligado`).
+- **`src/resposta-envio.js`**: chamado em `tratarMensagemRecebida` (bot.js) **antes** do fluxo:
+  SAIR responde a confirmação e para; resposta a lembrete com `recompra_resposta = 'atendente'`
+  chama `transferirParaHumano` no `recompra_setor` (o fluxo não roda); campanha (2ª parte).
+  `iniciarFluxo` ganhou `bloco` (começar no meio do fluxo).
+- **`src/retornos.js`**: `agendarRetorno` (rota `POST /painel/fila/:id/retorno`, dia e hora de
+  Recife → ISO com -03:00), `processarRetornos()` a cada minuto: `transferirParaHumano` +
+  `assumirConversa` (se ninguém mais está atendendo), nota interna, mensagem (se tiver, como
+  'atendente') e evento `atencao` com motivo 'retorno'.
+- **Telas**: menu **Campanhas** (`routes/campanhas.js`, `views/campanhas/`, permissão nova
+  `gerenciar_campanhas`): Lembretes, Retornos, Envios, Regras de envio. Fila: Ações › Agendar
+  retorno e a faixa do retorno marcado (o menu Ações agora rola). Ficha do contato: dias de recompra.
+- Testes: `test/e3-lembretes.test.js` (5 testes). Total: 97 passam; as 8 "falhas" são o `EPERM` antigo.
+- Painel de teste da E3: `painel-e3` (porta 3058) no `.claude/launch.json` da pasta principal.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -417,6 +452,8 @@ restrição de login, status do sistema, importar/exportar contatos).
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
   `public/js/editor-fluxo.js` (editor, simulador, importar).
+- `src/envios.js` (fila de envios automáticos), `src/lembretes.js` (recompra), `src/retornos.js`,
+  `src/resposta-envio.js` (SAIR e respostas a envios), `src/routes/campanhas.js` (menu Campanhas).
 - `src/grupos-permissao.js`, `src/acesso.js` (horário/IP de acesso e histórico),
   `src/status-sistema.js`, `src/contatos-planilha.js` (exportar/importar contatos).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /

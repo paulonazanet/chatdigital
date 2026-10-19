@@ -8,7 +8,9 @@ const {
   DisconnectReason,
 } = require('@whiskeysockets/baileys');
 
-const { processarMensagem, transferirParaHumano, obterEstadoConversa } = require('./flow-engine');
+const { processarMensagem, transferirParaHumano, obterEstadoConversa, iniciarFluxo } = require('./flow-engine');
+const { tratarRespostaAEnvio } = require('./resposta-envio');
+const { atualizarRecibos } = require('./envios');
 const { carregarFluxo } = require('./fluxo');
 const {
   registrarMensagem,
@@ -175,7 +177,15 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
   if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
   definirNomeDoPerfil(numero, msg.pushName);
   const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
-  const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
+  // resposta a um lembrete ou campanha (E3): SAIR, passar para atendente ou frase-chave
+  const automatica = tratarRespostaAEnvio(numero, texto, { negocio, fluxo });
+  if (automatica?.resposta) {
+    if (await enviarComSeguranca(sock, numero, automatica.resposta)) registrarMensagem(numero, 'bot', automatica.resposta);
+    return;
+  }
+  let resposta = null;
+  if (automatica?.bloco) resposta = await iniciarFluxo({ numero, negocio, fluxo, bloco: automatica.bloco });
+  else if (!automatica?.transferiu) resposta = await processarMensagem({ numero, texto, negocio, fluxo });
   const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
   if (resposta) {
     registrarMensagem(numero, 'bot', resposta);
@@ -214,6 +224,15 @@ async function iniciarBot(negocio, fluxoDoBoot) {
     } else if (connection === 'open') {
       console.log(`Bot da ${negocio.nome} conectado e pronto para atender.`);
       whatsappStatus.definirConectado();
+    }
+  });
+
+  // recibos de entregue/lido dos envios automáticos (E3)
+  sock.ev.on('messages.update', (atualizacoes) => {
+    try {
+      atualizarRecibos(atualizacoes);
+    } catch (erro) {
+      console.error('Erro ao ler recibos de leitura:', erro.message);
     }
   });
 

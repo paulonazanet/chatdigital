@@ -1,0 +1,35 @@
+<%- include('../partials/inicio', { titulo: 'Envios' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <div class="cabecalho-resultado">
+    <span class="dica">Tudo o que o sistema manda sozinho (lembretes e campanhas): o que está na fila e o que já saiu. Os 300 mais recentes.</span>
+    <form method="get" action="/painel/campanhas/envios" class="relatorio-filtros">
+      <select name="status" onchange="this.form.submit()" aria-label="Situação">
+        <option value="">Todas as situações</option>
+        <% Object.entries(rotulos).forEach(([valor, rotulo]) => { %><option value="<%= valor %>" <%= status === valor ? 'selected' : '' %>><%= rotulo %></option><% }) %>
+      </select>
+    </form>
+  </div>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Quando</th><th>Cliente</th><th>O quê</th><th>Situação</th><th>Entregue</th><th>Lido</th><th>Respondeu</th><th></th></tr></thead>
+      <tbody>
+        <% lista.forEach((e) => { %>
+          <tr>
+            <td class="sem-quebra"><%= e.quando %></td>
+            <td><a href="/painel/fila/<%= e.conversa_id %>"><%= e.cliente %></a></td>
+            <td><%= e.tipoTexto %></td>
+            <td><span class="selo selo-envio-<%= e.status %>"><%= e.rotulo %></span><% if (e.motivo) { %> <span class="dica-inline"><%= e.motivo %></span><% } %></td>
+            <td><%= e.entregue_em ? '✓' : '—' %></td>
+            <td><%= e.lido_em ? '✓' : '—' %></td>
+            <td><%= e.saiu_em ? 'Saiu' : e.respondido_em ? '✓' : '—' %></td>
+            <td><% if (e.status === 'pendente') { %><form method="post" action="/painel/campanhas/envios/<%= e.id %>/cancelar" class="form-inline"><button type="submit" class="botao-link botao-link-perigo">Cancelar</button></form><% } %></td>
+          </tr>
+        <% }) %>
+        <% if (!lista.length) { %><tr><td colspan="8" class="dica">Nenhum envio.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('../partials/fim-painel') %>

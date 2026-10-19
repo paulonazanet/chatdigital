@@ -1490,3 +1490,24 @@ input.campo-tabela { margin-top: 0; width: 6rem; padding: 0.5rem 0.6rem; border:
 .resumo-importar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
 .resumo-importar .cartao { padding: 0.75rem 1.25rem; }
 .resumo-importar .cartao .numero { font-size: 1.6rem; }
+
+/* E3: campanhas, lembretes, retornos e fila de envios */
+.faixa-fila-envios { margin: 0.75rem 0 1rem; padding: 0.55rem 0.9rem; border-radius: 6px; font-size: 0.85rem; border: 1px solid var(--cinza-borda); }
+.faixa-fila-ok { background: #e3f3ea; border-color: #bfe3cd; color: var(--verde-ativo); }
+.faixa-fila-parada { background: #fff3d6; border-color: #f1d58f; color: #7a5a00; }
+.faixa-fila-envios a { margin-left: 0.4rem; }
+.selo-envio-pendente { background: #e6f1fb; color: var(--azul-destaque); }
+.selo-envio-enviado { background: #e3f3ea; color: var(--verde-ativo); }
+.selo-envio-falhou { background: #fbe6e7; color: var(--vermelho-erro); }
+.selo-envio-pulado, .selo-envio-cancelado { background: #eef1f4; color: #5f6d7a; }
+.campo-inline { display: inline-block; width: auto; margin: 0 0 0 0.4rem; padding: 0.3rem 0.5rem; }
+.faixa-retorno { margin: 0.3rem 0 0; font-size: 0.82rem; color: #7a5a00; background: #fff8e6; border-radius: 4px; padding: 0.25rem 0.5rem; display: inline-block; }
+.faixa-retorno .botao-link { font-size: 0.8rem; margin-left: 0.3rem; }
+.agendar-retorno summary { cursor: pointer; list-style: none; }
+.agendar-retorno summary::-webkit-details-marker { display: none; }
+.form-retorno { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.4rem 0 0.2rem; padding: 0.6rem; background: var(--cinza-fundo); border-radius: 6px; }
+.form-retorno label { font-size: 0.8rem; font-weight: 600; color: var(--azul-marinho); }
+.form-retorno input, .form-retorno select, .form-retorno textarea { margin-top: 0.2rem; font-size: 0.85rem; padding: 0.35rem 0.5rem; }
+.form-retorno .linha-form { gap: 0.4rem; margin: 0; }
+.form-retorno input[type="date"], .form-retorno input[type="time"] { display: block; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; }
+.menu-acoes { max-height: calc(100vh - 170px); overflow-y: auto; }

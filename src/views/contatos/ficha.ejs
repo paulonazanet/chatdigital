@@ -25,6 +25,10 @@
         <textarea name="observacoes" rows="3" maxlength="2000"><%= contato.observacoes || '' %></textarea>
         <span class="ajuda">Só a equipe vê. Ex.: "Prefere entrega à tarde", "Paga no fiado".</span>
       </label>
+      <label>Lembrete de recompra deste cliente (dias)
+        <input type="number" name="recompra_dias" min="3" max="365" value="<%= contato.recompra_dias || '' %>" class="campo-curto" placeholder="padrão">
+        <span class="ajuda">Em branco = o padrão de Campanhas › Lembretes (ou a média do cliente). Ex.: quem gasta um botijão em 45 dias.</span>
+      </label>
     </fieldset>
 
     <fieldset>

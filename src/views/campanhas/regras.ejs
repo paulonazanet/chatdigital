@@ -1,0 +1,51 @@
+<%- include('../partials/inicio', { titulo: 'Regras de envio' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']; %>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Regras salvas.</p><% } %>
+  <p class="aviso">⚠️ O WhatsApp que o sistema usa hoje não é o oficial. Mandar muitas mensagens seguidas, para muita gente, pode fazer o
+    WhatsApp <strong>bloquear o número</strong>. Estas regras valem para tudo o que sai sozinho (lembretes e campanhas). Na dúvida, vá devagar.</p>
+
+  <form method="post" action="/painel/campanhas/regras" id="form-regras">
+    <fieldset>
+      <legend>Horário de envio</legend>
+      <p class="dica">Fora deste horário nada sai: fica na fila e sai no próximo horário. Use o 2º período se tiver intervalo.</p>
+      <table class="tabela tabela-horario">
+        <thead><tr><th>Dia</th><th>1º período</th><th>2º período</th></tr></thead>
+        <tbody>
+          <% DIAS.forEach((nomeDia, dia) => { const periodos = porDia[dia] || []; %>
+            <tr>
+              <td><%= nomeDia %></td>
+              <% [1, 2].forEach((p) => { const [ini, fim] = periodos[p - 1] || ['', '']; %>
+                <td class="periodo">
+                  <input type="time" name="inicio_<%= dia %>_<%= p %>" value="<%= ini %>" aria-label="<%= nomeDia %>, início do <%= p %>º período">
+                  <span>às</span>
+                  <input type="time" name="fim_<%= dia %>_<%= p %>" value="<%= fim %>" aria-label="<%= nomeDia %>, fim do <%= p %>º período">
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <label class="linha"><input type="checkbox" name="envio_pular_feriados" value="1" <%= regras.pularFeriados ? 'checked' : '' %>> Não mandar em feriado (os de Configurações › Feriados)</label>
+    </fieldset>
+    <fieldset>
+      <legend>Velocidade</legend>
+      <div class="campos-lado-a-lado">
+        <label>Intervalo mínimo entre envios (segundos)<input type="number" name="envio_intervalo_min" min="10" max="3600" value="<%= regras.intervaloMin %>" class="campo-curto"></label>
+        <label>Intervalo máximo (segundos)<input type="number" name="envio_intervalo_max" min="10" max="3600" value="<%= regras.intervaloMax %>" class="campo-curto"></label>
+      </div>
+      <p class="dica">O tempo entre um envio e outro é sorteado entre o mínimo e o máximo (parece menos robô). Com 45 a 90 s, saem uns 50 por hora.</p>
+      <label>Limite por dia (lembretes + campanhas)<input type="number" name="envio_limite_dia" min="1" max="1000" value="<%= regras.limiteDia %>" class="campo-curto">
+        <span class="ajuda">Passou disso, o resto fica para o dia seguinte. Sugestão para começar: 100.</span></label>
+    </fieldset>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar regras</button>
+    </div>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('../configuracoes/aviso-nao-salvo', { formId: 'form-regras' }) %>

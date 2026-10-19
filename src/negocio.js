@@ -36,6 +36,20 @@ const PADROES = {
 
   // painel ao vivo para TV (/tv/<token>, sem login): null = desligado
   painel_tv_token: null,
+
+  // E3: regras dos envios automáticos (src/envios.js, Campanhas > Regras de envio)
+  envio_janelas: ['1,2,3,4,5,6 08:00-19:00'],
+  envio_intervalo_min: 45, // segundos entre um envio e outro (sorteado entre min e max)
+  envio_intervalo_max: 90,
+  envio_limite_dia: 100,
+  envio_pular_feriados: true,
+
+  // lembrete de recompra (src/lembretes.js, Campanhas > Lembretes): vem desligado
+  recompra_ligado: false,
+  recompra_dias: 30,
+  recompra_resposta: 'atendente', // 'atendente' (vai pra fila do setor) ou 'bot' (segue o fluxo)
+  recompra_setor: 'Geral',
+  recompra_usar_media: true, // com 3 compras ou mais, usa a média do cliente
 };
 
 function carregarNegocio() {
