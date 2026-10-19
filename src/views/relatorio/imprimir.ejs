@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atendimento <%= detalhe.protocolo %> · <%= negocio.nome %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" />
+  <style>
+    body { margin: 0; background: #f2f4f7; color: #47535e; font-family: "Segoe UI", Arial, Helvetica, sans-serif; font-size: 14px; }
+    .folha { max-width: 760px; margin: 1.5rem auto; background: #fff; border: 1px solid #d7dce2; border-radius: 6px; padding: 2rem 2.25rem; }
+    .barra { max-width: 760px; margin: 1rem auto 0; display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .barra button { background: #1c3d5a; color: #fff; border: none; padding: 0.55rem 1.1rem; border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
+    .barra button:hover { background: #2f6690; }
+    header { border-bottom: 3px solid #ed813b; padding-bottom: 0.75rem; margin-bottom: 1rem; }
+    h1 { font-family: "Poppins", "Segoe UI", Arial, sans-serif; color: #1c3d5a; font-size: 1.35rem; margin: 0; }
+    .negocio { font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-weight: 600; color: #ed813b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem 1.25rem; margin: 0 0 1.25rem; }
+    dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: #8a97a3; }
+    dd { margin: 0; color: #1c3d5a; font-weight: 600; }
+    h2 { font-family: "Poppins", "Segoe UI", Arial, sans-serif; color: #1c3d5a; font-size: 1rem; margin: 1.25rem 0 0.5rem; }
+    .msg { padding: 0.45rem 0; border-bottom: 1px solid #eef0f3; break-inside: avoid; }
+    .msg:last-child { border-bottom: none; }
+    .quem { font-weight: 600; color: #1c3d5a; }
+    .msg-cliente .quem { color: #2f6690; }
+    .msg-atendente .quem { color: #0f6e56; }
+    .msg-interna { background: #fff8e6; padding-left: 0.5rem; padding-right: 0.5rem; }
+    .msg-interna .quem { color: #8a5a00; }
+    .quando { color: #8a97a3; font-size: 0.78rem; margin-left: 0.4rem; }
+    .texto { margin: 0.15rem 0 0; white-space: pre-wrap; word-break: break-word; }
+    .citada { margin: 0.2rem 0 0; padding-left: 0.5rem; border-left: 3px solid #d7dce2; color: #8a97a3; font-size: 0.85rem; }
+    footer { margin-top: 1.5rem; font-size: 0.75rem; color: #8a97a3; text-align: center; }
+    @media (max-width: 600px) { .folha { padding: 1.25rem; margin: 0.75rem 16px; } dl { grid-template-columns: 1fr 1fr; } .barra { margin: 0.75rem 16px 0; } }
+    @media print {
+      body { background: #fff; font-size: 12px; }
+      .barra { display: none; }
+      .folha { border: none; margin: 0; padding: 0; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <% const d = detalhe; const ROTULO_MIDIA = { imagem: '[imagem]', video: '[vídeo]', audio: '[áudio]' }; %>
+  <div class="barra"><button type="button" onclick="window.print()">Imprimir ou salvar PDF</button></div>
+  <article class="folha">
+    <header>
+      <div class="negocio"><%= negocio.nome %></div>
+      <h1>Atendimento <%= d.protocolo %></h1>
+    </header>
+    <dl>
+      <div><dt>Cliente</dt><dd><%= d.cliente %></dd></div>
+      <div><dt>Telefone</dt><dd><%= d.telefone %></dd></div>
+      <div><dt>Atendente</dt><dd><%= d.atendente %></dd></div>
+      <div><dt>Setor</dt><dd><%= d.setor %></dd></div>
+      <div><dt>Aberto em</dt><dd><%= d.abertoEm %></dd></div>
+      <div><dt>Finalizado em</dt><dd><%= d.finalizadoEm %></dd></div>
+      <div><dt>Espera na fila</dt><dd><%= d.espera %></dd></div>
+      <div><dt>Duração</dt><dd><%= d.duracao %></dd></div>
+      <div><dt>Nota</dt><dd><%= d.nota ?? '—' %></dd></div>
+      <div><dt>Motivo</dt><dd><%= d.motivo %></dd></div>
+      <div><dt>Finalizado</dt><dd><%= d.como %></dd></div>
+    </dl>
+    <h2>Conversa</h2>
+    <% d.mensagens.forEach((m) => { %>
+      <div class="msg msg-<%= m.interna ? 'interna' : m.remetente %>">
+        <span class="quem"><%= m.quem %><%= m.interna ? ' (nota interna)' : '' %></span><span class="quando"><%= m.quando %></span>
+        <% if (m.citada) { %><p class="citada"><%= m.citada %></p><% } %>
+        <p class="texto"><%= m.midiaTipo ? (ROTULO_MIDIA[m.midiaTipo] || '[arquivo]') + ' ' : '' %><%= m.texto %><%= m.falha ? ' (não enviada)' : '' %><%= m.reacaoCliente ? ` (reação do cliente: ${m.reacaoCliente})` : '' %></p>
+      </div>
+    <% }) %>
+    <% if (!d.mensagens.length) { %><p>Nenhuma mensagem guardada neste atendimento.</p><% } %>
+    <footer>Exportado pelo ChatDigital</footer>
+  </article>
+  <% if (imprimirAoAbrir) { %><script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script><% } %>
+</body>
+</html>

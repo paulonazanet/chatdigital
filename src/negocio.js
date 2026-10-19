@@ -21,6 +21,13 @@ const PADROES = {
   fechamento_automatico_horas: 24,
   mensagem_fechamento_automatico:
     'Seu atendimento ficou aberto por muito tempo, então estamos encerrando por aqui. Se ainda precisar de algo, é só mandar uma nova mensagem que a gente te atende. 🙂',
+
+  // metas do Relatório (Configurações > Metas), em minutos; 0 = sem meta. meta_nota = média mínima.
+  meta_espera_minutos: 0,
+  meta_primeira_resposta_minutos: 0,
+  meta_duracao_minutos: 0,
+  meta_nota: 0,
+  reincidencia_dias: 7, // cliente que volta até X dias depois de finalizar conta como reincidência
 };
 
 function carregarNegocio() {

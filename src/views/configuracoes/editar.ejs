@@ -31,6 +31,11 @@
       <span class="cartao-config-info"><%= resumo.feriadosAtivos %> feriado<%= resumo.feriadosAtivos === 1 ? '' : 's' %> ativo<%= resumo.feriadosAtivos === 1 ? '' : 's' %></span>
       <span class="cartao-config-texto">Dias em que o atendimento fecha</span>
     </a>
+    <a class="cartao-config" href="/painel/configuracoes/metas">
+      <span class="cartao-config-nome">Metas</span>
+      <span class="cartao-config-info"><%= resumo.metasDefinidas ? `${resumo.metasDefinidas} meta${resumo.metasDefinidas === 1 ? '' : 's'} definida${resumo.metasDefinidas === 1 ? '' : 's'}` : 'Nenhuma meta' %></span>
+      <span class="cartao-config-texto">Tempos e nota que o Relatório compara</span>
+    </a>
   </nav>
 
   <nav class="atalhos-config" aria-label="Ir para o quadro">

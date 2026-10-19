@@ -261,6 +261,40 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## E2, 1ª parte (18/10/2026, branch `e2`): Auditoria, metas e reincidências
+A E2 ("Gestão e confiança") está no branch **`e2`**, separado do `main` enquanto o Carlos testa a
+E1. Ordem aprovada pelo Paulo: 1ª Auditoria e relatórios; 2ª Equipe ao vivo (pausa, limite, alertas,
+painel da TV por link próprio sem senha); 3ª Fluxo com segurança (testar, versões, importar/exportar,
+fluxos prontos de gás, loja, clínica, provedor e delivery); 4ª Acesso e manutenção (papéis,
+restrição de login, status do sistema, importar/exportar contatos).
+- **Relatório com abas** (`views/relatorio/abas.ejs`): Resumo (`/painel/relatorio`), Auditoria
+  (`/painel/relatorio/auditoria`) e Reincidências (`/painel/relatorio/reincidencias`), todas na
+  permissão `ver_relatorio`.
+- **`src/relatorio.js`**: `temposDoAtendimento` (espera, 1ª resposta, duração = assumido →
+  finalizado), `lerMetas` (do `negocio.json`), `compararComMeta` (mediana + % dentro + ok),
+  `tabelaPorAtendente`, `listarReincidencias` (atendimento de origem 'cliente' aberto até N dias
+  depois do último finalizado da mesma conversa), `formatarIntervalo`, `formatarDataHoraCompleta`.
+  `montarRelatorio` devolve `esperaFila`/`primeiraResposta`/`duracao` como objeto
+  `{ texto, meta, dentro, ok }` (antes era só o texto).
+- **`src/auditoria.js`**: `lerFiltros` (datas em dia de Recife; protocolo ignora as datas),
+  `listarAuditoria` (50 por página), `exportarAuditoriaCsv` (";" + BOM; protocolo como `="..."`
+  pro Excel não virar 2,02E+11; célula começando com = + - @ ganha `'` na frente),
+  `detalheDoAtendimento`, `conversaEmTexto`.
+- **`marcarFaixasDeAtendimento` mudou de `routes/fila.js` para `src/atendimentos.js`** e agora
+  devolve também `atendimentoId` em cada mensagem (a Auditoria filtra as mensagens por ele). A Fila
+  continua igual.
+- **Metas**: campos novos no `negocio.json` (`meta_espera_minutos`, `meta_primeira_resposta_minutos`,
+  `meta_duracao_minutos`, `meta_nota`, `reincidencia_dias`; padrões em `PADROES` de `negocio.js`).
+  Tela `GET/POST /painel/configuracoes/metas` (`views/configuracoes/metas.ejs`), cartão novo em
+  Configurações (`.cartoes-config` virou `auto-fit` para caber 5).
+- Rotas da Auditoria: `/auditoria/exportar.csv`, `/auditoria/:id`, `/auditoria/:id/imprimir`
+  (`?imprimir=1` chama a impressão sozinho; página sem menu, CSS próprio de impressão),
+  `/auditoria/:id/conversa.txt`.
+- Testes: `test/e2-gestao.test.js` (7 testes). Total: 70 passam; as 8 "falhas" são o `EPERM`
+  antigo do Windows.
+- Painel de teste da E2: worktree em `.claude/worktrees/e2`, configuração `painel-e2` (porta 3057)
+  no `.claude/launch.json` da pasta principal, com cópia própria do banco de teste.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -288,6 +322,8 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
 - `src/conversas.js` — banco: conversas, mensagens, notas internas, fila, finalizadas, busca, nome do contato.
 - `src/respostas-rapidas.js`, `src/motivos-encerramento.js`, `src/marcadores.js`, `src/contatos.js`,
   `src/feriados.js` — cadastros da E1. `src/horario.js` — regra das janelas de horário.
+- `src/relatorio.js` + `src/auditoria.js` + `src/routes/relatorio.js` + `src/views/relatorio*` —
+  menu Relatório (Resumo, Auditoria, Reincidências).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

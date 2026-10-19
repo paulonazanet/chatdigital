@@ -1,0 +1,71 @@
+<%- include('../partials/inicio', { titulo: `Atendimento ${detalhe.protocolo}` }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const d = detalhe;
+  const corDaNota = (n) => (n >= 9 ? 'nota-boa' : n >= 7 ? 'nota-media' : 'nota-ruim');
+  // volta pra Auditoria com os mesmos filtros (só a parte da busca, nunca outro endereço)
+  const voltarPara = '/painel/relatorio/auditoria' + (voltar ? '?' + new URLSearchParams(voltar).toString() : '');
+%>
+<main class="conteudo pagina-relatorio">
+  <p class="trilha-config"><a href="<%= voltarPara %>">Auditoria</a> › Atendimento <%= d.protocolo %></p>
+  <div class="cabecalho-lista">
+    <h1>Atendimento <%= d.protocolo %></h1>
+    <p class="acoes-auditoria">
+      <a class="botao" href="/painel/relatorio/auditoria/<%= d.id %>/imprimir?imprimir=1" target="_blank" rel="noopener">Imprimir ou salvar PDF</a>
+      <a class="botao-secundario botao" href="/painel/relatorio/auditoria/<%= d.id %>/conversa.txt" download>Baixar em texto</a>
+      <a class="botao-secundario botao" href="/painel/fila/<%= d.conversaId %>">Abrir na Fila</a>
+    </p>
+  </div>
+
+  <dl class="detalhes-atendimento">
+    <div><dt>Cliente</dt><dd><%= d.cliente %><% if (d.telefone !== d.cliente) { %> <span class="dica-inline"><%= d.telefone %></span><% } %></dd></div>
+    <div><dt>Atendente</dt><dd><%= d.atendente %></dd></div>
+    <div><dt>Setor</dt><dd><%= d.setor %></dd></div>
+    <div><dt>Começou por</dt><dd><%= d.origem %></dd></div>
+    <div><dt>Aberto em</dt><dd><%= d.abertoEm %></dd></div>
+    <div><dt>Assumido em</dt><dd><%= d.assumidoEm %></dd></div>
+    <div><dt>1ª resposta em</dt><dd><%= d.primeiraRespostaEm %></dd></div>
+    <div><dt>Finalizado em</dt><dd><%= d.finalizadoEm %> <span class="dica-inline">(<%= d.como.toLowerCase() %>)</span></dd></div>
+    <div><dt>Espera na fila</dt><dd><%= d.espera %></dd></div>
+    <div><dt>1ª resposta</dt><dd><%= d.resposta %></dd></div>
+    <div><dt>Duração</dt><dd><%= d.duracao %></dd></div>
+    <div><dt>Motivo</dt><dd><%= d.motivo %></dd></div>
+    <div><dt>Nota</dt><dd><% if (d.nota !== null) { %><span class="nota <%= corDaNota(d.nota) %>"><%= d.nota %></span><% } else { %>—<% } %></dd></div>
+  </dl>
+
+  <h2 class="subtitulo-painel">Conversa <span class="subtitulo-detalhe"><%= d.mensagens.length %> mensage<%= d.mensagens.length === 1 ? 'm' : 'ns' %>, só deste atendimento</span></h2>
+  <div class="conversa-auditoria">
+    <% d.mensagens.forEach((m) => { %>
+      <div class="linha-auditoria linha-auditoria-<%= m.interna ? 'interna' : m.remetente %>">
+        <span class="linha-auditoria-quem"><%= m.quem %><% if (m.interna) { %> · nota interna<% } %></span>
+        <span class="linha-auditoria-quando"><%= m.quando %></span>
+        <% if (m.citada) { %><blockquote class="linha-auditoria-citada"><%= m.citada %></blockquote><% } %>
+        <% if (m.midiaUrl && m.midiaTipo === 'imagem') { %><img src="<%= m.midiaUrl %>" alt="Imagem" class="mensagem-midia" loading="lazy"><% } %>
+        <% if (m.midiaUrl && m.midiaTipo === 'video') { %><video src="<%= m.midiaUrl %>" controls preload="none" class="mensagem-midia"></video><% } %>
+        <% if (m.midiaUrl && m.midiaTipo === 'audio') { %><audio src="<%= m.midiaUrl %>" controls preload="none" class="mensagem-midia"></audio><% } %>
+        <p><%= m.texto %></p>
+        <% if (m.falha) { %><span class="selo selo-pequeno selo-situacao-bloqueado">não enviada</span><% } %>
+        <% if (m.reacaoCliente) { %><span class="dica-inline">Reação do cliente: <%= m.reacaoCliente %></span><% } %>
+      </div>
+    <% }) %>
+    <% if (!d.mensagens.length) { %><p class="dica">Nenhuma mensagem guardada neste atendimento (pode ter sido apagada pela limpeza automática de conversas antigas).</p><% } %>
+  </div>
+
+  <% if (d.outros.length) { %>
+    <h2 class="subtitulo-painel">Outros atendimentos deste cliente</h2>
+    <table class="tabela tabela-notas">
+      <thead><tr><th>Aberto em</th><th>Protocolo</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <% d.outros.forEach((o) => { %>
+          <tr onclick="location.href='/painel/relatorio/auditoria/<%= o.id %>'">
+            <td><%= o.abertoEm %></td>
+            <td><a href="/painel/relatorio/auditoria/<%= o.id %>"><%= o.protocolo %></a><% if (!o.finalizado) { %> <span class="selo selo-pequeno">em andamento</span><% } %></td>
+            <td><%= o.motivo %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>
+<script src="/js/notificacoes.js" defer></script>

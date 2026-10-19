@@ -40,12 +40,23 @@ Resumo rápido da operação (precisa da permissão "Ver Painel"; sem ela, cai d
 - Quem está online agora (quem está com o painel aberto).
 
 ## Menu: Relatório
-Números do atendimento (só administrador, ou atendente com a permissão "Ver o Relatório").
+Números do atendimento (só administrador, ou atendente com a permissão "Ver o Relatório"). Três
+abas: **Resumo**, **Auditoria** e **Reincidências**.
+
+### Relatório > Resumo
 - **Período**: Hoje, 7 dias, 30 dias ou Mês passado; e filtro por atendente.
 - **Cartões**: total de atendimentos (e quantos foram finalizados sem nenhuma resposta do
-  atendente), espera na fila até alguém assumir, tempo até a 1ª resposta e nota média da pesquisa
-  (com quantas respostas). Os tempos são o valor típico (mediana: metade esperou menos que isso),
-  pra um cliente que escreveu de madrugada não distorcer.
+  atendente), espera na fila até alguém assumir, tempo até a 1ª resposta, **duração do
+  atendimento** (de assumir até finalizar), nota média da pesquisa (com quantas respostas) e
+  **quantos clientes voltaram** em até X dias (leva para a aba Reincidências). Os tempos são o valor
+  típico (mediana: metade esperou menos que isso), pra um cliente que escreveu de madrugada não
+  distorcer.
+- **Metas** (definidas em Configurações > Metas): o cartão fica **verde** quando o tempo típico está
+  dentro da meta e **vermelho** quando passa, com "meta 10 min · 75% dentro" (quantos % dos
+  atendimentos ficaram dentro). A nota fica vermelha abaixo da média mínima. Sem meta, sem cor.
+- **Por atendente** (só em "Todos os atendentes"): uma linha por atendente com atendimentos, espera,
+  1ª resposta, duração, nota média e finalizados sem resposta, com as mesmas cores das metas.
+  Clicar no nome abre o Relatório só dele.
 - **Atendimentos por dia** (ou por hora, no filtro Hoje): gráfico de barras.
 - **Horários de pico**: quadro dia da semana × hora; quanto mais escuro, mais clientes chegaram.
   Mostra das 7h às 19h, ou mais se chegou cliente fora disso.
@@ -54,6 +65,30 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
 - Conta como **atendimento** cada vez que o cliente entra na fila (pelo bot) ou que um atendente
   começa a falar com alguém (Nova conversa, Puxar). Atendimentos de antes do Relatório existir
   foram montados pelas mensagens (aproximado: "assumiu" = 1ª resposta).
+
+### Relatório > Auditoria
+Os atendimentos **finalizados**, para conferir depois.
+- **Filtros**: de/até (padrão: últimos 30 dias), protocolo (acha mesmo fora das datas), cliente
+  (nome ou telefone), atendente, setor (só aparece com mais de um setor), motivo de encerramento
+  (ou "Sem motivo"), como foi finalizado (pelo atendente, fechamento automático, outro), nota
+  (com, sem, 0–6, 7–8, 9–10) e marcador (que a conversa tem agora). 50 por página.
+- **Exportar lista (Excel)**: planilha (.csv) com os mesmos filtros: protocolo, cliente, telefone,
+  atendente, setor, horários, tempos, motivo e nota (até 5.000 linhas).
+- **Detalhe do atendimento** (clicar numa linha): cliente, atendente, setor, de onde começou, os
+  horários (aberto, assumido, 1ª resposta, finalizado), os tempos, motivo e nota; a **conversa só
+  daquele atendimento**, com notas internas em amarelo, fotos/áudios/vídeos e reações; e os outros
+  atendimentos do mesmo cliente.
+- **Imprimir ou salvar PDF**: abre uma folha limpa com o nome do negócio, os dados e a conversa e
+  já chama a impressão (no Chrome, "Salvar como PDF").
+- **Baixar em texto**: a conversa num arquivo .txt (cabeçalho do atendimento + uma linha por
+  mensagem).
+
+### Relatório > Reincidências
+- Clientes que **voltaram a chamar até X dias** depois de um atendimento finalizado (X em
+  Configurações > Metas; padrão 7). Muitas vezes é sinal de que o problema não foi resolvido.
+- Mostra quando voltou, o cliente, depois de quanto tempo, o atendimento anterior (protocolo, quem
+  atendeu e o motivo). Clicar abre o atendimento anterior na Auditoria.
+- Filtro por período e por atendente (o atendente do atendimento **anterior**).
 ## Menu: Fila (a tela principal do atendente)
 **Lista de conversas (lado esquerdo)**
 - **Filtros** (duas linhas): **Minhas** (as que você está atendendo) · **Na fila** (o bot passou
@@ -178,8 +213,8 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   atendente.
 
 ## Menu: Configurações
-- **Cartões no topo**: WhatsApp (conectado ou não), Motivos de encerramento, Marcadores e Feriados
-  (com quantos ativos), e atalhos para cada quadro. Botão **Salvar alterações** fixo no pé da tela,
+- **Cartões no topo**: WhatsApp (conectado ou não), Motivos de encerramento, Marcadores, Feriados
+  (com quantos ativos) e Metas (quantas definidas), e atalhos para cada quadro. Botão **Salvar alterações** fixo no pé da tela,
   com aviso de alteração não salva.
 - **Dados do negócio**: nome, horário, endereço, formas de pagamento.
 - **Mensagens automáticas**: boas-vindas do atendente (ao assumir), encerramento (ao finalizar),
@@ -208,6 +243,12 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - Cada feriado: nome, data, repete todo ano, dia inteiro ou período, **tem expediente** (só
   registra), mensagem do feriado, ativo. Lista na ordem do próximo a acontecer.
 - Num feriado sem expediente: o bloco Horário do fluxo vai pelo "fora" e os setores ficam fechados.
+
+### Configurações > Metas
+- Minutos de **espera na fila**, **1ª resposta** e **duração do atendimento**, e a **nota média
+  mínima** (0 a 10, aceita 8,5). 0 = sem meta naquele item. O Relatório compara com elas.
+- **Reincidência**: quantos dias depois de finalizar a volta do cliente conta como reincidência
+  (1 a 90; padrão 7).
 
 ### Configurações > WhatsApp
 - Mostra se está conectado; quando não está, mostra o QR Code pra escanear (Aparelhos

@@ -8,6 +8,7 @@ const { listarSetores } = require('../setores');
 const motivos = require('../motivos-encerramento');
 const marcadores = require('../marcadores');
 const feriados = require('../feriados');
+const { lerMetas } = require('../relatorio');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -48,6 +49,7 @@ function resumoDasSubtelas() {
     motivosAtivos,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }).length,
     feriadosAtivos: feriados.listarFeriados().filter((f) => f.ativo).length,
+    metasDefinidas: Object.entries(lerMetas()).filter(([chave, valor]) => chave !== 'reincidenciaDias' && valor).length,
   };
 }
 
@@ -235,6 +237,38 @@ router.post('/feriados/:id', (req, res) => {
 router.post('/feriados/:id/excluir', (req, res) => {
   feriados.excluirFeriado(Number(req.params.id));
   res.redirect('/painel/configuracoes/feriados');
+});
+
+// Metas do Relatório (verde dentro, vermelho fora) e o prazo das reincidências. 0 = sem meta.
+const CAMPOS_METAS = [
+  ['meta_espera_minutos', 0, 1440, true],
+  ['meta_primeira_resposta_minutos', 0, 1440, true],
+  ['meta_duracao_minutos', 0, 1440, true],
+  ['meta_nota', 0, 10, false],
+  ['reincidencia_dias', 1, 90, true],
+];
+function renderizarMetas(req, res, extra = {}) {
+  res.render('configuracoes/metas', { atendenteLogado: req.atendente, negocio: carregarNegocio(), erro: null, salvo: !!req.query.salvo, ...extra });
+}
+router.get('/metas', (req, res) => renderizarMetas(req, res));
+router.post('/metas', (req, res) => {
+  const campos = {};
+  for (const [campo, minimo, maximo, inteiro] of CAMPOS_METAS) {
+    const texto = String(req.body[campo] ?? '').trim().replace(',', '.');
+    const valor = texto === '' ? (campo === 'reincidencia_dias' ? 7 : 0) : Number(texto);
+    if (!Number.isFinite(valor) || valor < minimo || valor > maximo || (inteiro && !Number.isInteger(valor))) {
+      const erro =
+        campo === 'meta_nota'
+          ? 'A nota mínima tem que ser de 0 a 10 (pode ter uma casa decimal, ex.: 8,5).'
+          : campo === 'reincidencia_dias'
+            ? 'Os dias da reincidência têm que ser um número inteiro de 1 a 90.'
+            : 'Os tempos das metas têm que ser minutos inteiros, de 0 a 1440.';
+      return renderizarMetas(req, res, { negocio: { ...carregarNegocio(), ...req.body }, erro });
+    }
+    campos[campo] = campo === 'meta_nota' ? Math.round(valor * 10) / 10 : valor;
+  }
+  salvarConfiguracoes(campos);
+  res.redirect('/painel/configuracoes/metas?salvo=1');
 });
 
 router.get('/whatsapp', (req, res) => {

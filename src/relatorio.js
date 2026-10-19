@@ -1,4 +1,5 @@
 const { db } = require('./db');
+const { carregarNegocio } = require('./negocio');
 
 // Números do menu Relatório, lidos do livro de atendimentos (atendimentos.js). Tudo em horário de
 // Brasília/Recife: UTC-3 fixo (o Brasil não tem mais horário de verão desde 2019).
@@ -54,10 +55,24 @@ function formatarDuracao(ms) {
   return resto ? `${horas}h ${resto}min` : `${horas}h`;
 }
 
+// intervalos longos (reincidência): "2 dias 3h" em vez de "51h"
+function formatarIntervalo(ms) {
+  if (ms < DIA_MS) return formatarDuracao(ms);
+  const dias = Math.floor(ms / DIA_MS);
+  const horas = Math.floor((ms % DIA_MS) / 3600000);
+  return `${dias} dia${dias === 1 ? '' : 's'}${horas ? ` ${horas}h` : ''}`;
+}
+
 const doisDigitos = (n) => String(n).padStart(2, '0');
 function formatarDataHora(iso) {
   const local = paraLocal(Date.parse(iso));
   return `${doisDigitos(local.getUTCDate())}/${doisDigitos(local.getUTCMonth() + 1)} ${doisDigitos(local.getUTCHours())}:${doisDigitos(local.getUTCMinutes())}`;
+}
+// com o ano (Auditoria, conversa exportada)
+function formatarDataHoraCompleta(iso) {
+  if (!iso) return '—';
+  const local = paraLocal(Date.parse(iso));
+  return `${doisDigitos(local.getUTCDate())}/${doisDigitos(local.getUTCMonth() + 1)}/${local.getUTCFullYear()} ${doisDigitos(local.getUTCHours())}:${doisDigitos(local.getUTCMinutes())}`;
 }
 
 // Telefone legível: 5581996850663 → (81) 99685-0663
@@ -65,6 +80,116 @@ function formatarTelefone(numero) {
   const digitos = String(numero || '').split('@')[0].replace(/\D/g, '');
   const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(digitos);
   return br ? `(${br[1]}) ${br[2]}-${br[3]}` : digitos || 'cliente';
+}
+
+// Tempos de um atendimento, em ms (null quando não dá pra medir). Espera e 1a resposta só contam
+// pra quem veio do cliente (origem 'cliente'); o atendimento começado pelo atendente não tem fila.
+// Duração (TMA) = de quando alguém assumiu até finalizar.
+function temposDoAtendimento(t) {
+  const doCliente = t.origem === 'cliente';
+  return {
+    espera: doCliente && t.assumido_em ? Date.parse(t.assumido_em) - Date.parse(t.aberto_em) : null,
+    resposta: doCliente && t.primeira_resposta_em ? Date.parse(t.primeira_resposta_em) - Date.parse(t.aberto_em) : null,
+    duracao: t.assumido_em && t.finalizado_em ? Math.max(0, Date.parse(t.finalizado_em) - Date.parse(t.assumido_em)) : null,
+  };
+}
+
+const formatarNota = (valor) => (valor === null ? '—' : valor.toFixed(1).replace('.', ','));
+const mediaDasNotas = (lista) => {
+  const comNota = lista.filter((t) => t.nota !== null);
+  return comNota.length ? comNota.reduce((s, t) => s + t.nota, 0) / comNota.length : null;
+};
+
+/** Metas do Relatório (Configurações > Metas): minutos, 0 = sem meta; a nota é a média mínima. */
+function lerMetas(negocio = carregarNegocio()) {
+  const numero = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
+  return {
+    espera: numero(negocio.meta_espera_minutos),
+    resposta: numero(negocio.meta_primeira_resposta_minutos),
+    duracao: numero(negocio.meta_duracao_minutos),
+    nota: numero(negocio.meta_nota),
+    reincidenciaDias: numero(negocio.reincidencia_dias) || 7,
+  };
+}
+
+// Compara um tempo com a meta: o tempo típico (mediana) e quantos % ficaram dentro dela.
+function compararComMeta(valores, metaMinutos) {
+  const tipico = mediana(valores);
+  if (!metaMinutos || !valores.length) return { texto: formatarDuracao(tipico), meta: metaMinutos || 0, dentro: null, ok: null };
+  const limite = metaMinutos * 60000;
+  const dentro = Math.round((valores.filter((v) => v <= limite).length / valores.length) * 100);
+  return { texto: formatarDuracao(tipico), meta: metaMinutos, dentro, ok: tipico <= limite };
+}
+
+/**
+ * Reincidências: atendimentos que o cliente abriu (origem 'cliente') até `dias` dias depois de outro
+ * atendimento dele ter sido finalizado. Sinal de que o problema não foi resolvido de primeira.
+ * Com `atendenteId`, só os que voltaram depois de um atendimento dele. Do mais recente ao mais antigo.
+ */
+function listarReincidencias({ inicio, fim, dias, atendenteId = null }) {
+  const limiteMs = dias * DIA_MS;
+  const lista = db
+    .prepare(
+      `SELECT t.*, c.nome_contato, c.numero, c.numero_exibicao,
+              ant.id AS anterior_id, ant.protocolo AS anterior_protocolo, ant.finalizado_em AS anterior_finalizado_em,
+              ant.motivo_texto AS anterior_motivo, aa.nome AS anterior_atendente
+       FROM atendimentos t
+       JOIN conversas c ON c.id = t.conversa_id
+       JOIN atendimentos ant ON ant.id = (
+         SELECT p.id FROM atendimentos p
+         WHERE p.conversa_id = t.conversa_id AND p.id <> t.id AND p.finalizado_em IS NOT NULL AND p.finalizado_em <= t.aberto_em
+         ORDER BY p.finalizado_em DESC LIMIT 1
+       )
+       LEFT JOIN atendentes aa ON aa.id = ant.atendente_id
+       WHERE t.origem = 'cliente' AND t.aberto_em >= ? AND t.aberto_em < ?
+         AND (? IS NULL OR ant.atendente_id = ?)
+       ORDER BY t.aberto_em DESC`,
+    )
+    .all(new Date(inicio).toISOString(), new Date(fim).toISOString(), atendenteId, atendenteId);
+  return lista
+    .filter((t) => Date.parse(t.aberto_em) - Date.parse(t.anterior_finalizado_em) <= limiteMs)
+    .map((t) => ({
+      atendimentoId: t.id,
+      anteriorId: t.anterior_id,
+      conversaId: t.conversa_id,
+      cliente: t.nome_contato || formatarTelefone(t.numero_exibicao || t.numero),
+      protocolo: t.protocolo,
+      voltouEm: formatarDataHora(t.aberto_em),
+      anteriorProtocolo: t.anterior_protocolo,
+      anteriorFinalizado: formatarDataHora(t.anterior_finalizado_em),
+      anteriorMotivo: t.anterior_motivo || '—',
+      anteriorAtendente: t.anterior_atendente || '—',
+      intervalo: formatarIntervalo(Date.parse(t.aberto_em) - Date.parse(t.anterior_finalizado_em)),
+    }));
+}
+
+// Uma linha por atendente (quem ficou com o atendimento): só na visão "Todos os atendentes".
+function tabelaPorAtendente(lista, metas) {
+  const grupos = new Map();
+  for (const t of lista) {
+    const chave = t.atendente_id || 0;
+    if (!grupos.has(chave)) grupos.set(chave, { nome: t.atendente_nome || 'Sem atendente', atendenteId: t.atendente_id || null, itens: [] });
+    grupos.get(chave).itens.push(t);
+  }
+  return [...grupos.values()]
+    .map((g) => {
+      const tempos = g.itens.map(temposDoAtendimento);
+      const valores = (campo) => tempos.map((x) => x[campo]).filter((v) => v !== null);
+      const nota = mediaDasNotas(g.itens);
+      return {
+        nome: g.nome,
+        atendenteId: g.atendenteId,
+        total: g.itens.length,
+        finalizados: g.itens.filter((t) => t.finalizado_em).length,
+        semResposta: g.itens.filter((t) => t.origem === 'cliente' && t.finalizado_em && !t.primeira_resposta_em).length,
+        espera: compararComMeta(valores('espera'), metas.espera),
+        resposta: compararComMeta(valores('resposta'), metas.resposta),
+        duracao: compararComMeta(valores('duracao'), metas.duracao),
+        nota: formatarNota(nota),
+        notaOk: nota === null || !metas.nota ? null : nota >= metas.nota,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
 }
 
 function montarRelatorio({ periodo = '30', atendenteId = null, agoraMs = Date.now() } = {}) {
@@ -83,12 +208,13 @@ function montarRelatorio({ periodo = '30', atendenteId = null, agoraMs = Date.no
     .all(new Date(inicio).toISOString(), new Date(fim).toISOString(), atendenteId, atendenteId);
 
   const doCliente = lista.filter((t) => t.origem === 'cliente');
-  const espera = doCliente.filter((t) => t.assumido_em).map((t) => Date.parse(t.assumido_em) - Date.parse(t.aberto_em));
-  const resposta = doCliente
-    .filter((t) => t.primeira_resposta_em)
-    .map((t) => Date.parse(t.primeira_resposta_em) - Date.parse(t.aberto_em));
+  const tempos = lista.map(temposDoAtendimento);
+  const valores = (campo) => tempos.map((x) => x[campo]).filter((v) => v !== null);
   const semResposta = doCliente.filter((t) => t.finalizado_em && !t.primeira_resposta_em).length;
   const comNota = lista.filter((t) => t.nota !== null);
+  const metas = lerMetas();
+  const notaMedia = mediaDasNotas(lista);
+  const reincidencias = listarReincidencias({ inicio, fim, dias: metas.reincidenciaDias, atendenteId });
 
   // barras: por hora quando o período é um dia só, senão por dia
   const umDia = fim - inicio <= DIA_MS;
@@ -132,10 +258,16 @@ function montarRelatorio({ periodo = '30', atendenteId = null, agoraMs = Date.no
     periodos: PERIODOS,
     total: lista.length,
     semResposta,
-    esperaFila: formatarDuracao(mediana(espera)),
-    primeiraResposta: formatarDuracao(mediana(resposta)),
-    notaMedia: comNota.length ? (comNota.reduce((s, t) => s + t.nota, 0) / comNota.length).toFixed(1).replace('.', ',') : '—',
+    metas,
+    esperaFila: compararComMeta(valores('espera'), metas.espera),
+    primeiraResposta: compararComMeta(valores('resposta'), metas.resposta),
+    duracao: compararComMeta(valores('duracao'), metas.duracao),
+    notaMedia: formatarNota(notaMedia),
+    notaOk: notaMedia === null || !metas.nota ? null : notaMedia >= metas.nota,
     totalNotas: comNota.length,
+    reincidencias: reincidencias.length,
+    reincidenciasPct: doCliente.length ? Math.round((reincidencias.length / doCliente.length) * 100) : 0,
+    porAtendente: atendenteId ? [] : tabelaPorAtendente(lista, metas),
     barras,
     maiorBarra: Math.max(1, ...barras.map((b) => b.total)),
     porHora: umDia,
@@ -157,4 +289,21 @@ function montarRelatorio({ periodo = '30', atendenteId = null, agoraMs = Date.no
   };
 }
 
-module.exports = { montarRelatorio, intervaloDoPeriodo, mediana, formatarDuracao, PERIODOS };
+module.exports = {
+  montarRelatorio,
+  intervaloDoPeriodo,
+  mediana,
+  formatarDuracao,
+  formatarIntervalo,
+  formatarDataHora,
+  formatarDataHoraCompleta,
+  formatarTelefone,
+  temposDoAtendimento,
+  lerMetas,
+  compararComMeta,
+  listarReincidencias,
+  paraLocal,
+  FUSO_MS,
+  DIA_MS,
+  PERIODOS,
+};

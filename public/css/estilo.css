@@ -1230,7 +1230,7 @@ form input[type="date"] { display: block; margin-top: 0.35rem; padding: 0.5rem 0
 .trilha-config { font-size: 0.85rem; color: var(--cinza-texto); margin: 0 0 0.25rem; }
 .trilha-config a { color: var(--azul-destaque); }
 
-.cartoes-config { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1.25rem 0 1rem; }
+.cartoes-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1.25rem 0 1rem; }
 .cartao-config {
   display: flex;
   flex-direction: column;
@@ -1341,3 +1341,57 @@ form .campo-com-unidade input[type="number"] { width: 6.5rem; margin-top: 0; }
 .no-fluxo-aguardar .no-cabecalho { background: #2f6690; }
 .no-fluxo-nota .no-cabecalho { background: #a8892a; }
 .sem-quebra { white-space: nowrap; }
+
+/* E2, 1a parte: abas do Relatório, metas, Auditoria e Reincidências */
+.abas-relatorio { display: flex; gap: 0.25rem; margin: 1rem 0 0.25rem; border-bottom: 1px solid var(--cinza-borda); }
+.abas-relatorio a {
+  padding: 0.5rem 1rem; font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-weight: 500; font-size: 0.9rem;
+  color: var(--cinza-texto); border-bottom: 3px solid transparent; margin-bottom: -1px;
+}
+.abas-relatorio a:hover { text-decoration: none; color: var(--azul-marinho); }
+.abas-relatorio a.ativa { color: var(--azul-marinho); border-bottom-color: var(--marca-laranja); font-weight: 600; }
+.cartao-meta-ok { border-left: 4px solid var(--verde-ativo); }
+.cartao-meta-ok .numero { color: var(--verde-ativo); }
+.cartao-meta-fora { border-left: 4px solid var(--vermelho-erro); }
+.cartao-meta-fora .numero { color: var(--vermelho-erro); }
+a.cartao-link { color: inherit; }
+a.cartao-link:hover { text-decoration: none; border-color: var(--azul-destaque); }
+a.cartao-link:hover .rotulo-extra { text-decoration: underline; }
+.celula-meta-ok { color: var(--verde-ativo); font-weight: 600; }
+.celula-meta-fora { color: var(--vermelho-erro); font-weight: 600; }
+.tabela-rolagem { overflow-x: auto; }
+.tabela-rolagem .tabela { min-width: 640px; }
+.filtros-auditoria {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem 0.9rem; align-items: end;
+  background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px; padding: 0.85rem 1rem; margin: 0.75rem 0;
+}
+.filtros-auditoria label { font-size: 0.8rem; font-weight: 600; color: var(--azul-marinho); }
+.filtros-auditoria input, .filtros-auditoria select { font-size: 0.85rem; padding: 0.4rem 0.5rem; font-weight: 400; }
+.filtros-auditoria input[type="date"] { display: block; width: 100%; margin-top: 0.35rem; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; }
+.filtros-auditoria-botoes { display: flex; align-items: center; gap: 0.75rem; white-space: nowrap; }
+.filtros-auditoria-botoes button { padding: 0.45rem 1rem; font-size: 0.9rem; }
+.cabecalho-resultado { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.75rem 0 0.5rem; color: var(--azul-marinho); }
+.selo-pequeno { font-size: 0.68rem; }
+.dica-inline { font-size: 0.8rem; color: #8a97a3; font-weight: 400; }
+.campo-curto { max-width: 8rem; }
+form input.campo-curto, form input[type="number"].campo-curto { max-width: 8rem; }
+.acoes-auditoria { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; }
+.acoes-auditoria .botao { margin-left: 0 !important; }
+.detalhes-atendimento {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.75rem 1.25rem; margin: 1rem 0;
+  background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px; padding: 1rem 1.25rem;
+}
+.detalhes-atendimento dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: #8a97a3; }
+.detalhes-atendimento dd { margin: 0.1rem 0 0; color: var(--azul-marinho); font-weight: 600; font-size: 0.92rem; }
+.conversa-auditoria { background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px; padding: 0.25rem 1.25rem; }
+.linha-auditoria { padding: 0.6rem 0; border-bottom: 1px solid #eef0f3; }
+.linha-auditoria:last-child { border-bottom: none; }
+.linha-auditoria p { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; font-size: 0.9rem; }
+.linha-auditoria-quem { font-weight: 600; font-size: 0.85rem; color: var(--azul-marinho); }
+.linha-auditoria-cliente .linha-auditoria-quem { color: var(--azul-destaque); }
+.linha-auditoria-atendente .linha-auditoria-quem { color: var(--verde-atendente); }
+.linha-auditoria-interna { background: #fff8e6; margin: 0 -1.25rem; padding-left: 1.25rem; padding-right: 1.25rem; }
+.linha-auditoria-interna .linha-auditoria-quem { color: #8a5a00; }
+.linha-auditoria-quando { font-size: 0.75rem; color: #8a97a3; margin-left: 0.5rem; }
+.linha-auditoria-citada { margin: 0.25rem 0 0; padding: 0.2rem 0.6rem; border-left: 3px solid var(--marca-laranja); color: #5f6d7a; font-size: 0.82rem; }
+.linha-auditoria .mensagem-midia { display: block; }

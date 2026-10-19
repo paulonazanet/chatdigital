@@ -1,0 +1,51 @@
+<%- include('../partials/inicio', { titulo: 'Metas' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const valor = (campo, padrao) => (negocio[campo] === undefined || negocio[campo] === null ? padrao : String(negocio[campo]).replace('.', ',')); %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Metas</p>
+  <h1>Metas</h1>
+  <p class="dica">O <a href="/painel/relatorio">Relatório</a> compara os números com estas metas: verde quando o tempo típico está dentro,
+    vermelho quando passa, e mostra quantos % dos atendimentos ficaram dentro. Deixe <strong>0</strong> para não ter meta naquele item.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Metas salvas.</p><% } %>
+
+  <form method="post" action="/painel/configuracoes/metas" id="form-metas">
+    <fieldset>
+      <legend>Tempos (em minutos)</legend>
+      <div class="campos-lado-a-lado campos-metas">
+        <label>Espera na fila
+          <input type="number" name="meta_espera_minutos" min="0" max="1440" step="1" value="<%= valor('meta_espera_minutos', 0) %>">
+          <span class="ajuda">Do cliente entrar na fila até alguém assumir.</span>
+        </label>
+        <label>1ª resposta
+          <input type="number" name="meta_primeira_resposta_minutos" min="0" max="1440" step="1" value="<%= valor('meta_primeira_resposta_minutos', 0) %>">
+          <span class="ajuda">Do cliente chegar até a 1ª mensagem do atendente.</span>
+        </label>
+        <label>Duração do atendimento
+          <input type="number" name="meta_duracao_minutos" min="0" max="1440" step="1" value="<%= valor('meta_duracao_minutos', 0) %>">
+          <span class="ajuda">De assumir até finalizar.</span>
+        </label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Nota da pesquisa</legend>
+      <label>Nota média mínima (0 a 10)
+        <input type="text" name="meta_nota" inputmode="decimal" value="<%= valor('meta_nota', 0) %>" class="campo-curto">
+        <span class="ajuda">Ex.: 9 ou 8,5. A média abaixo disso fica vermelha.</span>
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Reincidência</legend>
+      <label>Contar como reincidência quando o cliente volta em até (dias)
+        <input type="number" name="reincidencia_dias" min="1" max="90" step="1" value="<%= valor('reincidencia_dias', 7) %>" class="campo-curto">
+        <span class="ajuda">Aparece no Relatório, na aba Reincidências.</span>
+      </label>
+    </fieldset>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar metas</button>
+    </div>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('aviso-nao-salvo', { formId: 'form-metas' }) %>
