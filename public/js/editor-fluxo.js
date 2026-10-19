@@ -730,8 +730,13 @@
       });
   }
 
+  // De onde veio o fluxo que está na tela, se não foi editado à mão (vai pra Versões ao salvar)
+  var origemPendente = null; // { tipo: 'modelo' | 'importado', detalhe }
+
   function salvar() {
-    fetch('/painel/fluxo/salvar', {
+    var url = '/painel/fluxo/salvar';
+    if (origemPendente) url += '?origem=' + encodeURIComponent(origemPendente.tipo) + '&detalhe=' + encodeURIComponent(origemPendente.detalhe || '');
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fluxo),
@@ -739,6 +744,8 @@
       .then(function (r) { return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; }); })
       .then(function (res) {
         if (res.corpo.ok) {
+          origemPendente = null;
+          mostrarFaixa('');
           marcarSalvo();
         } else {
           mensagemEl.textContent = 'Não salvou: ' + res.corpo.erros.join(' | ');
@@ -752,6 +759,191 @@
   }
 
   document.getElementById('botao-salvar-fluxo').addEventListener('click', salvar);
+
+  // ---- Trocar o fluxo inteiro da tela (fluxo pronto ou arquivo importado): só vale depois de Salvar ----
+
+  var faixa = document.getElementById('faixa-editor');
+  function mostrarFaixa(texto, tipo) {
+    faixa.hidden = !texto;
+    faixa.textContent = texto || '';
+    faixa.className = 'faixa-editor' + (tipo ? ' faixa-editor-' + tipo : '');
+  }
+
+  function trocarFluxoDaTela(novo, origem, setoresFaltando) {
+    fluxo = novo;
+    origemPendente = origem;
+    garantirPosicoes();
+    fecharPainel();
+    renderizarTudo();
+    marcarSujo();
+    reiniciarSimulador();
+    var aviso = (origem.tipo === 'modelo' ? 'Fluxo pronto "' + origem.detalhe + '" carregado' : 'Arquivo "' + origem.detalhe + '" carregado') +
+      ' na tela. Ajuste os textos, teste e clique em Salvar para valer (o fluxo anterior fica nas Versões).';
+    if (setoresFaltando && setoresFaltando.length) {
+      aviso += ' Atenção: os setores ' + setoresFaltando.join(', ') + ' não existem; crie em Setores ou troque nos blocos Transferir (senão a conversa cai "sem setor").';
+    }
+    mostrarFaixa(aviso, setoresFaltando && setoresFaltando.length ? 'atencao' : 'info');
+  }
+
+  function podeTrocar() {
+    return !sujo || confirm('Você tem alterações não salvas no fluxo da tela. Trocar mesmo assim? Elas serão perdidas.');
+  }
+
+  var dialogoModelos = document.getElementById('dialogo-modelos');
+  var listaModelos = document.getElementById('lista-modelos');
+  document.getElementById('botao-modelos-fluxo').addEventListener('click', function () {
+    document.querySelector('.menu-fluxo').open = false;
+    if (dialogoModelos.showModal) dialogoModelos.showModal();
+    else dialogoModelos.setAttribute('open', '');
+    fetch('/painel/fluxo/modelos')
+      .then(function (r) { return r.json(); })
+      .then(function (lista) {
+        listaModelos.innerHTML = '';
+        lista.forEach(function (m) {
+          var li = document.createElement('li');
+          var texto = document.createElement('div');
+          var nome = document.createElement('strong');
+          nome.textContent = m.nome;
+          var desc = document.createElement('span');
+          desc.className = 'dica';
+          desc.textContent = m.descricao + ' (' + m.blocos + ' blocos)';
+          texto.appendChild(nome);
+          texto.appendChild(desc);
+          var botao = document.createElement('button');
+          botao.type = 'button';
+          botao.textContent = 'Usar este';
+          botao.addEventListener('click', function () {
+            if (!podeTrocar()) return;
+            fetch('/painel/fluxo/modelos/' + encodeURIComponent(m.id))
+              .then(function (r) { return r.json(); })
+              .then(function (modelo) {
+                if (!modelo.ok) return;
+                dialogoModelos.close ? dialogoModelos.close() : dialogoModelos.removeAttribute('open');
+                trocarFluxoDaTela(modelo.fluxo, { tipo: 'modelo', detalhe: modelo.nome }, modelo.setoresFaltando);
+              });
+          });
+          li.appendChild(texto);
+          li.appendChild(botao);
+          listaModelos.appendChild(li);
+        });
+      })
+      .catch(function () { listaModelos.innerHTML = '<li class="dica">Não consegui carregar a lista.</li>'; });
+  });
+  document.getElementById('fechar-modelos').addEventListener('click', function () {
+    dialogoModelos.close ? dialogoModelos.close() : dialogoModelos.removeAttribute('open');
+  });
+
+  var arquivo = document.getElementById('arquivo-importar-fluxo');
+  document.getElementById('botao-importar-fluxo').addEventListener('click', function () {
+    document.querySelector('.menu-fluxo').open = false;
+    arquivo.value = '';
+    arquivo.click();
+  });
+  arquivo.addEventListener('change', function () {
+    var escolhido = arquivo.files && arquivo.files[0];
+    if (!escolhido) return;
+    if (escolhido.size > 2 * 1024 * 1024) return mostrarFaixa('Esse arquivo é grande demais para ser um fluxo (máximo 2 MB).', 'erro');
+    escolhido.text().then(function (conteudo) {
+      var novo;
+      try {
+        novo = JSON.parse(conteudo);
+      } catch (e) {
+        return mostrarFaixa('Esse arquivo não é um fluxo do ChatDigital (não consegui ler o JSON).', 'erro');
+      }
+      fetch('/painel/fluxo/conferir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(novo) })
+        .then(function (r) { return r.json(); })
+        .then(function (conferido) {
+          if (!conferido.ok) return mostrarFaixa('Esse arquivo não é um fluxo válido: ' + conferido.erros.slice(0, 3).join(' | '), 'erro');
+          if (!podeTrocar()) return;
+          trocarFluxoDaTela(novo, { tipo: 'importado', detalhe: escolhido.name }, conferido.setoresFaltando);
+        });
+    });
+  });
+
+  document.getElementById('link-exportar-fluxo').addEventListener('click', function (ev) {
+    if (sujo && !confirm('O arquivo baixado é o fluxo SALVO. As alterações não salvas da tela não vão nele. Baixar mesmo assim?')) ev.preventDefault();
+  });
+
+  // ---- Simulador (Testar) ----
+
+  var simulador = document.getElementById('simulador');
+  var conversaSim = document.getElementById('simulador-conversa');
+  var campoSim = document.getElementById('simulador-texto');
+  var estadoSim = null;
+
+  function balao(classe, texto) {
+    var div = document.createElement('div');
+    div.className = 'sim-balao sim-' + classe;
+    div.textContent = texto;
+    conversaSim.appendChild(div);
+    conversaSim.scrollTop = conversaSim.scrollHeight;
+  }
+
+  function destacarNo(id) {
+    quadro.querySelectorAll('.no-simulado').forEach(function (el) { el.classList.remove('no-simulado'); });
+    if (!id) return;
+    var el = quadro.querySelector('.no-fluxo[data-id="' + id + '"]');
+    if (el) {
+      el.classList.add('no-simulado');
+      if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function reiniciarSimulador() {
+    estadoSim = null;
+    conversaSim.innerHTML = '';
+    destacarNo(null);
+    balao('evento', 'Mande uma mensagem (ex.: "oi") para começar.');
+  }
+
+  function enviarSim(texto) {
+    balao('cliente', texto);
+    fetch('/painel/fluxo/testar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fluxo: fluxo, estado: estadoSim, texto: texto }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) return balao('erro', 'O fluxo da tela tem erro: ' + res.erros.slice(0, 3).join(' | '));
+        estadoSim = res.estado;
+        // o que acontece antes da resposta (salvar, horário...) vem antes dela; fim e transferência, depois
+        var depois = { fim: true, transferir: true };
+        (res.eventos || []).filter(function (e) { return !depois[e.tipo]; }).forEach(function (e) { balao('evento', e.texto); });
+        if (res.resposta) balao('bot', res.resposta);
+        else if (!(res.eventos || []).length) balao('evento', '(o bot não respondeu nada)');
+        (res.eventos || []).filter(function (e) { return depois[e.tipo]; }).forEach(function (e) { balao('evento', e.texto); });
+        destacarNo(res.estado && !res.estado.humano ? res.no : null);
+      })
+      .catch(function () { balao('erro', 'Erro de conexão ao testar.'); });
+  }
+
+  document.getElementById('botao-testar-fluxo').addEventListener('click', function () {
+    simulador.hidden = !simulador.hidden;
+    painel.hidden = !simulador.hidden;
+    if (!simulador.hidden) {
+      if (!conversaSim.childNodes.length) reiniciarSimulador();
+      campoSim.focus();
+    } else {
+      destacarNo(null);
+    }
+  });
+  document.getElementById('simulador-fechar').addEventListener('click', function () {
+    simulador.hidden = true;
+    painel.hidden = false;
+    destacarNo(null);
+  });
+  document.getElementById('simulador-recomecar').addEventListener('click', function () {
+    reiniciarSimulador();
+    campoSim.focus();
+  });
+  document.getElementById('simulador-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var texto = campoSim.value.trim();
+    if (!texto) return;
+    campoSim.value = '';
+    enviarSim(texto);
+  });
 
   carregar();
 })();

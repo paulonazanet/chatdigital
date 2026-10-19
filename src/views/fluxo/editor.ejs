@@ -5,9 +5,21 @@
     <h1>Editor de fluxo</h1>
     <div class="editor-acoes">
       <span id="mensagem-editor" class="mensagem-editor"></span>
+      <button type="button" id="botao-testar-fluxo" class="botao-secundario">▶ Testar</button>
+      <details class="menu-fluxo">
+        <summary class="botao-como-summary">Mais ▾</summary>
+        <div class="menu-fluxo-itens">
+          <button type="button" id="botao-modelos-fluxo" class="botao-link">Fluxos prontos…</button>
+          <button type="button" id="botao-importar-fluxo" class="botao-link">Importar de arquivo…</button>
+          <a href="/painel/fluxo/exportar" download id="link-exportar-fluxo">Exportar (baixar arquivo)</a>
+          <a href="/painel/fluxo/versoes">Versões salvas</a>
+        </div>
+      </details>
+      <input type="file" id="arquivo-importar-fluxo" accept="application/json,.json" hidden>
       <button type="button" id="botao-salvar-fluxo" class="botao">Salvar</button>
     </div>
   </div>
+  <p class="faixa-editor" id="faixa-editor" hidden></p>
 
   <div class="editor-corpo">
     <aside class="paleta-nos">
@@ -46,7 +58,33 @@
     <aside class="painel-edicao" id="painel-edicao">
       <p class="dica">Clique num bloco no quadro pra editar aqui.</p>
     </aside>
+
+    <aside class="simulador" id="simulador" hidden aria-label="Testar o fluxo">
+      <div class="simulador-topo">
+        <strong>Testar o fluxo</strong>
+        <span class="simulador-botoes">
+          <button type="button" class="botao-link" id="simulador-recomecar">Recomeçar</button>
+          <button type="button" class="botao-link" id="simulador-fechar" aria-label="Fechar o teste">✕</button>
+        </span>
+      </div>
+      <p class="simulador-dica">Você é o cliente. Testa o fluxo <strong>que está na tela</strong> (mesmo sem salvar). Não manda WhatsApp, não grava pedido nem nota e não chama API.</p>
+      <div class="simulador-conversa" id="simulador-conversa" aria-live="polite"></div>
+      <form class="simulador-form" id="simulador-form" autocomplete="off">
+        <input type="text" id="simulador-texto" placeholder="Escreva como o cliente…" aria-label="Mensagem do cliente">
+        <button type="submit">Enviar</button>
+      </form>
+    </aside>
   </div>
+
+  <dialog class="dialogo-modelos" id="dialogo-modelos">
+    <div class="dialogo-topo">
+      <h2>Fluxos prontos</h2>
+      <button type="button" class="botao-link" id="fechar-modelos" aria-label="Fechar">✕</button>
+    </div>
+    <p class="dica">Um ponto de partida para cada tipo de negócio. Ao escolher, o fluxo da tela é trocado pelo modelo; ajuste os
+      textos, <strong>teste</strong> e clique em <strong>Salvar</strong> para valer. O fluxo de agora continua guardado nas Versões.</p>
+    <ul class="lista-modelos" id="lista-modelos"><li class="dica">Carregando…</li></ul>
+  </dialog>
 </main>
 <script src="/js/editor-fluxo.js" defer></script>
 <%- include('../partials/fim-painel') %>

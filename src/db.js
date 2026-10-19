@@ -309,6 +309,20 @@ if (motivosPausaNovos) {
   for (const [nome, limite] of [['Almoço', 60], ['Lanche ou café', 15], ['Banheiro', 10], ['Reunião', 0], ['Outro', 0]]) inserir.run(nome, limite);
 }
 
+// E2, 3a parte: versões do fluxo do bot. Cada "Salvar" do editor (e cada volta para uma versão
+// antiga) guarda o fluxo inteiro aqui, pra poder voltar atrás. `origem` diz de onde veio (editor,
+// modelo pronto, arquivo importado, restaurada); fica só as últimas 100.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS fluxo_versoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    criado_em TEXT NOT NULL,
+    atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    atendente_nome TEXT,
+    origem TEXT NOT NULL,
+    conteudo TEXT NOT NULL
+  );
+`);
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

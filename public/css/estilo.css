@@ -1427,3 +1427,43 @@ form input.campo-curto, form input[type="number"].campo-curto { max-width: 8rem;
 .caixa-link-tv { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin: 1rem 0 0.75rem; }
 .caixa-link-tv input { flex: 1; min-width: 240px; margin: 0; font-family: Consolas, monospace; font-size: 0.85rem; }
 input.campo-tabela { margin-top: 0; width: 6rem; padding: 0.5rem 0.6rem; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; font-size: 0.95rem; }
+
+/* E2, 3a parte: editor de fluxo com Testar, fluxos prontos, importar/exportar e versões */
+.editor-cabecalho { flex-wrap: wrap; gap: 0.5rem; }
+.editor-acoes { flex-wrap: wrap; gap: 0.6rem; }
+.editor-acoes .botao-secundario { padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 4px; cursor: pointer; color: var(--azul-marinho); font-weight: 600; }
+.menu-fluxo { position: relative; }
+.menu-fluxo .botao-como-summary { padding: 0.5rem 0.9rem; font-size: 0.9rem; }
+.menu-fluxo-itens {
+  position: absolute; right: 0; top: 2.6rem; z-index: 20; min-width: 220px; display: flex; flex-direction: column; gap: 0.15rem;
+  background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); padding: 0.5rem;
+}
+.menu-fluxo-itens a, .menu-fluxo-itens .botao-link { display: block; text-align: left; padding: 0.45rem 0.6rem; font-size: 0.9rem; border-radius: 4px; color: var(--azul-marinho); }
+.menu-fluxo-itens a:hover, .menu-fluxo-itens .botao-link:hover { background: var(--cinza-fundo); text-decoration: none; }
+.faixa-editor { margin: 0; padding: 0.55rem 1.5rem; font-size: 0.85rem; border-bottom: 1px solid var(--cinza-borda); background: #eaf1f6; color: var(--azul-marinho); }
+.faixa-editor-atencao { background: #fff3d6; color: #7a5a00; border-bottom-color: #f1d58f; }
+.faixa-editor-erro { background: #fbe9e9; color: var(--vermelho-erro); border-bottom-color: #f0c4c7; }
+.simulador { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; background: #f7f9fb; border-left: 1px solid var(--cinza-borda); min-height: 0; }
+.simulador-topo { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--azul-marinho); color: var(--branco); font-family: "Poppins", "Segoe UI", Arial, sans-serif; }
+.simulador-topo .botao-link { color: var(--branco); font-size: 0.85rem; }
+.simulador-botoes { display: flex; gap: 0.75rem; align-items: center; }
+.simulador-dica { margin: 0; padding: 0.5rem 1rem; font-size: 0.75rem; color: #5f6d7a; border-bottom: 1px solid var(--cinza-borda); }
+.simulador-conversa { flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.sim-balao { max-width: 88%; padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; }
+.sim-cliente { align-self: flex-end; background: #dcf3e4; color: #1d3b2a; border-bottom-right-radius: 2px; }
+.sim-bot { align-self: flex-start; background: var(--branco); border: 1px solid var(--cinza-borda); color: var(--cinza-texto); border-bottom-left-radius: 2px; }
+.sim-evento { align-self: center; max-width: 95%; background: transparent; color: #8a6d00; font-size: 0.75rem; font-style: italic; text-align: center; padding: 0.15rem 0.4rem; }
+.sim-erro { align-self: center; background: #fbe9e9; color: var(--vermelho-erro); font-size: 0.8rem; }
+.simulador-form { display: flex; gap: 0.4rem; padding: 0.6rem; border-top: 1px solid var(--cinza-borda); background: var(--branco); margin: 0; }
+.simulador-form input { flex: 1; margin: 0; padding: 0.5rem 0.6rem; }
+.simulador-form button { padding: 0.5rem 0.9rem; font-size: 0.9rem; }
+.no-fluxo.no-simulado { outline: 3px solid var(--marca-laranja); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(237, 129, 59, 0.18); }
+.dialogo-modelos { border: 1px solid var(--cinza-borda); border-radius: 8px; padding: 1.25rem 1.5rem; max-width: 640px; width: calc(100% - 32px); }
+.dialogo-modelos::backdrop { background: rgba(20, 41, 60, 0.45); }
+.dialogo-topo { display: flex; align-items: center; justify-content: space-between; }
+.dialogo-topo h2 { margin: 0; color: var(--azul-marinho); font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-size: 1.15rem; }
+.lista-modelos { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.lista-modelos li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0.85rem; border: 1px solid var(--cinza-borda); border-radius: 6px; }
+.lista-modelos li div { display: flex; flex-direction: column; gap: 0.15rem; }
+.lista-modelos strong { color: var(--azul-marinho); }
+.lista-modelos button { flex-shrink: 0; padding: 0.45rem 0.9rem; font-size: 0.85rem; }

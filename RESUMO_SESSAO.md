@@ -328,6 +328,32 @@ restrição de login, status do sistema, importar/exportar contatos).
   cadastro de Atendentes, tabela Pausas no Relatório.
 - Testes: `test/e2-equipe.test.js` (8 testes). Total: 78 passam; as 8 "falhas" são o `EPERM` antigo.
 
+## E2, 3ª parte (18/10/2026, branch `e2`): fluxo com segurança
+- **`flow-engine.js`**: `executar(estado, contexto, fluxo, simulacao)` — com a lista `simulacao`,
+  os blocos `salvar`, `nota` e `api` não gravam/chamam nada, só registram um evento (a API segue por
+  `proximo`); `horario`, `transferir`, `transferir_atendente` e `fim` também registram evento. O
+  miolo de `processarMensagem` virou `continuarFluxo` (mesmo comportamento) e
+  `simularMensagem({ estado, texto, negocio, fluxo })` usa um estado que vem do navegador (só `no`,
+  `vars`, `aguardando`, `humano`, `setor`; `no` inexistente volta pro início) e devolve
+  `{ resposta, estado, eventos, no }`. Não toca no `Map` das conversas de verdade.
+- **Rotas** (`routes/fluxo.js`, permissão `editar_fluxo`): `POST /testar` (fluxo da tela + estado +
+  texto), `POST /conferir` (valida arquivo e lista setores que faltam), `GET /exportar`,
+  `GET /modelos`, `GET /modelos/:id`, `GET /versoes`, `GET /versoes/:id/baixar`,
+  `POST /versoes/:id/restaurar`. `POST /salvar?origem=modelo|importado&detalhe=…` grava a versão.
+- **`src/fluxo-versoes.js`** + tabela `fluxo_versoes` (fluxo inteiro em JSON, quem, origem; só as
+  últimas 100). Na 1ª vez guarda o fluxo que já estava em uso ("Como estava antes do histórico").
+- **`src/modelos-fluxo.js`**: os 5 fluxos prontos (gas, loja, clinica, provedor, delivery) em JS,
+  com `montarLayout` (colunas por distância do início) e `setoresQueFaltam`. Usam setor "Geral",
+  menos o provedor (Suporte, Financeiro, Vendas).
+- **Editor** (`views/fluxo/editor.ejs`, `public/js/editor-fluxo.js`): botão ▶ Testar (painel
+  `.simulador` no lugar do painel de edição; `.no-simulado` no bloco atual), menu **Mais ▾**
+  (Fluxos prontos em `<dialog>`, Importar de arquivo, Exportar, Versões), faixa `#faixa-editor`
+  com o aviso do fluxo carregado, `origemPendente` vai no Salvar.
+- **Painel de teste**: `painel-e2` agora tem `CHATDIGITAL_FLUXO` apontando para uma cópia (salvar no
+  editor não mexe no `config/fluxo.json` do repositório).
+- Testes: `test/e2-fluxo.test.js` (7 testes). Total: 85 passam; as 8 "falhas" são o `EPERM` antigo.
+- Não feito (fica para depois, se pedirem): desfazer/refazer e copiar/colar blocos no editor.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -359,6 +385,8 @@ restrição de login, status do sistema, importar/exportar contatos).
   menu Relatório (Resumo, Auditoria, Reincidências).
 - `src/equipe.js` (pausa, limite, situação da equipe), `src/alertas.js` (alertas de fila),
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
+- `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
+  `public/js/editor-fluxo.js` (editor, simulador, importar).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

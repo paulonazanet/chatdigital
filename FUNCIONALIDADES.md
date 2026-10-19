@@ -234,6 +234,24 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   `{{vars.X}}`. Se a variável estiver vazia, a linha inteira não é mandada.
 - Palavras que reiniciam o bot (ex.: "menu", "oi") — mas **não** quando a conversa está com
   atendente.
+- **▶ Testar** (simulador): abre uma conversa de teste ao lado do quadro; você escreve como o
+  cliente e o bot responde pelo fluxo **que está na tela** (mesmo sem salvar). O bloco onde o
+  fluxo parou fica com borda laranja. Não manda WhatsApp, **não grava** pedido/registro nem nota e
+  **não chama API** (mostra em amarelo o que faria: "Salvaria um registro em pedidos…", "Chamaria a
+  API…", "Nota interna…", "A conversa iria para a fila do setor…"; a API segue pelo caminho de
+  sucesso). O bloco Horário usa a hora de agora. **Recomeçar** limpa a conversa de teste.
+- **Mais ▾ > Fluxos prontos**: modelos para **revenda de gás, loja, clínica ou consultório,
+  provedor de internet e delivery** (menu, pedido ou agendamento com confirmação, horário de
+  atendimento, falar com atendente). Escolher um troca o fluxo **da tela** (só vale depois de
+  Salvar); avisa se o modelo usa setores que não existem (o de provedor usa Suporte, Financeiro e
+  Vendas).
+- **Mais ▾ > Importar de arquivo**: carrega um fluxo salvo em arquivo (.json) na tela, depois de
+  conferir se é válido; também só vale depois de Salvar.
+- **Mais ▾ > Exportar**: baixa o fluxo **salvo** num arquivo (.json), para guardar ou levar para
+  outra instalação.
+- **Mais ▾ > Versões salvas**: cada Salvar guarda a versão (as últimas 100), com quando, quem e de
+  onde veio (editor, fluxo pronto, arquivo, volta de versão). **Voltar para esta versão** passa a
+  valer na hora para o bot (e o fluxo de antes também fica guardado). **Baixar** cada versão.
 
 ## Menu: Configurações
 - **Cartões no topo**: WhatsApp (conectado ou não), Motivos de encerramento, Marcadores, Feriados
