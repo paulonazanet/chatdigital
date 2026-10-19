@@ -10,13 +10,21 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
 - **Primeiro acesso (`/setup`)**: cria o primeiro administrador. Só aparece enquanto não existe
   nenhum atendente cadastrado.
 - **Login**: e-mail e senha. Depois de 5 tentativas erradas, o e-mail fica bloqueado por 15 min.
+- **Horário e local de acesso** (por atendente, em Atendentes; não vale para administrador): fora do
+  horário a pessoa não entra e, se estiver no painel, é desconectada na próxima tela ("acabou o seu
+  horário de acesso"); com IPs liberados, só entra desses endereços.
 - **Sair**: botão no rodapé da barra lateral, embaixo do nome de quem está logado.
 - **Barra lateral recolhível**: o ☰ no topo esconde os textos e deixa só os ícones (a escolha
   fica lembrada no navegador).
 
 ## Permissões
 - **Administrador** tem acesso a tudo.
-- **Atendente** tem só o que o admin marcar no cadastro dele. Por padrão: responder e finalizar
+- **Grupos de permissão** (Atendentes > Grupos de permissão): vêm "Atendente" (responder e finalizar)
+  e "Gerente" (painel, fila de outros setores, responder, finalizar, relatório, respostas rápidas,
+  contatos). No cadastro, escolher um grupo dá à pessoa as permissões dele (as caixas ficam travadas);
+  mudar o grupo muda na hora todos que estão nele; excluir o grupo deixa cada um com as que tinha.
+  Só o administrador cria e muda grupos.
+- **Atendente** tem só o que o admin marcar no cadastro dele (ou o do grupo). Por padrão: responder e finalizar
   conversas. Opções:
   - Ver Painel (resumo/gestão)
   - Cadastrar e gerenciar Atendentes
@@ -188,6 +196,16 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   (LGPD: aceitou receber mensagens; guarda a data do aceite e do pedido para sair); **tags**.
   Link "Abrir a conversa".
 - **+ Novo contato**: telefone com DDD (confere no WhatsApp se existe) e nome; abre a ficha.
+- **Exportar (Excel)**: baixa os contatos da lista (com a busca e os filtros de agora) numa
+  planilha: nome, telefone, e-mail, documento, endereço, observações, tags, situação,
+  consentimento (e a data) e última mensagem.
+- **Importar planilha**: planilha CSV com a coluna **Telefone** (com DDD) e, se quiser, Nome,
+  E-mail, Documento/CPF/CNPJ, Endereço, Observações, Tags (separadas por vírgula) e Consentimento
+  ("sim"). Até 2.000 linhas. **1º passo**: confere e mostra o que vai acontecer (novos, já existem,
+  com problema: telefone inválido ou repetido), sem gravar. **2º passo**: Importar. Quem já existe é
+  completado (só os campos vazios; marcando "Trocar os dados que já estão preenchidos", troca
+  também); tags são somadas; ignorado/bloqueado nunca mudam. Novos só entram se o número tiver
+  WhatsApp (confere um por um; precisa do WhatsApp conectado).
 - **Tags**: criar, renomear, ver quantos contatos têm, tirar de todos, excluir. Tag é do cliente
   (segmentação, futuras campanhas); marcador é do atendimento.
 
@@ -205,6 +223,10 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   conversas), último login e bolinha de online.
 - Cadastrar / editar: nome, e-mail, senha, papel (admin ou atendente), **limite de conversas ao
   mesmo tempo** (0 = sem limite), setores e permissões.
+- **Histórico de acessos**: quem entrou e saiu, senhas erradas, bloqueios por tentativas, por
+  horário ou por IP, com IP e navegador; filtro por atendente; guarda 90 dias.
+- No cadastro: **grupo de permissões** e **Quando e de onde pode entrar** (horário por dia, até 2
+  períodos, e IPs liberados), só para o administrador mexer.
 - Ativar / desativar com um clique (não apaga). O sistema não deixa remover o último admin ativo,
   e um atendente comum não consegue se promover a admin.
 
@@ -290,6 +312,12 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   mínima** (0 a 10, aceita 8,5). 0 = sem meta naquele item. O Relatório compara com elas.
 - **Reincidência**: quantos dias depois de finalizar a volta do cliente conta como reincidência
   (1 a 90; padrão 7).
+
+### Configurações > Status do sistema
+- Verde/amarelo/vermelho para: **WhatsApp** (conectado ou não), **Banco de dados** (checagem e
+  tamanho), **Espaço em disco** (amarelo abaixo de 15% livre, vermelho abaixo de 5%), **Backup**
+  (o último e há quanto tempo; amarelo se tiver mais de 2 dias) e **Sistema** (ligado há quanto
+  tempo, versão, memória). O cartão em Configurações mostra o resumo ("Tudo certo", "1 problema").
 
 ### Configurações > Pausas e alertas
 - **Motivos de pausa**: nome, limite em minutos (0 = sem limite), ativo; adicionar e excluir (as

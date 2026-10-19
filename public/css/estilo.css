@@ -1467,3 +1467,26 @@ input.campo-tabela { margin-top: 0; width: 6rem; padding: 0.5rem 0.6rem; border:
 .lista-modelos li div { display: flex; flex-direction: column; gap: 0.15rem; }
 .lista-modelos strong { color: var(--azul-marinho); }
 .lista-modelos button { flex-shrink: 0; padding: 0.45rem 0.9rem; font-size: 0.85rem; }
+
+/* E2, 4a parte: status do sistema, grupos de permissão, acessos, importar contatos */
+.ponto-status-atencao { background: #e0a800; }
+.lista-status { list-style: none; margin: 1rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.item-status { display: grid; grid-template-columns: 0.9rem 11rem 1fr; gap: 0.25rem 0.75rem; align-items: baseline; background: var(--branco); border: 1px solid var(--cinza-borda); border-left-width: 4px; border-radius: 6px; padding: 0.75rem 1rem; }
+.item-status-ok { border-left-color: var(--verde-ativo); }
+.item-status-atencao { border-left-color: #e0a800; }
+.item-status-problema { border-left-color: var(--vermelho-erro); }
+.item-status .ponto-status { align-self: center; }
+.item-status-nome { font-family: "Poppins", "Segoe UI", Arial, sans-serif; font-weight: 600; color: var(--azul-marinho); }
+.item-status-texto { font-weight: 600; color: var(--cinza-texto); }
+.item-status-detalhe { grid-column: 3; font-size: 0.85rem; color: #5f6d7a; }
+@media (max-width: 720px) { .item-status { grid-template-columns: 0.9rem 1fr; } .item-status-texto, .item-status-detalhe { grid-column: 2; } }
+.lista-grupos { display: flex; flex-direction: column; gap: 0.6rem; margin: 1rem 0; }
+.cartao-grupo { background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 6px; padding: 0.75rem 1rem; }
+.cartao-grupo summary { cursor: pointer; display: flex; gap: 0.75rem; align-items: baseline; flex-wrap: wrap; }
+.cartao-grupo form { margin-top: 0.75rem; }
+.cartao-grupo-novo { display: block; }
+.sem-quebra-celula { white-space: normal; }
+.tabela-importar td { font-size: 0.85rem; }
+.resumo-importar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+.resumo-importar .cartao { padding: 0.75rem 1.25rem; }
+.resumo-importar .cartao .numero { font-size: 1.6rem; }

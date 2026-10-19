@@ -10,6 +10,7 @@ const {
   janelasDoFormulario,
   salvarHorarioDoSetor,
 } = require('../setores');
+const { horarioDoCorpo, horarioDasJanelas } = require('../horario');
 
 router.get('/', (req, res) => {
   res.render('setores/lista', { atendenteLogado: req.atendente, setores: listarSetores(), erro: null, janelasDoSetor });
@@ -27,26 +28,8 @@ router.post('/', (req, res) => {
   res.redirect('/painel/setores');
 });
 
-// Horário do setor: o formulário manda inicio_<dia>_<periodo> e fim_<dia>_<periodo> (dia 0 a 6,
-// período 1 ou 2); volta pra tela com os mesmos valores se tiver erro.
-function horarioDoCorpo(corpo) {
-  const porDia = {};
-  for (let dia = 0; dia <= 6; dia += 1) {
-    porDia[dia] = [1, 2].map((p) => [String(corpo[`inicio_${dia}_${p}`] || ''), String(corpo[`fim_${dia}_${p}`] || '')]);
-  }
-  return porDia;
-}
-function horarioDasJanelas(janelas) {
-  const porDia = {};
-  for (let dia = 0; dia <= 6; dia += 1) porDia[dia] = [];
-  for (const janela of janelas) {
-    const [diasStr, horas] = String(janela).split(' ');
-    const [inicio, fim] = String(horas || '').split('-');
-    for (const dia of String(diasStr).split(',').map(Number)) if (porDia[dia]) porDia[dia].push([inicio, fim]);
-  }
-  return porDia;
-}
-
+// Horário do setor: formulário de dias × 2 períodos (horarioDoCorpo/horarioDasJanelas em horario.js);
+// volta pra tela com os mesmos valores se tiver erro.
 function renderizarSetor(req, res, setor, { erro = null, porDia = null, mensagem } = {}) {
   res.render('setores/editar', {
     atendenteLogado: req.atendente,

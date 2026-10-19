@@ -354,6 +354,36 @@ restrição de login, status do sistema, importar/exportar contatos).
 - Testes: `test/e2-fluxo.test.js` (7 testes). Total: 85 passam; as 8 "falhas" são o `EPERM` antigo.
 - Não feito (fica para depois, se pedirem): desfazer/refazer e copiar/colar blocos no editor.
 
+## E2, 4ª parte (18/10/2026, branch `e2`): acesso e manutenção
+- **Banco**: `atendentes.grupo_id`, `acesso_horario` (JSON de janelas, NULL = qualquer hora),
+  `acesso_ips` (um por linha, NULL = qualquer IP); tabelas `grupos_permissao` (vem com Atendente e
+  Gerente) e `acessos` (evento: entrou, saiu, senha_errada, bloqueado_tentativas,
+  bloqueado_horario, bloqueado_ip, desconectado; IP e user-agent; 90 dias).
+- **Grupos** (`src/grupos-permissao.js`): as permissões do grupo são **copiadas** para
+  `atendentes.permissoes` (ao salvar o atendente com grupo e ao salvar o grupo), então
+  `temPermissao` não mudou. `permissoesComGrupo` em `atendentes.js`. Rotas
+  `/painel/atendentes/grupos` (POST só admin).
+- **Acesso** (`src/acesso.js`): `verificarAcesso(atendente, { ip })` (admin sempre passa; IP com
+  "::ffff:" limpo; regra terminada em "." ou "*" é faixa). Chamado no login (`routes/auth.js`, que
+  também grava o histórico) e em **toda requisição** em `carregarAtendenteLogado` (`sessao.js`):
+  fora do horário limpa o cookie e `exigirLogin` manda para `/login?fora=1`.
+  `horarioDoCorpo`/`horarioDasJanelas` saíram de `routes/setores.js` para `src/horario.js` (o
+  formulário de horário é o mesmo do setor). Página `/painel/atendentes/acessos`.
+- **Status do sistema** (`src/status-sistema.js`, `/painel/configuracoes/status`): WhatsApp,
+  `PRAGMA quick_check` + tamanho do banco (com -wal), `fs.statfsSync` do disco do banco, último
+  arquivo de `backups/`, versão do package + commit lido do `.git` (sem rodar git) + memória.
+- **Contatos por planilha** (`src/contatos-planilha.js`): `exportarCsv` (usa `listarContatos` com
+  `porPagina` alto; telefone como `="..."`), `lerPlanilha` (CSV com ";" ou ","; aspas; títulos
+  sem acento: nome, telefone/celular/whatsapp, email, documento/cpf/cnpj, endereco, observacoes/obs,
+  tags, consentimento), `conferir` (compara pela `formaCurtaNumeroBr`, acha repetidos e inválidos),
+  conferência guardada em memória por 30 min (token só do mesmo atendente, uma vez), `aplicar`
+  (completa vazios ou troca; tags somadas; consentimento só liga; novos via
+  `resolverNumeroNoWhatsApp`). Rotas `/painel/contatos/exportar.csv`, `/importar`,
+  `/importar/confirmar` (multer, 2 MB).
+- Testes: `test/e2-acesso.test.js` (7 testes). Total: 92 passam; as 8 "falhas" são o `EPERM` antigo.
+- Não feito (fica para depois, se pedirem): uma sessão por usuário (derrubar o login antigo ao
+  entrar em outro lugar).
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -387,6 +417,8 @@ restrição de login, status do sistema, importar/exportar contatos).
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
   `public/js/editor-fluxo.js` (editor, simulador, importar).
+- `src/grupos-permissao.js`, `src/acesso.js` (horário/IP de acesso e histórico),
+  `src/status-sistema.js`, `src/contatos-planilha.js` (exportar/importar contatos).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

@@ -1,0 +1,34 @@
+<%- include('../partials/inicio', { titulo: 'Histórico de acessos' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/atendentes">Atendentes</a> › Histórico de acessos</p>
+  <div class="cabecalho-lista">
+    <h1>Histórico de acessos</h1>
+    <form method="get" action="/painel/atendentes/acessos" class="relatorio-filtros">
+      <select name="atendente" onchange="this.form.submit()" aria-label="Atendente">
+        <option value="">Todos</option>
+        <% atendentes.forEach((a) => { %><option value="<%= a.id %>" <%= atendenteId === a.id ? 'selected' : '' %>><%= a.nome %></option><% }) %>
+      </select>
+    </form>
+  </div>
+  <p class="dica">Quem entrou e saiu do painel, as senhas erradas e quem foi barrado pelo horário ou pelo IP. Fica guardado por
+    <%= dias %> dias (mostra os 300 mais recentes).</p>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>De onde (IP)</th><th>Navegador</th></tr></thead>
+      <tbody>
+        <% acessos.forEach((x) => { %>
+          <tr>
+            <td class="sem-quebra"><%= x.quando %></td>
+            <td><%= x.atendente_nome || x.email || '—' %></td>
+            <td><span class="selo <%= x.falha ? 'selo-situacao-bloqueado' : 'selo-equipe-livre' %>"><%= x.rotulo %></span><% if (x.detalhe) { %> <span class="dica-inline"><%= x.detalhe %></span><% } %></td>
+            <td><%= x.ip || '—' %></td>
+            <td><%= x.navegadorLegivel %></td>
+          </tr>
+        <% }) %>
+        <% if (!acessos.length) { %><tr><td colspan="5" class="dica">Nenhum acesso registrado ainda.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('../partials/fim-painel') %>

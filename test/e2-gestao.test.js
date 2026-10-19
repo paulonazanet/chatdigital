@@ -147,7 +147,7 @@ test('Auditoria: exportar lista (Excel), conversa em texto e versão para imprim
   assert.match(csv.headers.get('content-type'), /text\/csv/);
   assert.match(csv.headers.get('content-disposition'), /attachment; filename="auditoria_/);
   const conteudo = await csv.text();
-  const linhas = conteudo.replace(/^﻿/, '').trim().split('\r\n');
+  const linhas = conteudo.replace(/^\uFEFF/, '').trim().split('\r\n');
   assert.strictEqual(linhas.length, 4, 'cabeçalho + 3 atendimentos');
   assert.match(linhas[0], /^Protocolo;Cliente;Telefone;Atendente/);
   assert.match(linhas[1], /^="\d+";/, 'protocolo como texto para o Excel');

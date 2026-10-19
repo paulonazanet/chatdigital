@@ -1,0 +1,49 @@
+<%- include('../partials/inicio', { titulo: 'Grupos de permissão' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const ehAdmin = atendenteLogado.papel === 'admin'; %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/atendentes">Atendentes</a> › Grupos de permissão</p>
+  <h1>Grupos de permissão</h1>
+  <p class="dica">Um grupo junta as permissões de um tipo de pessoa (ex.: "Gerente", "Atendente"). No cadastro do atendente, escolha o
+    grupo: ele passa a ter as permissões do grupo. Mudar um grupo muda <strong>na hora</strong> todos que estão nele. Excluir um grupo
+    não tira permissão de ninguém (cada um fica com as que tinha). Administrador tem tudo, sempre.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Grupo salvo.</p><% } %>
+  <% if (!ehAdmin) { %><p class="aviso">Só um administrador pode criar ou mudar grupos.</p><% } %>
+
+  <div class="lista-grupos">
+    <% grupos.forEach((g) => { %>
+      <details class="cartao-grupo" <%= editando === g.id ? 'open' : '' %>>
+        <summary>
+          <span class="cartao-config-nome"><%= g.nome %></span>
+          <span class="dica-inline"><%= g.membros %> pessoa<%= g.membros === 1 ? '' : 's' %> · <%= g.permissoes.length %> permiss<%= g.permissoes.length === 1 ? 'ão' : 'ões' %></span>
+        </summary>
+        <form method="post" action="/painel/atendentes/grupos/<%= g.id %>">
+          <label>Nome do grupo<input type="text" name="nome" value="<%= g.nome %>" maxlength="40" required <%= ehAdmin ? '' : 'disabled' %>></label>
+          <% chavesPermissao.forEach((chave) => { %>
+            <label class="linha"><input type="checkbox" name="permissoes" value="<%= chave %>" <%= g.permissoes.includes(chave) ? 'checked' : '' %> <%= ehAdmin ? '' : 'disabled' %>> <%= rotulosPermissao[chave] %></label>
+          <% }) %>
+          <% if (ehAdmin) { %>
+            <p class="acoes-topo">
+              <button type="submit">Salvar grupo</button>
+              <button type="submit" formaction="/painel/atendentes/grupos/<%= g.id %>/excluir" class="botao-link botao-link-perigo" onclick="return confirm('Excluir o grupo <%= g.nome.replace(/['\\]/g, '') %>? Quem está nele continua com as mesmas permissões.')">Excluir grupo</button>
+            </p>
+          <% } %>
+        </form>
+      </details>
+    <% }) %>
+    <% if (!grupos.length) { %><p class="dica">Nenhum grupo ainda.</p><% } %>
+  </div>
+
+  <% if (ehAdmin) { %>
+    <h2>Novo grupo</h2>
+    <form method="post" action="/painel/atendentes/grupos" class="cartao-grupo cartao-grupo-novo">
+      <label>Nome do grupo<input type="text" name="nome" maxlength="40" placeholder="Ex.: Supervisor" required></label>
+      <% chavesPermissao.forEach((chave) => { %>
+        <label class="linha"><input type="checkbox" name="permissoes" value="<%= chave %>"> <%= rotulosPermissao[chave] %></label>
+      <% }) %>
+      <p class="acoes-topo"><button type="submit">Criar grupo</button></p>
+    </form>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>

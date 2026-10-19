@@ -11,6 +11,7 @@ const feriados = require('../feriados');
 const { lerMetas } = require('../relatorio');
 const equipe = require('../equipe');
 const crypto = require('crypto');
+const { montarStatus } = require('../status-sistema');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -55,6 +56,7 @@ function resumoDasSubtelas() {
     motivosPausaAtivos: equipe.listarMotivosPausa({ soAtivos: true }).length,
     alertasLigados: ['alerta_fila_minutos', 'alerta_fila_quantidade', 'alerta_sem_resposta_minutos'].filter((c) => Number(carregarNegocio()[c]) > 0).length,
     painelTvLigado: !!carregarNegocio().painel_tv_token,
+    status: montarStatus(),
   };
 }
 
@@ -342,6 +344,11 @@ router.post('/painel-tv/gerar', (req, res) => {
 router.post('/painel-tv/desligar', (req, res) => {
   salvarConfiguracoes({ painel_tv_token: null });
   res.redirect('/painel/configuracoes/painel-tv');
+});
+
+// Status do sistema: WhatsApp, banco, disco, backup e versão (só leitura)
+router.get('/status', (req, res) => {
+  res.render('configuracoes/status', { atendenteLogado: req.atendente, status: montarStatus() });
 });
 
 router.get('/whatsapp', (req, res) => {

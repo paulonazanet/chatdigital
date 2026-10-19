@@ -1,0 +1,19 @@
+<%- include('../partials/inicio', { titulo: 'Status do sistema' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Status do sistema</p>
+  <h1>Status do sistema</h1>
+  <p class="dica">Como estão as peças do sistema agora. Verde: tudo certo. Amarelo: vale olhar. Vermelho: precisa de ação.
+    <a href="/painel/configuracoes/status">Atualizar</a></p>
+  <ul class="lista-status">
+    <% status.itens.forEach((i) => { %>
+      <li class="item-status item-status-<%= i.nivel %>">
+        <span class="ponto-status <%= i.nivel === 'ok' ? 'ponto-status-ok' : i.nivel === 'atencao' ? 'ponto-status-atencao' : 'ponto-status-falha' %>" aria-hidden="true"></span>
+        <span class="item-status-nome"><%= i.nome %></span>
+        <span class="item-status-texto"><%= i.texto %></span>
+        <span class="item-status-detalhe"><%= i.detalhe %><% if (i.link) { %> <a href="<%= i.link %>">Abrir</a><% } %></span>
+      </li>
+    <% }) %>
+  </ul>
+</main>
+<%- include('../partials/fim-painel') %>

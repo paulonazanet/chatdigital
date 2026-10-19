@@ -7,6 +7,11 @@
   <% if (salvo) { %><p class="sucesso">Configurações salvas.</p><% } %>
 
   <nav class="cartoes-config" aria-label="Outras configurações">
+    <a class="cartao-config" href="/painel/configuracoes/status">
+      <span class="cartao-config-nome">Status do sistema</span>
+      <span class="cartao-config-info"><span class="ponto-status <%= resumo.status.nivel === 'ok' ? 'ponto-status-ok' : resumo.status.nivel === 'atencao' ? 'ponto-status-atencao' : 'ponto-status-falha' %>"></span><%= resumo.status.resumo %></span>
+      <span class="cartao-config-texto">WhatsApp, banco, disco e backup</span>
+    </a>
     <a class="cartao-config" href="/painel/configuracoes/whatsapp">
       <span class="cartao-config-nome">WhatsApp</span>
       <% if (resumo.whatsappConectado) { %>

@@ -5,6 +5,10 @@ const contatos = require('../contatos');
 const { obterOuCriarConversa, definirNumeroExibicao, renomearContato } = require('../conversas');
 const { obterSocket } = require('../socket-atual');
 const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
+const multer = require('multer');
+const planilha = require('../contatos-planilha');
+
+const uploadPlanilha = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 // Menu Contatos: lista com busca e filtros, ficha de cada contato (cadastro, situação,
 // consentimento, tags) e o cadastro das tags.
@@ -26,6 +30,39 @@ router.get('/', (req, res) => {
     filtros,
     tags: contatos.listarTags(),
   });
+});
+
+// Exportar e importar por planilha (antes de /:id)
+router.get('/exportar.csv', (req, res) => {
+  const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="contatos_${hoje}.csv"`);
+  res.send(planilha.exportarCsv(lerFiltros(req.query)));
+});
+
+function renderizarImportar(req, res, extra = {}) {
+  res.render('contatos/importar', { atendenteLogado: req.atendente, erro: null, conferencia: null, resultado: null, limite: planilha.LIMITE_LINHAS, whatsappConectado: !!obterSocket(), ...extra });
+}
+router.get('/importar', (req, res) => renderizarImportar(req, res));
+router.post('/importar', (req, res) => {
+  uploadPlanilha.single('arquivo')(req, res, (erroUpload) => {
+    if (erroUpload) return renderizarImportar(req, res, { erro: 'O arquivo é grande demais (máximo 2 MB).' });
+    if (!req.file) return renderizarImportar(req, res, { erro: 'Escolha a planilha (arquivo .csv).' });
+    const lida = planilha.lerPlanilha(req.file.buffer.toString('utf8'));
+    if (lida.erro) return renderizarImportar(req, res, { erro: lida.erro });
+    const itens = planilha.conferir(lida.linhas);
+    const token = planilha.guardarConferencia(req.atendente.id, itens, req.file.originalname);
+    const conta = (acao) => itens.filter((i) => i.acao === acao).length;
+    renderizarImportar(req, res, {
+      conferencia: { token, nomeArquivo: req.file.originalname, colunas: lida.colunas, itens: itens.slice(0, 200), total: itens.length, novos: conta('novo'), atualizar: conta('atualizar'), erros: conta('erro') },
+    });
+  });
+});
+router.post('/importar/confirmar', async (req, res) => {
+  const pendente = planilha.pegarConferencia(req.body.token, req.atendente.id);
+  if (!pendente) return renderizarImportar(req, res, { erro: 'Essa conferência expirou (vale 30 minutos). Envie a planilha de novo.' });
+  const resultado = await planilha.aplicar(pendente.itens, { substituir: req.body.substituir === '1', sock: obterSocket() });
+  renderizarImportar(req, res, { resultado: { ...resultado, nomeArquivo: pendente.nomeArquivo } });
 });
 
 // Tags (antes de /:id pra "tags" não virar um id)

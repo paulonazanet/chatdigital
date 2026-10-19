@@ -1,0 +1,70 @@
+<%- include('../partials/inicio', { titulo: 'Importar contatos' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const ROTULO_ACAO = { novo: 'Novo', atualizar: 'Já existe: completa a ficha', erro: 'Não entra' }; %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/contatos">Contatos</a> › Importar planilha</p>
+  <h1>Importar contatos</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+  <% if (resultado) { %>
+    <p class="sucesso">Importação de "<%= resultado.nomeArquivo %>" concluída.</p>
+    <div class="resumo-importar">
+      <div class="cartao"><span class="numero"><%= resultado.criados %></span><span class="rotulo">contatos novos</span></div>
+      <div class="cartao"><span class="numero"><%= resultado.atualizados %></span><span class="rotulo">fichas completadas</span></div>
+      <div class="cartao"><span class="numero"><%= resultado.semWhatsapp.length + resultado.naoCriados + resultado.erros %></span><span class="rotulo">não entraram</span></div>
+    </div>
+    <% if (resultado.naoCriados) { %><p class="aviso"><%= resultado.naoCriados %> contato<%= resultado.naoCriados === 1 ? '' : 's' %> novo<%= resultado.naoCriados === 1 ? '' : 's' %> não entr<%= resultado.naoCriados === 1 ? 'ou' : 'aram' %> porque o WhatsApp estava desconectado (é preciso conferir se o número tem WhatsApp). Conecte e importe a planilha de novo: quem já existe só é completado.</p><% } %>
+    <% if (resultado.semWhatsapp.length) { %><p class="aviso">Sem WhatsApp (não entraram): <%= resultado.semWhatsapp.join(', ') %></p><% } %>
+    <p><a class="botao" href="/painel/contatos">Ver os contatos</a> <a class="botao-secundario botao" href="/painel/contatos/importar">Importar outra planilha</a></p>
+
+  <% } else if (conferencia) { const c = conferencia; const entram = c.atualizar + (whatsappConectado ? c.novos : 0); %>
+    <p class="dica">Conferi "<%= c.nomeArquivo %>". <strong>Nada foi gravado ainda.</strong> Veja o que vai acontecer e clique em Importar.</p>
+    <div class="resumo-importar">
+      <div class="cartao"><span class="numero"><%= c.novos %></span><span class="rotulo">novos</span></div>
+      <div class="cartao"><span class="numero"><%= c.atualizar %></span><span class="rotulo">já existem (completa a ficha)</span></div>
+      <div class="cartao"><span class="numero"><%= c.erros %></span><span class="rotulo">com problema (não entram)</span></div>
+    </div>
+    <p class="dica">Colunas encontradas: <%= c.colunas.join(', ') %>.</p>
+    <% if (c.novos && !whatsappConectado) { %><p class="aviso">O WhatsApp está desconectado: <%= c.novos === 1 ? 'o contato novo não vai' : `os ${c.novos} contatos novos não vão` %> entrar agora (é preciso conferir se cada número tem WhatsApp). Os que já existem são completados normalmente.</p><% } %>
+    <form method="post" action="/painel/contatos/importar/confirmar">
+      <input type="hidden" name="token" value="<%= c.token %>">
+      <label class="linha"><input type="checkbox" name="substituir" value="1"> Trocar os dados que já estão preenchidos pelos da planilha</label>
+      <p class="ajuda ajuda-solta">Sem marcar, a planilha só preenche o que está vazio na ficha. Tags são sempre somadas. Ignorado e bloqueado nunca mudam pela planilha.</p>
+      <p class="acoes-topo"><button type="submit" <%= entram ? '' : 'disabled' %>>Importar <%= entram %> contato<%= entram === 1 ? '' : 's' %></button>
+        <a href="/painel/contatos/importar" class="botao-link">Cancelar</a></p>
+    </form>
+    <% if (c.novos) { %><p class="dica">Os novos são conferidos no WhatsApp um por um; com muitos, pode levar alguns minutos.</p><% } %>
+    <div class="tabela-rolagem">
+      <table class="tabela tabela-importar">
+        <thead><tr><th>Linha</th><th>Nome</th><th>Telefone</th><th>O que acontece</th></tr></thead>
+        <tbody>
+          <% c.itens.forEach((i) => { %>
+            <tr>
+              <td><%= i.linha %></td>
+              <td><%= i.nome || '—' %></td>
+              <td><%= i.telefone || '—' %></td>
+              <td><span class="selo <%= i.acao === 'erro' ? 'selo-situacao-bloqueado' : i.acao === 'novo' ? 'selo-equipe-livre' : '' %>"><%= ROTULO_ACAO[i.acao] %></span><% if (i.motivo) { %> <span class="dica-inline"><%= i.motivo %></span><% } %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% if (c.total > c.itens.length) { %><p class="dica">Mostrando as primeiras <%= c.itens.length %> de <%= c.total %> linhas.</p><% } %>
+
+  <% } else { %>
+    <p class="dica">Traga a lista de clientes de outro sistema ou de uma planilha. No Excel, salve como <strong>CSV</strong>
+      ("CSV UTF-8" ou "separado por ponto e vírgula"). A 1ª linha precisa ter os títulos das colunas.</p>
+    <ul class="dica">
+      <li><strong>Telefone</strong> (obrigatório, com DDD): pode ter espaço, traço e parênteses.</li>
+      <li>Opcionais: <strong>Nome</strong>, <strong>E-mail</strong>, <strong>Documento</strong> (ou CPF/CNPJ), <strong>Endereço</strong>,
+        <strong>Observações</strong>, <strong>Tags</strong> (separadas por vírgula) e <strong>Consentimento</strong> ("sim" = aceitou receber mensagens).</li>
+      <li>Dica: clique em <a href="/painel/contatos/exportar.csv" download>Exportar (Excel)</a> para ver o modelo com as colunas certas.</li>
+      <li>Até <%= limite %> linhas por vez. Primeiro eu confiro e mostro o que vai acontecer; só grava quando você confirmar.</li>
+    </ul>
+    <form method="post" action="/painel/contatos/importar" enctype="multipart/form-data" class="linha-form">
+      <input type="file" name="arquivo" accept=".csv,text/csv" required aria-label="Planilha de contatos">
+      <button type="submit">Conferir planilha</button>
+    </form>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>
