@@ -1,0 +1,72 @@
+<%- include('../partials/inicio', { titulo: 'Contato' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const data = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/contatos">Contatos</a> › <%= contato.nome_contato || contato.telefone %></p>
+  <h1><%= contato.nome_contato || 'Contato sem nome' %></h1>
+  <p class="dica">Telefone <strong><%= contato.telefone %></strong> · <a href="/painel/fila/<%= contato.id %>">Abrir a conversa</a></p>
+  <% if (salvo) { %><p class="sucesso">Contato salvo.</p><% } %>
+
+  <form method="post" action="/painel/contatos/<%= contato.id %>" id="form-contato">
+    <fieldset>
+      <legend>Cadastro</legend>
+      <div class="campos-lado-a-lado">
+        <label>Nome<input type="text" name="nome" maxlength="80" value="<%= contato.nome_contato || '' %>">
+          <span class="ajuda">Em branco = usa o nome do perfil do WhatsApp.</span>
+        </label>
+        <label>E-mail<input type="email" name="email" maxlength="120" value="<%= contato.email || '' %>"></label>
+      </div>
+      <div class="campos-lado-a-lado">
+        <label>CPF ou CNPJ<input type="text" name="documento" maxlength="30" value="<%= contato.documento || '' %>"></label>
+        <span></span>
+      </div>
+      <label>Endereço<input type="text" name="endereco" maxlength="300" value="<%= contato.endereco || '' %>" placeholder="Rua, número, bairro, referência"></label>
+      <label>Observações
+        <textarea name="observacoes" rows="3" maxlength="2000"><%= contato.observacoes || '' %></textarea>
+        <span class="ajuda">Só a equipe vê. Ex.: "Prefere entrega à tarde", "Paga no fiado".</span>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Situação</legend>
+      <div class="grupo-opcoes">
+        <label class="linha"><input type="radio" name="situacao_contato" value="normal" <%= contato.situacao_contato === 'normal' ? 'checked' : '' %>> Normal (o bot atende e a conversa vai para a fila)</label>
+        <label class="linha"><input type="radio" name="situacao_contato" value="ignorado" <%= contato.situacao_contato === 'ignorado' ? 'checked' : '' %>> Ignorado: o bot não responde e não abre atendimento, mas a mensagem fica guardada (ex.: família, fornecedor)</label>
+        <label class="linha"><input type="radio" name="situacao_contato" value="bloqueado" <%= contato.situacao_contato === 'bloqueado' ? 'checked' : '' %>> Bloqueado: nada do que ele mandar é guardado nem respondido</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Consentimento (LGPD)</legend>
+      <input type="hidden" name="consentimento_enviado" value="1">
+      <label class="linha"><input type="checkbox" name="consentimento" value="1" <%= contato.consentimento ? 'checked' : '' %>> Aceitou receber mensagens nossas pelo WhatsApp (promoções, avisos)</label>
+      <p class="ajuda ajuda-solta">
+        <% if (contato.consentimento_em) { %>Aceitou em <%= data(contato.consentimento_em) %>. <% } %>
+        <% if (contato.optout_em) { %>Pediu para não receber em <%= data(contato.optout_em) %>. <% } %>
+        Sem essa marca, o contato não entra em campanhas. Desmarcar registra que ele pediu para sair.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tags</legend>
+      <input type="hidden" name="tags_enviadas" value="1">
+      <% if (tags.length) { %>
+        <div class="lista-tags-check">
+          <% tags.forEach((t) => { %>
+            <label class="linha-check"><input type="checkbox" name="tags" value="<%= t.id %>" <%= contato.tags.some((x) => x.id === t.id) ? 'checked' : '' %>> <%= t.nome %></label>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="dica">Nenhuma tag cadastrada ainda.</p>
+      <% } %>
+      <p class="ajuda ajuda-solta">Tags separam os clientes em grupos (ex.: Condomínio, Comércio). Cadastre em <a href="/painel/contatos/tags">Contatos › Tags</a>.</p>
+    </fieldset>
+
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar contato</button>
+    </div>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('../configuracoes/aviso-nao-salvo', { formId: 'form-contato' }) %>

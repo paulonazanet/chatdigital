@@ -10,8 +10,16 @@ const {
 
 const { processarMensagem, transferirParaHumano, obterEstadoConversa } = require('./flow-engine');
 const { carregarFluxo } = require('./fluxo');
-const { registrarMensagem, sincronizarConversa, definirNumeroExibicao, definirNomeDoPerfil } = require('./conversas');
+const {
+  registrarMensagem,
+  sincronizarConversa,
+  definirNumeroExibicao,
+  definirNomeDoPerfil,
+  acharMensagemPorWaId,
+  registrarReacao,
+} = require('./conversas');
 const { definirSocket } = require('./socket-atual');
+const { situacaoDoNumero } = require('./contatos');
 const { salvarBufferDeMidia } = require('./midia');
 const whatsappStatus = require('./whatsapp-status');
 const { numeroPermitido, construirVerificadorNumeroPermitido } = require('./modo-teste');
@@ -62,7 +70,20 @@ function identificarMidia(mensagem) {
   return null;
 }
 
+// O cliente respondeu citando uma mensagem: o contextInfo vem no tipo da mensagem (texto, imagem...)
+function mensagemCitada(numero, mensagem) {
+  const conteudo = Object.values(mensagem).find((v) => v && typeof v === 'object' && v.contextInfo?.stanzaId);
+  return conteudo ? acharMensagemPorWaId(numero, conteudo.contextInfo.stanzaId) : null;
+}
+
 async function avisarSeSemAtendente(sock, numero, negocio, sincronizacao) {
+  // setor fora do horário próprio (ou feriado): manda o aviso do setor
+  if (sincronizacao?.mensagemForaDoHorario) {
+    if (await enviarComSeguranca(sock, numero, sincronizacao.mensagemForaDoHorario)) {
+      registrarMensagem(numero, 'bot', sincronizacao.mensagemForaDoHorario);
+    }
+    return;
+  }
   if (!sincronizacao?.semAtendenteDisponivel || !negocio.mensagem_sem_atendente_disponivel) return;
   if (await enviarComSeguranca(sock, numero, negocio.mensagem_sem_atendente_disponivel)) {
     registrarMensagem(numero, 'bot', negocio.mensagem_sem_atendente_disponivel);
@@ -77,6 +98,90 @@ async function enviarComSeguranca(sock, numero, texto) {
     console.error(`Falha ao enviar mensagem para ${numero}:`, erro);
     return false;
   }
+}
+
+/**
+ * Trata uma mensagem que chegou do WhatsApp (cliente escreveu, mandou mídia ou reagiu). Separado do
+ * evento do Baileys pra dar pra testar sem conexão de verdade.
+ */
+async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
+  if (!msg.message || msg.key.fromMe) return;
+  const numero = msg.key.remoteJid;
+  if (!ehConversaDeCliente(numero)) return; // ignora grupos, Status, canais etc.
+  if (!numeroPermitido(numero, msg.key.remoteJidAlt)) return; // modo de teste: ignora quem não está na lista
+
+  // Contatos: bloqueado = nada é guardado nem respondido; ignorado = guarda no histórico, mas o
+  // bot não responde e não abre atendimento (ex.: família, fornecedor)
+  const situacao = situacaoDoNumero(numero);
+  if (situacao === 'bloqueado') return;
+
+  // reação do cliente (emoji numa mensagem): marca na mensagem do histórico, não abre atendimento
+  if (msg.message.reactionMessage) {
+    const alvo = acharMensagemPorWaId(numero, msg.message.reactionMessage.key?.id);
+    if (alvo) registrarReacao(alvo.id, 'cliente', msg.message.reactionMessage.text);
+    return;
+  }
+
+  const texto =
+    msg.message.conversation ||
+    msg.message.extendedTextMessage?.text ||
+    '';
+  // id no WhatsApp (pra citar/reagir depois) e a mensagem que o cliente citou, se citou
+  const extra = { waId: msg.key.id, citadaId: mensagemCitada(numero, msg.message)?.id };
+
+  if (situacao === 'ignorado') {
+    const rotulo = texto ? null : identificarMidia(msg.message)?.rotulo;
+    if (texto || rotulo) {
+      registrarMensagem(numero, 'cliente', texto || `[cliente enviou ${rotulo}]`, null, null, { ...extra, semAtendimento: true });
+    }
+    return;
+  }
+
+  if (!texto) {
+    const midiaInfo = identificarMidia(msg.message);
+    if (!midiaInfo) return; // outro tipo de evento sem conteúdo processável (ex.: reação)
+
+    let midiaBaixada = null;
+    if (midiaInfo.tipo || midiaInfo.baixavel) {
+      try {
+        const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
+        const mimetype = msg.message[midiaInfo.chave]?.mimetype;
+        midiaBaixada = { tipo: midiaInfo.tipo, url: salvarBufferDeMidia(buffer, mimetype) };
+      } catch (erro) {
+        console.error(`Falha ao baixar ${midiaInfo.rotulo} de ${numero}:`, erro);
+      }
+    }
+
+    registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada, null, extra);
+    if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
+    definirNomeDoPerfil(numero, msg.pushName);
+    const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
+    transferirParaHumano(numero, fluxo);
+    const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
+    // o aviso só vai quando é a mídia que tira o cliente do bot; se a conversa já está com
+    // atendente (aguardando ou atendendo), ele vê a mídia na tela e o aviso só alongava a
+    // conversa (pedido do Carlos, 13/10)
+    if (vinhaDoBot) {
+      const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
+      if (await enviarComSeguranca(sock, numero, aviso)) {
+        registrarMensagem(numero, 'bot', aviso);
+      }
+    }
+    await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
+    return;
+  }
+
+  registrarMensagem(numero, 'cliente', texto, null, null, extra);
+  if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
+  definirNomeDoPerfil(numero, msg.pushName);
+  const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
+  const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
+  const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
+  if (resposta) {
+    registrarMensagem(numero, 'bot', resposta);
+    await enviarComSeguranca(sock, numero, resposta);
+  }
+  await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
 }
 
 async function iniciarBot(negocio, fluxoDoBoot) {
@@ -125,65 +230,11 @@ async function iniciarBot(negocio, fluxoDoBoot) {
     }
 
     for (const msg of messages) {
-      if (!msg.message || msg.key.fromMe) continue;
-      const numero = msg.key.remoteJid;
-      if (!ehConversaDeCliente(numero)) continue; // ignora grupos, Status, canais etc.
-      if (!numeroPermitido(numero, msg.key.remoteJidAlt)) continue; // modo de teste: ignora quem não está na lista
-
-      const texto =
-        msg.message.conversation ||
-        msg.message.extendedTextMessage?.text ||
-        '';
-
-      if (!texto) {
-        const midiaInfo = identificarMidia(msg.message);
-        if (!midiaInfo) continue; // outro tipo de evento sem conteúdo processável (ex.: reação)
-
-        let midiaBaixada = null;
-        if (midiaInfo.tipo || midiaInfo.baixavel) {
-          try {
-            const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage });
-            const mimetype = msg.message[midiaInfo.chave]?.mimetype;
-            midiaBaixada = { tipo: midiaInfo.tipo, url: salvarBufferDeMidia(buffer, mimetype) };
-          } catch (erro) {
-            console.error(`Falha ao baixar ${midiaInfo.rotulo} de ${numero}:`, erro);
-          }
-        }
-
-        registrarMensagem(numero, 'cliente', `[cliente enviou ${midiaInfo.rotulo}]`, midiaBaixada);
-        if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
-        definirNomeDoPerfil(numero, msg.pushName);
-        const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
-        transferirParaHumano(numero, fluxo);
-        const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
-        // o aviso só vai quando é a mídia que tira o cliente do bot; se a conversa já está com
-        // atendente (aguardando ou atendendo), ele vê a mídia na tela e o aviso só alongava a
-        // conversa (pedido do Carlos, 13/10)
-        if (vinhaDoBot) {
-          const aviso = midiaBaixada ? AVISO_MIDIA_RECEBIDA(midiaInfo.rotulo) : AVISO_MIDIA_NAO_SUPORTADA(midiaInfo.rotulo);
-          if (await enviarComSeguranca(sock, numero, aviso)) {
-            registrarMensagem(numero, 'bot', aviso);
-          }
-        }
-        await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
-        continue;
-      }
-
-      registrarMensagem(numero, 'cliente', texto);
-      if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
-      definirNomeDoPerfil(numero, msg.pushName);
-      const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
-      const resposta = await processarMensagem({ numero, texto, negocio, fluxo });
-      const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
-      if (resposta) {
-        registrarMensagem(numero, 'bot', resposta);
-        await enviarComSeguranca(sock, numero, resposta);
-      }
-      await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
+      await tratarMensagemRecebida(sock, msg, negocio, fluxo);
     }
   });
 
   return sock;
 }
 
-module.exports = { iniciarBot, ehConversaDeCliente, construirVerificadorNumeroPermitido };
+module.exports = { iniciarBot, tratarMensagemRecebida, ehConversaDeCliente, construirVerificadorNumeroPermitido };

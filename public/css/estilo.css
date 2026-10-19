@@ -15,6 +15,8 @@
 }
 
 * { box-sizing: border-box; }
+/* o atributo hidden sempre esconde, mesmo em elemento com display próprio (flex, grid...) */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -1228,7 +1230,7 @@ form input[type="date"] { display: block; margin-top: 0.35rem; padding: 0.5rem 0
 .trilha-config { font-size: 0.85rem; color: var(--cinza-texto); margin: 0 0 0.25rem; }
 .trilha-config a { color: var(--azul-destaque); }
 
-.cartoes-config { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1.25rem 0 1rem; }
+.cartoes-config { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1.25rem 0 1rem; }
 .cartao-config {
   display: flex;
   flex-direction: column;
@@ -1279,3 +1281,63 @@ form .campo-com-unidade input[type="number"] { width: 6.5rem; margin-top: 0; }
   .cartoes-config, .campos-lado-a-lado { grid-template-columns: 1fr; }
 }
 .grupo-motivo .nome-grupo { font-weight: 600; color: var(--azul-marinho); }
+
+/* E1, 3a parte: responder citando, reações e mensagem que falhou */
+.mensagem-citada {
+  display: block;
+  margin: 0.2rem 0 -0.1rem;
+  padding: 0.3rem 0.6rem;
+  border-left: 3px solid var(--marca-laranja);
+  background: rgba(28, 61, 90, 0.06);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--cinza-texto);
+  text-align: left;
+  text-decoration: none;
+  white-space: pre-line;
+}
+.mensagem-citada span { display: block; font-weight: 600; color: var(--azul-marinho); font-size: 0.72rem; }
+.mensagem-reacoes { display: inline-flex; gap: 0.2rem; margin-top: -0.4rem; padding: 0.05rem 0.35rem; background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 999px; font-size: 0.85rem; position: relative; }
+.mensagem-acoes { display: flex; gap: 0.6rem; font-size: 0.75rem; margin-top: 0.15rem; opacity: 0.55; }
+.mensagem-bot .mensagem-acoes, .mensagem-atendente .mensagem-acoes { justify-content: flex-end; }
+.mensagem:hover .mensagem-acoes, .mensagem-acoes:focus-within { opacity: 1; }
+.mensagem-acoes .botao-link { font-size: 0.75rem; }
+.reagir-popover { position: relative; display: inline-block; }
+.reagir-popover summary { list-style: none; cursor: pointer; }
+.reagir-popover summary::-webkit-details-marker { display: none; }
+.reagir-opcoes { position: absolute; z-index: 10; bottom: 1.4rem; left: 0; display: flex; gap: 0.15rem; padding: 0.3rem; background: var(--branco); border: 1px solid var(--cinza-borda); border-radius: 999px; box-shadow: 0 2px 8px rgba(20, 41, 60, 0.15); margin: 0; }
+.mensagem-bot .reagir-opcoes, .mensagem-atendente .reagir-opcoes { left: auto; right: 0; }
+.reagir-opcoes button { background: transparent; color: inherit; padding: 0.15rem 0.3rem; font-size: 1.1rem; border-radius: 50%; }
+.reagir-opcoes button:hover, .reagir-opcoes .reacao-escolhida { background: #eef1f4; }
+.mensagem-falha p { opacity: 0.6; }
+.mensagem-aviso-falha { display: block; margin-top: 0.2rem; font-size: 0.78rem; color: var(--vermelho-erro); font-weight: 600; }
+.mensagem-aviso-falha .botao-link { font-size: 0.78rem; }
+.citando { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.6rem; margin-bottom: 0.4rem; border-left: 3px solid var(--marca-laranja); background: #eef1f4; border-radius: 4px; font-size: 0.82rem; color: var(--cinza-texto); }
+.citando-texto { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Contatos */
+.cartoes-contatos { grid-template-columns: repeat(4, 1fr); }
+.cartoes-contatos .cartao-config-nome { font-size: 1.35rem; }
+.cartao-ativo { border-color: var(--marca-laranja); box-shadow: inset 0 -3px 0 var(--marca-laranja); }
+.filtros-contatos select { width: auto; margin-top: 0; }
+.selo-situacao-ignorado { background: #fff3d6; color: #7a5a00; }
+.selo-situacao-bloqueado { background: #f6e3e4; color: var(--vermelho-erro); }
+.paginacao { display: flex; gap: 1rem; align-items: center; justify-content: center; font-size: 0.9rem; }
+.lista-tags-check { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin-bottom: 0.6rem; }
+.lista-tags-check .linha-check { font-weight: 400; margin: 0; }
+.pagina-config input[type="email"] { width: 100%; }
+.cabecalho-lista .botao-secundario.botao { margin-left: 0.4rem; }
+@media (max-width: 720px) { .cartoes-contatos { grid-template-columns: 1fr 1fr; } }
+
+/* Feriados e horário do setor */
+.acoes-topo { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; }
+.tabela-horario td, .tabela-horario th { padding: 0.35rem 0.5rem; }
+.tabela-horario .periodo { white-space: nowrap; }
+.tabela-horario .periodo span { margin: 0 0.3rem; font-size: 0.85rem; color: var(--cinza-texto); }
+.pagina-config input[type="time"], .pagina-config input[type="date"] { padding: 0.4rem 0.5rem; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; font-size: 0.9rem; }
+.pagina-config label input[type="date"] { display: block; width: 100%; margin-top: 0.35rem; }
+.pagina-config label input[type="time"] { display: block; margin-top: 0.35rem; }
+.no-fluxo-transferir_atendente .no-cabecalho { background: #7d1d24; }
+.no-fluxo-aguardar .no-cabecalho { background: #2f6690; }
+.no-fluxo-nota .no-cabecalho { background: #a8892a; }
+.sem-quebra { white-space: nowrap; }

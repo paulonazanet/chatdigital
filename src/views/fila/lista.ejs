@@ -179,6 +179,7 @@
                 finalizado: 'Finalizada',
               }[conversaSelecionada.status] %> · <%= conversaSelecionada.setor_nome || 'Sem setor' %>
               <% if (protocoloAtual) { %> · Protocolo <span class="protocolo"><%= protocoloAtual %></span><% } %>
+              <% if (conversaSelecionada.situacao_contato && conversaSelecionada.situacao_contato !== 'normal') { %> · <span class="selo selo-situacao-<%= conversaSelecionada.situacao_contato %>"><%= conversaSelecionada.situacao_contato === 'ignorado' ? 'Contato ignorado: o bot não atende' : 'Contato bloqueado' %></span><% } %>
             </p>
             <% if (marcadoresDaConversa.length) { %><p class="marcadores-conversa"><% marcadoresDaConversa.forEach((m) => { %><span class="chip-marcador" style="--cor: <%= m.cor %>"><%= m.nome %></span><% }) %></p><% } %>
           </div>
@@ -186,6 +187,7 @@
             <details class="transferir-popover acoes-popover">
               <summary class="botao-secundario botao-como-summary" title="Marcadores, fixar e mais">Ações ▾</summary>
               <div class="form-transferir menu-acoes">
+                <% if (podeVerContatos) { %><a class="botao-link" href="/painel/contatos/<%= conversaSelecionada.id %>">👤 Ficha do contato (cadastro, ignorar, tags)</a><% } %>
                 <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/fixar">
                   <button type="submit" class="botao-link"><%= conversaFixada ? '📌 Desfixar da lista' : '📌 Fixar no topo da lista' %></button>
                 </form>
@@ -276,8 +278,12 @@
                 <p><%- formatarWhatsapp(m.texto) %></p>
               </div>
             <% return; } %>
-            <div class="mensagem mensagem-<%= m.remetente %>">
+            <% const podeAgir = conversaSelecionada.status === 'atendendo' && !m.falha; %>
+            <div class="mensagem mensagem-<%= m.remetente %><%= m.falha ? ' mensagem-falha' : '' %>" id="msg-<%= m.id %>">
               <span class="mensagem-remetente"><%= m.remetente === 'atendente' && m.atendente_nome ? m.atendente_nome : m.remetente %></span>
+              <% if (m.citada_texto) { %>
+                <a class="mensagem-citada" href="#msg-<%= m.citada_id %>"><span><%= m.citada_remetente === 'cliente' ? 'Cliente' : 'Nós' %></span><%= m.citada_texto.length > 140 ? m.citada_texto.slice(0, 140) + '…' : m.citada_texto %></a>
+              <% } %>
               <% if (m.midia_tipo === 'imagem') { %>
                 <a href="<%= m.midia_url %>" target="_blank" rel="noopener"><img class="mensagem-midia" src="<%= m.midia_url %>" alt="Imagem enviada"></a>
               <% } else if (m.midia_tipo === 'video') { %>
@@ -288,6 +294,34 @@
                 <a class="mensagem-arquivo" href="<%= m.midia_url %>" target="_blank" rel="noopener">📄 Baixar arquivo</a>
               <% } %>
               <p><%- formatarWhatsapp(m.texto) %></p>
+              <% if (m.reacao_cliente || m.reacao_atendente) { %>
+                <span class="mensagem-reacoes">
+                  <% if (m.reacao_cliente) { %><span title="Reação do cliente"><%= m.reacao_cliente %></span><% } %>
+                  <% if (m.reacao_atendente) { %><span title="Nossa reação"><%= m.reacao_atendente %></span><% } %>
+                </span>
+              <% } %>
+              <% if (m.falha) { %>
+                <span class="mensagem-aviso-falha">⚠ Não foi enviada.
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/reenviar/<%= m.id %>" class="form-inline"><button type="submit" class="botao-link">Reenviar</button></form>
+                  ·
+                  <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/descartar/<%= m.id %>" class="form-inline" onsubmit="return confirm('Descartar esta mensagem? Ela sai do histórico.')"><button type="submit" class="botao-link botao-link-perigo">Descartar</button></form>
+                </span>
+              <% } else if (podeAgir && m.remetente !== 'bot') { %>
+                <span class="mensagem-acoes">
+                  <% if (m.wa_id) { %>
+                    <button type="button" class="botao-link botao-citar" data-id="<%= m.id %>" data-texto="<%= m.texto.slice(0, 140) %>">↩ Responder</button>
+                    <details class="reagir-popover">
+                      <summary class="botao-link">☺ Reagir</summary>
+                      <form method="post" action="/painel/fila/<%= conversaSelecionada.id %>/reagir" class="reagir-opcoes">
+                        <input type="hidden" name="mensagem_id" value="<%= m.id %>">
+                        <% ['👍', '❤️', '😂', '😮', '😢', '🙏'].forEach((e) => { %>
+                          <button type="submit" name="emoji" value="<%= e %>" class="<%= m.reacao_atendente === e ? 'reacao-escolhida' : '' %>" title="<%= m.reacao_atendente === e ? 'Tirar a reação' : 'Reagir' %>"><%= e %></button>
+                        <% }) %>
+                      </form>
+                    </details>
+                  <% } %>
+                </span>
+              <% } %>
             </div>
           <% }) %>
           <% if (mensagens.length === 0) { %><p class="dica">Nenhuma mensagem ainda.</p><% } %>
@@ -317,6 +351,11 @@
                 <button type="button" class="botao-remover-anexo" hidden title="Remover">✕</button>
                 <div class="emoji-painel" hidden></div>
                 <div class="respostas-painel" hidden></div>
+              </div>
+              <input type="hidden" name="citar_id" value="">
+              <div class="citando" hidden>
+                <span class="citando-texto"></span>
+                <button type="button" class="botao-link botao-cancelar-citar" title="Não citar">✕</button>
               </div>
               <div class="form-responder-linha">
                 <textarea name="texto" placeholder="Escreva a resposta para o cliente..."></textarea>

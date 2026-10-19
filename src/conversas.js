@@ -1,8 +1,9 @@
 const { db } = require('./db');
 const { obterEstadoConversa, transferirParaHumano } = require('./flow-engine');
 const { barramento } = require('./eventos');
-const { haAtendenteDisponivel } = require('./atendentes');
+const { haAtendenteDisponivel, obterAtendentePorId } = require('./atendentes');
 const atendimentos = require('./atendimentos');
+const { obterSetorPorId, setorAberto } = require('./setores');
 
 function obterOuCriarConversa(numero) {
   const existente = db.prepare('SELECT * FROM conversas WHERE numero = ?').get(numero);
@@ -46,16 +47,29 @@ function renomearContato(id, nome) {
   db.prepare('UPDATE conversas SET nome_contato = ?, nome_editado = ? WHERE id = ?').run(limpo || null, limpo ? 1 : 0, id);
 }
 
-function registrarMensagem(numero, remetente, texto, midia = null, atendenteId = null) {
+/**
+ * `extra` (E1, 3a parte): { waId, deMim } = id da mensagem no WhatsApp (pra citar e reagir depois),
+ * `citadaId` = mensagem do histórico que ela responde, `falha` = o envio deu erro (fica no
+ * histórico com o botão Reenviar e não conta como resposta), `semAtendimento` = só guarda (contato
+ * ignorado). Devolve o id da mensagem gravada.
+ */
+function registrarMensagem(numero, remetente, texto, midia = null, atendenteId = null, extra = {}) {
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
-  db.prepare(
-    'INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  ).run(conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null, atendenteId);
+  const info = db.prepare(
+    `INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id, wa_id, wa_de_mim, citada_id, falha)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null, atendenteId,
+    extra.waId || null, extra.deMim ? 1 : 0, extra.citadaId || null, extra.falha ? 1 : 0,
+  );
+  const mensagemId = Number(info.lastInsertRowid);
+  if (extra.falha) return mensagemId; // não saiu: não mexe em atendimento, fila nem lembrete
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);
   // mensagem de gente (cliente ou atendente) abre um atendimento, se não tinha um aberto;
   // mensagem do bot não — senão o "atendimento encerrado" mandado ao finalizar reabriria
-  if (remetente !== 'bot') {
+  // (contato ignorado: a mensagem fica guardada, mas não abre atendimento)
+  if (remetente !== 'bot' && !extra.semAtendimento) {
     db.prepare('UPDATE conversas SET aberta_em = COALESCE(aberta_em, ?) WHERE id = ?').run(agora, conversa.id);
   }
   if (remetente === 'atendente') atendimentos.registrarRespostaDoAtendente(conversa.id, atendenteId);
@@ -69,6 +83,39 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
   if (remetente === 'cliente' && conversa.status !== 'bot' && conversa.status !== 'finalizado') {
     barramento.emit('atencao', { motivo: 'mensagem', numero, texto, setorId: conversa.setor_id, numeroExibicao: conversa.numero_exibicao });
   }
+  return mensagemId;
+}
+
+/** Mensagem do histórico pelo id do WhatsApp, dentro da conversa daquele número (ou null). */
+function acharMensagemPorWaId(numero, waId) {
+  if (!waId) return null;
+  return db
+    .prepare('SELECT m.* FROM mensagens m JOIN conversas c ON c.id = m.conversa_id WHERE c.numero = ? AND m.wa_id = ? ORDER BY m.id DESC LIMIT 1')
+    .get(numero, waId) || null;
+}
+
+/** Reação com emoji numa mensagem (`quem`: 'cliente' ou 'atendente'); emoji vazio tira a reação. */
+function registrarReacao(mensagemId, quem, emoji) {
+  const coluna = quem === 'cliente' ? 'reacao_cliente' : 'reacao_atendente';
+  db.prepare(`UPDATE mensagens SET ${coluna} = ? WHERE id = ?`).run(String(emoji || '').slice(0, 16) || null, mensagemId);
+}
+
+/** O reenvio deu certo: a mensagem deixa de ter falha e passa a contar como resposta. */
+function marcarReenviada(mensagemId, waId) {
+  const m = db.prepare('SELECT * FROM mensagens WHERE id = ?').get(mensagemId);
+  if (!m || !m.falha) return;
+  db.prepare('UPDATE mensagens SET falha = 0, wa_id = ?, wa_de_mim = 1 WHERE id = ?').run(waId || null, mensagemId);
+  db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(new Date().toISOString(), m.conversa_id);
+  if (m.remetente === 'atendente') atendimentos.registrarRespostaDoAtendente(m.conversa_id, m.atendente_id);
+}
+
+function obterMensagem(id) {
+  return db.prepare('SELECT * FROM mensagens WHERE id = ?').get(id) || null;
+}
+
+/** Descartar uma mensagem que falhou (só apaga se ainda estiver com falha). */
+function descartarMensagemComFalha(id) {
+  db.prepare('DELETE FROM mensagens WHERE id = ? AND falha = 1').run(id);
 }
 
 /**
@@ -119,23 +166,36 @@ function sincronizarConversa(numero, fluxo, { vinhaDoBot = false } = {}) {
   const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
   if (acabouDeEntrarNaFila) {
     atendimentos.abrirAtendimentoDoCliente(conversa.id, setorId);
+    // bloco "Transferir para atendente" do fluxo: já entra atendendo com ele (se ele estiver ativo)
+    const destino = estado.atendenteId ? obterAtendentePorId(estado.atendenteId) : null;
+    if (destino && destino.ativo) {
+      db.prepare("UPDATE conversas SET status = 'atendendo', atendente_id = ? WHERE id = ?").run(destino.id, conversa.id);
+      atendimentos.registrarAssumido(conversa.id, destino.id);
+    }
     barramento.emit('atencao', { motivo: 'novo-atendimento', numero, setorId, numeroExibicao: conversa.numero_exibicao });
   }
 
-  return { semAtendenteDisponivel: acabouDeEntrarNaFila && !haAtendenteDisponivel(setorId) };
+  // setor fechado agora (fora do horário próprio dele ou feriado): o cliente recebe o aviso do setor
+  // no lugar do "sem atendente disponível"
+  const setor = acabouDeEntrarNaFila && setorId ? obterSetorPorId(setorId) : null;
+  const foraDoHorario = !!setor && !setorAberto(setor);
+  return {
+    semAtendenteDisponivel: acabouDeEntrarNaFila && !foraDoHorario && !haAtendenteDisponivel(setorId),
+    mensagemForaDoHorario: foraDoHorario ? setor.mensagem_fora_horario || null : null,
+  };
 }
 
 function listarFila() {
   return db
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
-              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em,
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em,
               -- desde quando o cliente espera: a 1a mensagem dele depois da última resposta de um
               -- atendente (é isso que a cor da bolinha na fila mede)
               (SELECT MIN(m.criado_em) FROM mensagens m WHERE m.conversa_id = c.id AND m.remetente = 'cliente'
-                 AND m.id > COALESCE((SELECT MAX(a2.id) FROM mensagens a2 WHERE a2.conversa_id = c.id AND a2.remetente = 'atendente' AND a2.interna = 0), 0)
+                 AND m.id > COALESCE((SELECT MAX(a2.id) FROM mensagens a2 WHERE a2.conversa_id = c.id AND a2.remetente = 'atendente' AND a2.interna = 0 AND a2.falha = 0), 0)
               ) AS esperando_desde
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
@@ -154,8 +214,8 @@ function listarFila() {
 function listarConversasComBot() {
   return db
     .prepare(
-      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
+      `SELECT c.*, (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
        FROM conversas c WHERE c.status = 'bot' ORDER BY c.atualizado_em ASC`,
     )
     .all();
@@ -215,9 +275,9 @@ function listarFinalizadas({ busca = '', limite = 50 } = {}) {
   const todas = db
     .prepare(
       `SELECT c.*, s.nome AS setor_nome, a.nome AS atendente_nome,
-              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
-              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
-              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
+              (SELECT texto FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem,
+              (SELECT remetente FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_remetente,
+              (SELECT criado_em FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0 AND m.falha = 0 ORDER BY m.id DESC LIMIT 1) AS ultima_mensagem_em
        FROM conversas c
        LEFT JOIN setores s ON s.id = c.setor_id
        LEFT JOIN atendentes a ON a.id = c.atendente_id
@@ -257,8 +317,10 @@ function obterConversaPorId(id) {
 function listarMensagens(conversaId) {
   return db
     .prepare(
-      `SELECT m.*, a.nome AS atendente_nome FROM mensagens m
+      `SELECT m.*, a.nome AS atendente_nome, q.texto AS citada_texto, q.remetente AS citada_remetente
+       FROM mensagens m
        LEFT JOIN atendentes a ON a.id = m.atendente_id
+       LEFT JOIN mensagens q ON q.id = m.citada_id
        WHERE m.conversa_id = ? ORDER BY m.id ASC`,
     )
     .all(conversaId);
@@ -291,6 +353,11 @@ module.exports = {
   obterOuCriarConversa,
   registrarMensagem,
   registrarNotaInterna,
+  acharMensagemPorWaId,
+  registrarReacao,
+  marcarReenviada,
+  obterMensagem,
+  descartarMensagemComFalha,
   definirNumeroExibicao,
   sincronizarConversa,
   listarFila,

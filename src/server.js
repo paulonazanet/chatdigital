@@ -14,6 +14,7 @@ const rotasFluxoEditor = require('./routes/fluxo');
 const rotasConfiguracoes = require('./routes/configuracoes');
 const rotasRelatorio = require('./routes/relatorio');
 const rotasRespostasRapidas = require('./routes/respostas-rapidas');
+const rotasContatos = require('./routes/contatos');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/painel/eventos', exigirLogin, rotasEventos);
 app.use('/painel/fluxo', exigirLogin, exigirPermissao('editar_fluxo'), rotasFluxoEditor);
 app.use('/painel/configuracoes', exigirLogin, exigirPermissao('gerenciar_configuracoes'), rotasConfiguracoes);
 app.use('/painel/respostas-rapidas', exigirLogin, exigirPermissao('gerenciar_respostas_rapidas'), rotasRespostasRapidas);
+app.use('/painel/contatos', exigirLogin, exigirPermissao('gerenciar_contatos'), rotasContatos);
 app.use('/painel/relatorio', exigirLogin, exigirPermissao('ver_relatorio'), rotasRelatorio);
 app.use('/painel', exigirLogin, rotasPainel);
 

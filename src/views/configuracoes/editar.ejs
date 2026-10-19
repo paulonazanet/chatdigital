@@ -26,6 +26,11 @@
       <span class="cartao-config-info"><%= resumo.marcadoresAtivos %> marcador<%= resumo.marcadoresAtivos === 1 ? '' : 'es' %> ativo<%= resumo.marcadoresAtivos === 1 ? '' : 's' %></span>
       <span class="cartao-config-texto">Etiquetas coloridas das conversas</span>
     </a>
+    <a class="cartao-config" href="/painel/configuracoes/feriados">
+      <span class="cartao-config-nome">Feriados</span>
+      <span class="cartao-config-info"><%= resumo.feriadosAtivos %> feriado<%= resumo.feriadosAtivos === 1 ? '' : 's' %> ativo<%= resumo.feriadosAtivos === 1 ? '' : 's' %></span>
+      <span class="cartao-config-texto">Dias em que o atendimento fecha</span>
+    </a>
   </nav>
 
   <nav class="atalhos-config" aria-label="Ir para o quadro">
@@ -40,10 +45,8 @@
   <form method="post" action="/painel/configuracoes" id="form-configuracoes">
     <fieldset id="quadro-negocio">
       <legend>Dados do negócio</legend>
-      <div class="campos-lado-a-lado">
-        <label>Nome do negócio<input type="text" name="nome" value="<%= negocio.nome %>" required></label>
-        <label>Horário de funcionamento<input type="text" name="horario_funcionamento" value="<%= negocio.horario_funcionamento || '' %>"></label>
-      </div>
+      <label>Nome do negócio<input type="text" name="nome" value="<%= negocio.nome %>" required></label>
+      <label>Horário de funcionamento<input type="text" name="horario_funcionamento" value="<%= negocio.horario_funcionamento || '' %>"></label>
       <label>Endereço<input type="text" name="endereco" value="<%= negocio.endereco || '' %>"></label>
       <label>Formas de pagamento
         <input type="text" name="formas_pagamento" value="<%= (negocio.formas_pagamento || []).join(', ') %>">

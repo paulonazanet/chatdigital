@@ -20,8 +20,13 @@
     salvar: 'Salvar registro',
     api: 'Chamar API',
     transferir: 'Transferir',
+    transferir_atendente: 'Transferir para atendente',
+    aguardar: 'Aguardar resposta',
+    nota: 'Nota interna',
     fim: 'Fim',
   };
+  // atendentes e setores pros campos de escolha (carregados junto com o fluxo)
+  var opcoes = { atendentes: [], setores: [] };
 
   function marcarSujo() {
     sujo = true;
@@ -115,7 +120,7 @@
       ];
     }
 
-    if (no.tipo === 'transferir' || no.tipo === 'fim') return [];
+    if (no.tipo === 'transferir' || no.tipo === 'transferir_atendente' || no.tipo === 'fim') return [];
 
     return [{ id: 'proximo', rotulo: '', obter: function () { return no.proximo; }, definir: function (v) { no.proximo = v; } }];
   }
@@ -124,6 +129,12 @@
     if (no.tipo === 'condicao') return 'variável: ' + (no.variavel || '—');
     if (no.tipo === 'horario') return (no.janelas || []).length + ' janela(s) de funcionamento';
     if (no.tipo === 'transferir') return 'setor: ' + (no.setor || '—');
+    if (no.tipo === 'transferir_atendente') {
+      var destino = opcoes.atendentes.filter(function (a) { return String(a.id) === String(no.atendente_id); })[0];
+      return 'atendente: ' + (destino ? destino.nome : '—');
+    }
+    if (no.tipo === 'aguardar') return no.variavel ? 'guarda em: vars.' + no.variavel : 'espera o cliente responder';
+    if (no.tipo === 'nota') return no.texto || '—';
     if (no.tipo === 'salvar') return 'coleção: ' + (no.colecao || '—');
     if (no.tipo === 'api') return (no.metodo || 'GET') + ' ' + (no.url || '—');
     if (no.tipo === 'fim' || no.tipo === 'inicio') return '';
@@ -301,6 +312,25 @@
     return wrapper;
   }
 
+  function campoEscolha(rotulo, valor, itens, aoMudar) {
+    var wrapper = document.createElement('label');
+    wrapper.className = 'campo-editor';
+    var span = document.createElement('span');
+    span.textContent = rotulo;
+    wrapper.appendChild(span);
+    var select = document.createElement('select');
+    [['', 'Escolha...']].concat(itens).forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = item[0];
+      opt.textContent = item[1];
+      if (String(valor == null ? '' : valor) === item[0]) opt.selected = true;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', function () { aoMudar(select.value); marcarSujo(); });
+    wrapper.appendChild(select);
+    return wrapper;
+  }
+
   function campoListaSimples(titulo, itens, criarItem, aoAdicionar, aoRemover) {
     var container = document.createElement('div');
     container.className = 'campo-lista';
@@ -364,6 +394,37 @@
 
     if (no.tipo === 'transferir') {
       painel.appendChild(campoTexto('Setor', no.setor, function (v) { no.setor = v; renderizarNo(id); }));
+    }
+
+    if (no.tipo === 'transferir_atendente') {
+      painel.appendChild(campoTexto('Texto para o cliente (opcional)', no.texto, function (v) { no.texto = v || undefined; renderizarNo(id); }, true));
+      painel.appendChild(campoEscolha('Atendente', no.atendente_id, opcoes.atendentes.map(function (a) { return [String(a.id), a.nome]; }), function (v) {
+        no.atendente_id = v ? Number(v) : undefined;
+        renderizarNo(id);
+      }));
+      painel.appendChild(campoEscolha('Setor (opcional)', no.setor, opcoes.setores.map(function (nome) { return [nome, nome]; }), function (v) {
+        no.setor = v || undefined;
+      }));
+      var dicaAtendente = document.createElement('p');
+      dicaAtendente.className = 'dica';
+      dicaAtendente.textContent = 'A conversa já entra como "atendendo" com essa pessoa (se ela estiver ativa). Sem atendente escolhido, vai para a fila do setor.';
+      painel.appendChild(dicaAtendente);
+    }
+
+    if (no.tipo === 'aguardar') {
+      var dicaAguardar = document.createElement('p');
+      dicaAguardar.className = 'dica';
+      dicaAguardar.textContent = 'Não manda nada: espera a próxima mensagem do cliente e segue para o próximo bloco. Útil depois de uma Mensagem que pede uma foto, um endereço etc.';
+      painel.appendChild(dicaAguardar);
+      painel.appendChild(campoTexto('Guardar a resposta na variável (opcional)', no.variavel, function (v) { no.variavel = v || undefined; renderizarNo(id); }));
+    }
+
+    if (no.tipo === 'nota') {
+      painel.appendChild(campoTexto('Texto da nota (só a equipe vê)', no.texto, function (v) { no.texto = v; renderizarNo(id); }, true));
+      var dicaNota = document.createElement('p');
+      dicaNota.className = 'dica';
+      dicaNota.textContent = 'Fica no histórico da conversa como nota interna; o cliente não recebe. Pode usar variáveis, ex.: "Pedido: {{vars.produto.nome}}".';
+      painel.appendChild(dicaNota);
     }
 
     if (no.tipo === 'pergunta') {
@@ -555,6 +616,9 @@
       case 'condicao': return { tipo: tipo, variavel: '', casos: [] };
       case 'horario': return { tipo: tipo, janelas: ['1,2,3,4,5 08:00-18:00'] };
       case 'transferir': return { tipo: tipo, texto: 'Encaminhando para um atendente humano.', setor: 'Geral' };
+      case 'transferir_atendente': return { tipo: tipo, texto: 'Vou te passar para a nossa equipe.' };
+      case 'aguardar': return { tipo: tipo };
+      case 'nota': return { tipo: tipo, texto: 'Escreva a nota aqui...' };
       case 'salvar': return { tipo: tipo, colecao: 'registros', campos: {} };
       case 'api': return { tipo: tipo, url: '', metodo: 'GET' };
       case 'fim': return { tipo: tipo };
@@ -651,7 +715,12 @@
   // ---- carregar / salvar ----
 
   function carregar() {
-    return fetch('/painel/fluxo/dados')
+    var buscarOpcoes = fetch('/painel/fluxo/opcoes')
+      .then(function (r) { return r.json(); })
+      .then(function (dados) { opcoes = dados; })
+      .catch(function () {}); // sem a lista, o editor funciona; só o campo Atendente fica vazio
+    return buscarOpcoes
+      .then(function () { return fetch('/painel/fluxo/dados'); })
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         fluxo = dados;

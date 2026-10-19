@@ -1,0 +1,15 @@
+<%- include('../partials/inicio', { titulo: 'Novo contato' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita pagina-config">
+  <p class="trilha-config"><a href="/painel/contatos">Contatos</a> › Novo contato</p>
+  <h1>Novo contato</h1>
+  <p class="dica">O sistema confere no WhatsApp se o número existe. Depois de criar, a ficha abre para completar o cadastro.
+    Se o número já estiver nos contatos, abre a ficha dele.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <form method="post" action="/painel/contatos/novo">
+    <label>Telefone com DDD<input type="text" name="telefone" value="<%= valores.telefone || '' %>" placeholder="Ex.: 81 99999-9999" required></label>
+    <label>Nome<input type="text" name="nome" maxlength="80" value="<%= valores.nome || '' %>" placeholder="Ex.: Maria Silva"></label>
+    <button type="submit">Criar contato</button>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

@@ -1,0 +1,54 @@
+<%- include('../partials/inicio', { titulo: 'Contatos' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const ROTULO_SITUACAO = { normal: 'Normal', ignorado: 'Ignorado', bloqueado: 'Bloqueado' };
+  const linkCom = (mudanca) => '/painel/contatos?' + new URLSearchParams(Object.entries({ q: filtros.busca, situacao: filtros.situacao, tag: filtros.tag, ...mudanca }).filter(([, v]) => v)).toString();
+%>
+<main class="conteudo pagina-config pagina-contatos">
+  <div class="cabecalho-lista">
+    <h1>Contatos</h1>
+    <p><a class="botao" href="/painel/contatos/novo">+ Novo contato</a> <a class="botao-secundario botao" href="/painel/contatos/tags">Tags</a></p>
+  </div>
+  <p class="dica">Todo número que já falou com a gente. Clique no nome para ver e completar a ficha.</p>
+
+  <nav class="cartoes-config cartoes-contatos" aria-label="Contatos por situação">
+    <a class="cartao-config<%= !filtros.situacao ? ' cartao-ativo' : '' %>" href="<%= linkCom({ situacao: '', pagina: '' }) %>"><span class="cartao-config-nome"><%= contagens.total %></span><span class="cartao-config-texto">Total</span></a>
+    <a class="cartao-config<%= filtros.situacao === 'normal' ? ' cartao-ativo' : '' %>" href="<%= linkCom({ situacao: 'normal', pagina: '' }) %>"><span class="cartao-config-nome"><%= contagens.normal %></span><span class="cartao-config-texto">Normais</span></a>
+    <a class="cartao-config<%= filtros.situacao === 'ignorado' ? ' cartao-ativo' : '' %>" href="<%= linkCom({ situacao: 'ignorado', pagina: '' }) %>"><span class="cartao-config-nome"><%= contagens.ignorado %></span><span class="cartao-config-texto">Ignorados (o bot não atende)</span></a>
+    <a class="cartao-config<%= filtros.situacao === 'bloqueado' ? ' cartao-ativo' : '' %>" href="<%= linkCom({ situacao: 'bloqueado', pagina: '' }) %>"><span class="cartao-config-nome"><%= contagens.bloqueado %></span><span class="cartao-config-texto">Bloqueados</span></a>
+  </nav>
+
+  <form method="get" action="/painel/contatos" class="linha-form filtros-contatos">
+    <input type="text" name="q" value="<%= filtros.busca %>" placeholder="Buscar por nome, telefone, e-mail ou documento" aria-label="Buscar">
+    <% if (filtros.situacao) { %><input type="hidden" name="situacao" value="<%= filtros.situacao %>"><% } %>
+    <select name="tag" aria-label="Filtrar por tag">
+      <option value="">Todas as tags</option>
+      <% tags.forEach((t) => { %><option value="<%= t.id %>" <%= String(t.id) === filtros.tag ? 'selected' : '' %>><%= t.nome %></option><% }) %>
+    </select>
+    <button type="submit">Buscar</button>
+  </form>
+
+  <table class="tabela">
+    <thead><tr><th>Nome</th><th>Telefone</th><th>Tags</th><th>Situação</th><th>Última mensagem</th></tr></thead>
+    <tbody>
+      <% itens.forEach((c) => { %>
+        <tr>
+          <td><a href="/painel/contatos/<%= c.id %>"><strong><%= c.nome_contato || 'Sem nome' %></strong></a></td>
+          <td><%= c.telefone %></td>
+          <td><% c.tags.forEach((t) => { %><span class="selo"><%= t.nome %></span> <% }) %></td>
+          <td><span class="selo selo-situacao-<%= c.situacao_contato %>"><%= ROTULO_SITUACAO[c.situacao_contato] %></span><% if (c.consentimento) { %> <span class="selo" title="Aceitou receber mensagens">✓ consentiu</span><% } %></td>
+          <td><%= c.ultima_mensagem_em ? new Date(c.ultima_mensagem_em).toLocaleDateString('pt-BR') : '—' %></td>
+        </tr>
+      <% }) %>
+      <% if (itens.length === 0) { %><tr><td colspan="5" class="dica"><%= filtros.busca || filtros.situacao || filtros.tag ? 'Nenhum contato com esses filtros.' : 'Nenhum contato ainda. Eles aparecem aqui assim que alguém manda mensagem.' %></td></tr><% } %>
+    </tbody>
+  </table>
+  <% if (paginas > 1) { %>
+    <p class="paginacao">
+      <% if (pagina > 1) { %><a href="<%= linkCom({ pagina: pagina - 1 }) %>">← Anteriores</a><% } %>
+      <span>Página <%= pagina %> de <%= paginas %> (<%= total %> contatos)</span>
+      <% if (pagina < paginas) { %><a href="<%= linkCom({ pagina: pagina + 1 }) %>">Próximos →</a><% } %>
+    </p>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>

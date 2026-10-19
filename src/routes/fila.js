@@ -17,6 +17,10 @@ const {
   renomearContato,
   registrarNotaInterna,
   sincronizarConversa,
+  registrarReacao,
+  marcarReenviada,
+  obterMensagem,
+  descartarMensagemComFalha,
 } = require('../conversas');
 const atendimentos = require('../atendimentos');
 const respostasRapidas = require('../respostas-rapidas');
@@ -25,12 +29,13 @@ const marcadores = require('../marcadores');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { obterSocket } = require('../socket-atual');
+const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
 const { carregarFluxo } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
 const { encerrarAtendimento, iniciarFluxo, transferirParaHumano, aguardarAvaliacao, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
-const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus } = require('../midia');
+const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, lerArquivoDeMidia } = require('../midia');
 
 const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
@@ -213,6 +218,7 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     protocoloAtual,
     motivos: motivosEncerramento.listarArvore({ soAtivos: true }).filter((g) => g.motivos.length),
     exigirMotivo: !!negocio.exigir_motivo_encerramento,
+    podeVerContatos: temPermissao(req.atendente, 'gerenciar_contatos'),
   });
 }
 
@@ -238,16 +244,10 @@ router.post('/nova', async (req, res) => {
   }
 
   try {
-    const [resultado] = await sock.onWhatsApp(`${numeroDigitado}@s.whatsapp.net`);
-    if (!resultado?.exists) {
+    const numero = await resolverNumeroNoWhatsApp(sock, numeroDigitado);
+    if (!numero) {
       return renderizarFila(req, res, { erroNovaConversa: 'Esse número não tem WhatsApp, ou está digitado errado.' });
     }
-
-    // Quando o cliente responder, a mensagem chega com o JID @lid (não o @s.whatsapp.net que o
-    // onWhatsApp devolve) — se a conversa fosse criada com o JID errado, a resposta do cliente
-    // cairia numa conversa "fantasma" diferente e o bot achava que era gente nova conversando.
-    const lid = await sock.signalRepository?.lidMapping?.getLIDForPN(resultado.jid).catch(() => null);
-    const numero = lid || resultado.jid;
     const conversa = obterOuCriarConversa(numero);
     assumirConversa(conversa.id, req.atendente.id);
     // Sem isso, o motor de fluxo (memória separada do banco) não sabe que essa conversa já está
@@ -428,6 +428,28 @@ router.post('/:id/finalizar', async (req, res) => {
   res.redirect('/painel/fila');
 });
 
+// Monta o conteúdo do Baileys pra texto ou mídia (imagem, vídeo, áudio, PDF) e manda, citando
+// `citada` (mensagem do histórico com wa_id) se vier. Devolve o id da mensagem no WhatsApp.
+async function enviarConteudo(sock, numero, { texto, midia = null, citada = null }) {
+  let conteudo;
+  if (!midia) conteudo = { text: texto };
+  else if (midia.tipo === 'imagem') conteudo = { image: midia.buffer, caption: texto || undefined };
+  else if (midia.tipo === 'video') conteudo = { video: midia.buffer, caption: texto || undefined };
+  else if (midia.tipo === 'audio') conteudo = { audio: midia.buffer, mimetype: midia.mimetype };
+  else conteudo = { document: midia.buffer, mimetype: 'application/pdf', fileName: midia.nome || 'documento.pdf', caption: texto || undefined };
+  const opcoes = citada?.wa_id
+    ? { quoted: { key: { remoteJid: numero, id: citada.wa_id, fromMe: !!citada.wa_de_mim }, message: { conversation: citada.texto } } }
+    : undefined;
+  const enviada = await sock.sendMessage(numero, conteudo, opcoes);
+  return enviada?.key?.id || null;
+}
+
+// Mensagem do histórico desta conversa (pra citar, reagir, reenviar), ou null
+function mensagemDaConversa(conversa, id) {
+  const m = id ? obterMensagem(Number(id)) : null;
+  return m && m.conversa_id === conversa.id ? m : null;
+}
+
 router.post('/:id/responder', (req, res) => {
   upload.single('midia')(req, res, async (erroUpload) => {
     if (!temPermissao(req.atendente, 'responder_conversas')) {
@@ -439,6 +461,7 @@ router.post('/:id/responder', (req, res) => {
     const texto = (req.body.texto || '').trim();
     const arquivo = req.file;
     const sock = obterSocket();
+    const citada = mensagemDaConversa(conversa, req.body.citar_id);
 
     function reexibirComErro(erro) {
       renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
@@ -464,48 +487,111 @@ router.post('/:id/responder', (req, res) => {
       return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo, áudio ou PDF antes de enviar.');
     }
 
-    try {
-      if (arquivo) {
-        const tipo = tipoPorMimetype(arquivo.mimetype);
-        const ehPdf = arquivo.mimetype === 'application/pdf';
-        if (!tipo && !ehPdf) return reexibirComErro('Só dá pra mandar imagem, vídeo, áudio ou PDF por aqui.');
-
-        let bufferParaEnviar = arquivo.buffer;
-        let mimetypeParaEnviar = arquivo.mimetype;
-        if (tipo === 'audio' && !arquivo.mimetype.startsWith('audio/ogg')) {
-          // O WhatsApp só reproduz áudio de verdade em ogg/opus — outros formatos (webm gravado
-          // no navegador, mp3, m4a...) às vezes "enviam" sem erro nenhum aqui, mas não chegam no
-          // destinatário. converterParaOggOpus nunca rejeita: se o ffmpeg falhar/não existir,
-          // cai pro buffer original (ver midia.js) — mandar do jeito que veio ainda é melhor que
-          // travar o envio inteiro por causa da conversão.
-          bufferParaEnviar = await converterParaOggOpus(arquivo.buffer);
-          mimetypeParaEnviar = 'audio/ogg; codecs=opus';
-        }
-
-        const conteudo =
-          tipo === 'imagem'
-            ? { image: bufferParaEnviar, caption: texto || undefined }
-            : tipo === 'video'
-              ? { video: bufferParaEnviar, caption: texto || undefined }
-              : tipo === 'audio'
-                ? { audio: bufferParaEnviar, mimetype: mimetypeParaEnviar }
-                : { document: bufferParaEnviar, mimetype: 'application/pdf', fileName: arquivo.originalname || 'documento.pdf', caption: texto || undefined };
-
-        await sock.sendMessage(conversa.numero, conteudo);
-        const url = salvarBufferDeMidia(bufferParaEnviar, mimetypeParaEnviar);
-        // PDF fica com midia_tipo nulo (a coluna só aceita imagem/video/audio) — o link genérico
-        // de download na tela usa midia_url mesmo sem tipo, ver fila/lista.ejs.
-        registrarMensagem(conversa.numero, 'atendente', texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]'), { tipo, url }, req.atendente.id);
-      } else {
-        await sock.sendMessage(conversa.numero, { text: texto });
-        registrarMensagem(conversa.numero, 'atendente', texto, null, req.atendente.id);
+    let midia = null;
+    let textoDoHistorico = texto;
+    if (arquivo) {
+      const tipo = tipoPorMimetype(arquivo.mimetype);
+      const ehPdf = arquivo.mimetype === 'application/pdf';
+      if (!tipo && !ehPdf) return reexibirComErro('Só dá pra mandar imagem, vídeo, áudio ou PDF por aqui.');
+      midia = { tipo, buffer: arquivo.buffer, mimetype: arquivo.mimetype, nome: arquivo.originalname };
+      if (tipo === 'audio' && !arquivo.mimetype.startsWith('audio/ogg')) {
+        // O WhatsApp só reproduz áudio de verdade em ogg/opus — outros formatos (webm gravado
+        // no navegador, mp3, m4a...) às vezes "enviam" sem erro nenhum aqui, mas não chegam no
+        // destinatário. converterParaOggOpus nunca rejeita: se o ffmpeg falhar/não existir,
+        // cai pro buffer original (ver midia.js) — mandar do jeito que veio ainda é melhor que
+        // travar o envio inteiro por causa da conversão.
+        midia.buffer = await converterParaOggOpus(arquivo.buffer);
+        midia.mimetype = 'audio/ogg; codecs=opus';
       }
+      // PDF fica com midia_tipo nulo (a coluna só aceita imagem/video/audio) — o link genérico
+      // de download na tela usa midia_url mesmo sem tipo, ver fila/lista.ejs.
+      textoDoHistorico = texto || (tipo ? LEGENDA_PADRAO[tipo] : '[PDF enviado]');
+    }
+    // o arquivo é salvo antes de mandar: se o envio falhar, o Reenviar usa ele
+    const midiaSalva = midia ? { tipo: midia.tipo, url: salvarBufferDeMidia(midia.buffer, midia.mimetype) } : null;
+
+    try {
+      const waId = await enviarConteudo(sock, conversa.numero, { texto, midia, citada });
+      registrarMensagem(conversa.numero, 'atendente', textoDoHistorico, midiaSalva, req.atendente.id, { waId, deMim: true, citadaId: citada?.id });
       res.redirect(`/painel/fila/${conversa.id}`);
     } catch (erro) {
-      reexibirComErro('Não consegui enviar pelo WhatsApp agora. Tente de novo em instantes.');
+      console.error(`Falha ao enviar mensagem para ${conversa.numero}:`, erro);
+      // fica no histórico com aviso e botão Reenviar, pra não perder o que foi escrito
+      registrarMensagem(conversa.numero, 'atendente', textoDoHistorico, midiaSalva, req.atendente.id, { citadaId: citada?.id, falha: true });
+      reexibirComErro('Não consegui enviar pelo WhatsApp agora. A mensagem ficou no histórico com o botão Reenviar.');
     }
   });
 });
 
+// Reenviar uma mensagem do atendente que falhou (o mesmo texto, ou o mesmo arquivo de antes)
+router.post('/:id/reenviar/:mensagemId', async (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) {
+    return res.status(403).send('Você não tem permissão para responder conversas.');
+  }
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const m = mensagemDaConversa(conversa, req.params.mensagemId);
+  if (!m || !m.falha) return res.redirect(`/painel/fila/${conversa.id}`);
+  const reexibirComErro = (erro) => renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
+
+  const sock = obterSocket();
+  if (!sock) return reexibirComErro('O bot não está conectado ao WhatsApp agora — tente reenviar daqui a pouco.');
+  let midia = null;
+  if (m.midia_url) {
+    const arquivo = lerArquivoDeMidia(m.midia_url);
+    if (!arquivo) return reexibirComErro('O arquivo dessa mensagem não existe mais: descarte e mande de novo.');
+    midia = { tipo: m.midia_tipo, ...arquivo };
+  }
+  // sem legenda escrita, o histórico guardou só o "[imagem enviada]" — esse não vai pro cliente
+  const legenda = midia && [...Object.values(LEGENDA_PADRAO), '[PDF enviado]'].includes(m.texto) ? '' : m.texto;
+  try {
+    const waId = await enviarConteudo(sock, conversa.numero, { texto: legenda, midia, citada: m.citada_id ? obterMensagem(m.citada_id) : null });
+    marcarReenviada(m.id, waId);
+    res.redirect(`/painel/fila/${conversa.id}`);
+  } catch (erro) {
+    console.error(`Falha ao reenviar mensagem para ${conversa.numero}:`, erro);
+    reexibirComErro('Ainda não consegui enviar pelo WhatsApp. Tente de novo em instantes.');
+  }
+});
+
+router.post('/:id/descartar/:mensagemId', (req, res) => {
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  if (temPermissao(req.atendente, 'responder_conversas') && mensagemDaConversa(conversa, req.params.mensagemId)) {
+    descartarMensagemComFalha(Number(req.params.mensagemId));
+  }
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
+// Reagir com emoji numa mensagem (como no WhatsApp); o mesmo emoji de novo tira a reação
+const REACOES = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+router.post('/:id/reagir', async (req, res) => {
+  if (!temPermissao(req.atendente, 'responder_conversas')) {
+    return res.status(403).send('Você não tem permissão para responder conversas.');
+  }
+  const conversa = obterConversaPorId(Number(req.params.id));
+  if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const m = mensagemDaConversa(conversa, req.body.mensagem_id);
+  const emoji = REACOES.includes(req.body.emoji) ? req.body.emoji : null;
+  if (!m || !m.wa_id || !emoji) return res.redirect(`/painel/fila/${conversa.id}`);
+  const sock = obterSocket();
+  if (!sock) {
+    return renderizarFila(req, res, {
+      conversaSelecionada: conversa,
+      mensagens: listarMensagens(conversa.id),
+      erro: 'O bot não está conectado ao WhatsApp agora — não dá pra reagir.',
+    });
+  }
+  const novo = m.reacao_atendente === emoji ? '' : emoji;
+  try {
+    await sock.sendMessage(conversa.numero, { react: { text: novo, key: { remoteJid: conversa.numero, id: m.wa_id, fromMe: !!m.wa_de_mim } } });
+    registrarReacao(m.id, 'atendente', novo);
+  } catch (erro) {
+    console.error(`Falha ao reagir na mensagem de ${conversa.numero}:`, erro);
+  }
+  res.redirect(`/painel/fila/${conversa.id}`);
+});
+
 module.exports = router;
 module.exports.MENSAGEM_ENCERRAMENTO_PADRAO = MENSAGEM_ENCERRAMENTO_PADRAO;
+module.exports.REACOES = REACOES;

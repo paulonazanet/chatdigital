@@ -28,6 +28,7 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
   - Ver e editar Configurações do negócio
   - Ver o Relatório (atendimentos, tempos e notas)
   - Cadastrar e editar Respostas rápidas
+  - Ver e editar Contatos (cadastro, ignorar, bloquear, tags)
 
 ---
 
@@ -80,7 +81,7 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
   (outro setor e, se quiser, um atendente específico) e **Finalizar**.
 - **Protocolo**: cada atendimento ganha um número (data + sequência, ex.: 202610180012), mostrado
   no topo da conversa. Pode ir na boas-vindas do atendente com `{{atendimento.protocolo}}`.
-- **Ações ▾** (topo da conversa): **Fixar/Desfixar no topo da lista**, **Marcadores** (marca e
+- **Ações ▾** (topo da conversa): **Ficha do contato** (quem tem a permissão de Contatos), **Fixar/Desfixar no topo da lista**, **Marcadores** (marca e
   desmarca, Salvar) e **Devolver ao bot** (fecha o atendimento sem mensagem de encerramento nem
   pesquisa, grava nota "Devolvida ao bot por Fulano" e o cliente recebe o menu inicial do fluxo).
 - **Lápis ao lado do nome**: troca o nome do cliente, quantas vezes quiser. Em branco volta pro
@@ -90,6 +91,14 @@ Números do atendimento (só administrador, ou atendente com a permissão "Ver o
   imagens, vídeos, áudios e link pra PDF.
 - **Atendimentos separados por faixa**: cada atendimento do mesmo cliente começa com uma linha
   "Atendimento <protocolo> · data · setor · motivo" (ou "atual"), pra ver o que já aconteceu antes.
+- **Responder citando e reagir**: embaixo de cada mensagem (cliente ou atendente) aparecem
+  **↩ Responder** (a próxima resposta vai citando aquela mensagem, como no WhatsApp; a faixa
+  "Respondendo a: …" com ✕ fica acima do campo) e **☺ Reagir** (👍 ❤️ 😂 😮 😢 🙏; o mesmo emoji de
+  novo tira a reação). Quando o cliente cita ou reage, aparece também no histórico. Só nas mensagens
+  que chegaram ou saíram depois desta versão (as antigas não têm o id do WhatsApp guardado).
+- **Mensagem que falhou**: se o WhatsApp der erro ao enviar, a mensagem fica no histórico apagadinha
+  com "⚠ Não foi enviada. Reenviar · Descartar" (não conta como resposta até sair de verdade).
+- **Contato ignorado/bloqueado**: o topo da conversa mostra o aviso.
 - **Notas internas** (fundo amarelo, "📝 Nota interna · Fulano"): só a equipe vê, o cliente não
   recebe. Não contam como resposta (a bolinha continua, o Relatório não mede). Toda transferência
   grava sozinha uma nota do sistema: "Transferida de X para Y, por Fulano".
@@ -112,6 +121,20 @@ estiver digitando (resposta, anexo ou áudio pendente, "+ Nova conversa" preench
 campo em foco), mostra "Chegou mensagem nova. Atualizar" em vez de recarregar. O texto da resposta
 fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar, ele continua lá.
 
+## Menu: Contatos
+(Administrador, ou atendente com a permissão "Ver e editar Contatos".)
+- Todo número que já falou com a gente (os anonimizados pela retenção não aparecem). Cartões
+  **Total, Normais, Ignorados, Bloqueados** (clicar filtra), busca por nome, telefone, e-mail ou
+  CPF/CNPJ, filtro por tag, 50 por página.
+- **Ficha**: nome, e-mail, CPF/CNPJ, endereço, observações (só a equipe vê); **situação**:
+  *Normal*, *Ignorado* (o bot não responde e não abre atendimento, mas a mensagem fica guardada;
+  ex.: família, fornecedor) ou *Bloqueado* (nada é guardado nem respondido); **consentimento**
+  (LGPD: aceitou receber mensagens; guarda a data do aceite e do pedido para sair); **tags**.
+  Link "Abrir a conversa".
+- **+ Novo contato**: telefone com DDD (confere no WhatsApp se existe) e nome; abre a ficha.
+- **Tags**: criar, renomear, ver quantos contatos têm, tirar de todos, excluir. Tag é do cliente
+  (segmentação, futuras campanhas); marcador é do atendimento.
+
 ## Menu: Respostas rápidas
 (Administrador, ou atendente com a permissão "Cadastrar e editar Respostas rápidas".)
 - Lista: nome (+ "inativa"/"vencida"), setores, texto, validade; Editar, **Duplicar**, Excluir.
@@ -130,6 +153,10 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 ## Menu: Setores
 - Criar e renomear setores (ex.: Geral, Vendas, Suporte). O setor "Geral" sempre existe (é pra
   onde o fluxo padrão transfere).
+- **Horário do setor** (link na lista): por dia da semana, até 2 períodos (ex.: 8h às 12h e 14h às
+  18h), com "copiar segunda para terça a sexta", e a **mensagem de fora do horário**. Quem cai na
+  fila do setor fora do horário (ou num feriado) recebe essa mensagem no lugar do "sem atendente
+  disponível"; a conversa continua na fila. Sem horário = sempre aberto.
 - Os setores servem pra: separar a fila, definir quem vê o quê (atendente x setor) e pra onde o
   bot/inatividade transfere.
 
@@ -138,7 +165,12 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   pra conectar, clica na linha pra apagar. Botão **Salvar** grava o fluxo.
 - Tipos de bloco: **Mensagem**, **Pergunta** (opções numeradas ou texto livre, pode guardar a
   resposta numa variável), **Condição**, **Horário** (dentro/fora do horário de funcionamento),
-  **Transferir** (pra um setor), **Salvar registro** (ex.: pedido), **Chamar API**, **Fim**.
+  **Transferir** (pra um setor), **Transferir para atendente** (já entra "atendendo" com a pessoa
+  escolhida, setor opcional), **Aguardar resposta** (não manda nada, espera o cliente e segue; pode
+  guardar a resposta numa variável), **Nota interna** (escreve uma nota no histórico, o cliente não
+  recebe), **Salvar registro** (ex.: pedido), **Chamar API**, **Fim**.
+- **Horário** num feriado sem expediente (Configurações > Feriados) vai pelo "fora", mandando antes
+  a mensagem do feriado, se tiver.
 - Variáveis nos textos: `{{negocio.nome}}`, `{{negocio.horario_funcionamento}}`,
   `{{negocio.endereco}}`, `{{negocio.formas_pagamento}}`, `{{negocio.numero_atendente_legivel}}`,
   `{{vars.X}}`. Se a variável estiver vazia, a linha inteira não é mandada.
@@ -146,6 +178,9 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
   atendente.
 
 ## Menu: Configurações
+- **Cartões no topo**: WhatsApp (conectado ou não), Motivos de encerramento, Marcadores e Feriados
+  (com quantos ativos), e atalhos para cada quadro. Botão **Salvar alterações** fixo no pé da tela,
+  com aviso de alteração não salva.
 - **Dados do negócio**: nome, horário, endereço, formas de pagamento.
 - **Mensagens automáticas**: boas-vindas do atendente (ao assumir), encerramento (ao finalizar),
   pesquisa de satisfação, avaliação não respondida (30 min depois da pesquisa), sem atendente
@@ -154,16 +189,25 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Cliente parado no meio do bot**: minutos até o lembrete + texto do lembrete; minutos até
   desistir; ao desistir, **reiniciar o fluxo** (em silêncio) ou **transferir pra um atendente**
   (setor e mensagem pro cliente).
-- **Encerramento**: "Exigir motivo ao finalizar".
-- **Marcadores** (link no topo de Configurações): nome, cor, ativo, quantas conversas usam;
+- **Ao finalizar a conversa**: "Exigir motivo ao finalizar", mensagem de encerramento, pesquisa de
+  satisfação e lembrete se o cliente não avaliar.
+- **Marcadores** (cartão no topo de Configurações; salvar tudo num botão só): nome, cor, ativo, quantas conversas usam;
   criar, editar e excluir (sai de todas as conversas). Vem com Urgente, Aguardando retorno,
   Reclamação, Cliente novo e VIP. O marcador fica no cliente até alguém tirar.
-- **Motivos de encerramento** (link no topo de Configurações): grupos (Resolvido, Não resolvido,
+- **Motivos de encerramento** (cartão no topo de Configurações; salvar tudo num botão só): grupos (Resolvido, Não resolvido,
   Sem contato...) com motivos dentro; criar, renomear, desativar (some do Finalizar sem apagar o
   histórico) e excluir. Vem com uma lista inicial pra revenda de gás. O motivo escolhido fica
   guardado no atendimento.
 - **Fechamento automático**: fecha o atendimento aberto há mais de N horas (padrão 24; 0 = nunca),
   contando desde a abertura, com mensagem opcional.
+
+### Configurações > Feriados
+- **Importar feriados nacionais**: os de data fixa (todo ano) e Carnaval, Sexta-feira Santa e
+  Corpus Christi deste ano e do próximo (Carnaval e Corpus Christi entram como "abre normal", ponto
+  facultativo). Não repete os que já existem.
+- Cada feriado: nome, data, repete todo ano, dia inteiro ou período, **tem expediente** (só
+  registra), mensagem do feriado, ativo. Lista na ordem do próximo a acontecer.
+- Num feriado sem expediente: o bloco Horário do fluxo vai pelo "fora" e os setores ficam fechados.
 
 ### Configurações > WhatsApp
 - Mostra se está conectado; quando não está, mostra o QR Code pra escanear (Aparelhos
@@ -183,7 +227,8 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Depois de reiniciar o servidor**: quem estava com atendente continua com atendente (o bot não
   volta a falar).
 - **Backup do banco** 1 vez por dia, guardando os últimos 30 dias.
-- **Retenção (LGPD)**: conversa sem atividade há 12 meses tem as mensagens apagadas e o número
-  anonimizado (os números da estatística continuam).
+- **Retenção (LGPD)**: conversa sem atividade há 12 meses tem as mensagens apagadas, o número
+  anonimizado e a ficha do contato (nome, e-mail, documento, endereço, observações, tags) apagada
+  (os números da estatística continuam).
 - **Modo de teste** (só em teste, com `NUMEROS_TESTE`): o bot e as mensagens automáticas só
   falam com os números da lista.

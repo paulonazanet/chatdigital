@@ -1,0 +1,42 @@
+<%- include('../partials/inicio', { titulo: feriado.id ? 'Editar feriado' : 'Novo feriado' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › <a href="/painel/configuracoes/feriados">Feriados</a> › <%= feriado.id ? feriado.nome : 'Novo feriado' %></p>
+  <h1><%= feriado.id ? 'Editar feriado' : 'Novo feriado' %></h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <form method="post" action="/painel/configuracoes/feriados/<%= feriado.id || 'novo' %>">
+    <fieldset>
+      <legend>Quando</legend>
+      <div class="campos-lado-a-lado">
+        <label>Nome<input type="text" name="nome" maxlength="80" value="<%= feriado.nome %>" placeholder="Ex.: São João" required></label>
+        <label>Data<input type="date" name="data" value="<%= feriado.data %>" required></label>
+      </div>
+      <label class="linha"><input type="checkbox" name="repete_ano" value="1" <%= feriado.repete_ano ? 'checked' : '' %>> Repete todo ano neste dia</label>
+      <label class="linha"><input type="checkbox" name="dia_inteiro" value="1" id="dia-inteiro" <%= feriado.dia_inteiro ? 'checked' : '' %>> Dia inteiro</label>
+      <div class="campos-lado-a-lado" id="periodo-feriado">
+        <label>Das<input type="time" name="hora_inicio" value="<%= feriado.hora_inicio || '' %>"></label>
+        <label>Até<input type="time" name="hora_fim" value="<%= feriado.hora_fim || '' %>"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>O que acontece</legend>
+      <label class="linha"><input type="checkbox" name="tem_expediente" value="1" <%= feriado.tem_expediente ? 'checked' : '' %>> Tem expediente (só registra a data, o atendimento funciona normal)</label>
+      <label>Mensagem do feriado
+        <textarea name="mensagem" rows="3" maxlength="2000" placeholder="Ex.: Hoje é feriado e não estamos entregando. Voltamos amanhã às 8h!"><%= feriado.mensagem || '' %></textarea>
+        <span class="ajuda">Vai para o cliente antes do caminho "fora do horário" do fluxo. Em branco = só segue o fluxo.</span>
+      </label>
+      <label class="linha"><input type="checkbox" name="ativo" value="1" <%= feriado.ativo ? 'checked' : '' %>> Ativo</label>
+    </fieldset>
+    <button type="submit">Salvar feriado</button>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>
+<script>
+  (function () {
+    var dia = document.getElementById('dia-inteiro');
+    var periodo = document.getElementById('periodo-feriado');
+    function mostrar() { periodo.hidden = dia.checked; }
+    dia.addEventListener('change', mostrar);
+    mostrar();
+  })();
+</script>

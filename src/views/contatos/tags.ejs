@@ -1,0 +1,40 @@
+<%- include('../partials/inicio', { titulo: 'Tags de contato' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo conteudo-estreita pagina-config">
+  <p class="trilha-config"><a href="/painel/contatos">Contatos</a> › Tags</p>
+  <h1>Tags de contato</h1>
+  <p class="dica">Grupos de clientes (ex.: Condomínio, Comércio, Cliente de fiado). Ficam no contato até alguém tirar,
+    e vão servir para filtrar e, mais para a frente, para campanhas. Não confunda com os marcadores, que são do atendimento.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+
+  <table class="tabela">
+    <thead><tr><th>Tag</th><th>Contatos</th><th></th></tr></thead>
+    <tbody>
+      <% tags.forEach((t) => { %>
+        <tr>
+          <td>
+            <form method="post" action="/painel/contatos/tags/<%= t.id %>" class="linha-form linha-form-inline">
+              <input type="text" name="nome" value="<%= t.nome %>" maxlength="40" aria-label="Nome da tag">
+              <button type="submit" class="botao-pequeno">Renomear</button>
+            </form>
+          </td>
+          <td><a href="/painel/contatos?tag=<%= t.id %>"><%= t.em_uso %></a></td>
+          <td class="acoes-linha">
+            <% if (t.em_uso) { %>
+              <form method="post" action="/painel/contatos/tags/<%= t.id %>/limpar" class="form-inline" onsubmit="return confirm('Tirar esta tag de todos os contatos?')"><button type="submit" class="botao-link">Tirar de todos</button></form>
+            <% } %>
+            <form method="post" action="/painel/contatos/tags/<%= t.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir esta tag? Ela sai de todos os contatos.')"><button type="submit" class="botao-link botao-link-perigo">Excluir</button></form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (tags.length === 0) { %><tr><td colspan="3" class="dica">Nenhuma tag ainda.</td></tr><% } %>
+    </tbody>
+  </table>
+
+  <h2>Nova tag</h2>
+  <form method="post" action="/painel/contatos/tags" class="linha-form">
+    <input type="text" name="nome" maxlength="40" placeholder="Ex.: Condomínio" required>
+    <button type="submit">Adicionar</button>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

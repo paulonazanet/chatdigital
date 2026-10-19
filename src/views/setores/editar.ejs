@@ -1,0 +1,71 @@
+<%- include('../partials/inicio', { titulo: `Setor ${setor.nome}` }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']; %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/setores">Setores</a> › <%= setor.nome %></p>
+  <h1>Setor <%= setor.nome %></h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Setor salvo.</p><% } %>
+
+  <form method="post" action="/painel/setores/<%= setor.id %>" id="form-setor">
+    <input type="hidden" name="horario_enviado" value="1">
+    <fieldset>
+      <legend>Nome</legend>
+      <label>Nome do setor<input type="text" name="nome" value="<%= setor.nome %>" required></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Horário de atendimento</legend>
+      <p class="dica">Deixe tudo em branco para o setor ficar sempre aberto. Dia sem horário = fechado.
+        Use o 2º período quando tem intervalo (ex.: almoço). Em feriado sem expediente o setor fica fechado.</p>
+      <table class="tabela tabela-horario">
+        <thead><tr><th>Dia</th><th>1º período</th><th>2º período</th></tr></thead>
+        <tbody>
+          <% DIAS.forEach((nomeDia, dia) => { const periodos = porDia[dia] || []; %>
+            <tr>
+              <td><%= nomeDia %></td>
+              <% [1, 2].forEach((p) => { const [ini, fim] = periodos[p - 1] || ['', '']; %>
+                <td class="periodo">
+                  <input type="time" name="inicio_<%= dia %>_<%= p %>" value="<%= ini %>" aria-label="<%= nomeDia %>, início do <%= p %>º período">
+                  <span>às</span>
+                  <input type="time" name="fim_<%= dia %>_<%= p %>" value="<%= fim %>" aria-label="<%= nomeDia %>, fim do <%= p %>º período">
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <p><button type="button" class="botao-link" id="copiar-segunda">Copiar o horário de segunda para terça a sexta</button></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Fora do horário</legend>
+      <label>Mensagem para o cliente
+        <textarea name="mensagem_fora_horario" rows="3" maxlength="2000"><%= mensagem %></textarea>
+        <span class="ajuda">Vai quando o cliente cai na fila deste setor fora do horário (ou num feriado). A conversa continua
+          na fila para o atendente ver depois. Em branco = não manda nada.</span>
+      </label>
+    </fieldset>
+
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar setor</button>
+    </div>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('../configuracoes/aviso-nao-salvo', { formId: 'form-setor' }) %>
+<script>
+  document.getElementById('copiar-segunda').addEventListener('click', function () {
+    ['inicio', 'fim'].forEach(function (lado) {
+      [1, 2].forEach(function (p) {
+        var origem = document.querySelector('[name="' + lado + '_1_' + p + '"]');
+        for (var dia = 2; dia <= 5; dia++) {
+          var campo = document.querySelector('[name="' + lado + '_' + dia + '_' + p + '"]');
+          campo.value = origem.value;
+          campo.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    });
+  });
+</script>

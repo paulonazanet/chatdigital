@@ -1,23 +1,26 @@
 <%- include('../partials/inicio', { titulo: 'Setores' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo conteudo-estreita">
+<main class="conteudo conteudo-estreita pagina-config">
   <h1>Setores</h1>
+  <p class="dica">Cada setor tem a sua fila. Clique em <strong>Horário</strong> para dizer quando o setor atende e o que o
+    cliente recebe se chegar fora desse horário.</p>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
   <form method="post" action="/painel/setores" class="linha-form" id="form-novo-setor">
     <input type="text" name="nome" placeholder="Nome do setor (ex.: Vendas)" required>
     <button type="submit">Adicionar</button>
   </form>
   <table class="tabela">
-    <thead><tr><th>Nome</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>Horário</th></tr></thead>
     <tbody>
       <% setores.forEach((s) => { %>
         <tr>
-          <td colspan="2">
+          <td>
             <form method="post" action="/painel/setores/<%= s.id %>" class="linha-form linha-form-inline">
               <input type="text" name="nome" value="<%= s.nome %>">
-              <button type="submit">Renomear</button>
+              <button type="submit" class="botao-pequeno">Renomear</button>
             </form>
           </td>
+          <td><a href="/painel/setores/<%= s.id %>"><%= janelasDoSetor(s).length ? 'Horário próprio' : 'Sem horário (sempre aberto)' %></a></td>
         </tr>
       <% }) %>
       <% if (setores.length === 0) { %><tr><td colspan="2" class="dica">Nenhum setor cadastrado ainda.</td></tr><% } %>

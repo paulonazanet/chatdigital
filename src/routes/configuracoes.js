@@ -7,6 +7,7 @@ const whatsappStatus = require('../whatsapp-status');
 const { listarSetores } = require('../setores');
 const motivos = require('../motivos-encerramento');
 const marcadores = require('../marcadores');
+const feriados = require('../feriados');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -46,6 +47,7 @@ function resumoDasSubtelas() {
     whatsappConectado: whatsappStatus.obterEstado().conectado,
     motivosAtivos,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }).length,
+    feriadosAtivos: feriados.listarFeriados().filter((f) => f.ativo).length,
   };
 }
 
@@ -183,6 +185,56 @@ router.post('/marcadores/:id', (req, res) => {
 router.post('/marcadores/:id/excluir', (req, res) => {
   marcadores.excluirMarcador(Number(req.params.id));
   res.redirect('/painel/configuracoes/marcadores');
+});
+
+// Feriados: num feriado sem expediente o bloco Horário do fluxo vai para "fora do horário" e os
+// setores com horário próprio ficam fechados (ver feriados.js)
+function renderizarFeriados(req, res, extra = {}) {
+  res.render('configuracoes/feriados', {
+    atendenteLogado: req.atendente,
+    feriados: feriados.listarFeriados(),
+    feriadoHoje: feriados.feriadoAgora(),
+    importados: req.query.importados !== undefined ? Number(req.query.importados) : null,
+    ...extra,
+  });
+}
+function renderizarFormFeriado(req, res, feriado, erro = null) {
+  res.render('configuracoes/feriado-form', { atendenteLogado: req.atendente, feriado, erro });
+}
+const FERIADO_NOVO = { nome: '', data: '', repete_ano: 1, dia_inteiro: 1, hora_inicio: '', hora_fim: '', tem_expediente: 0, mensagem: '', ativo: 1 };
+// o que a pessoa digitou, pra mostrar de volta junto com o erro (checkbox desmarcado não vem no envio)
+function feriadoDigitado(corpo) {
+  const marcado = (campo) => (corpo[campo] ? 1 : 0);
+  return { ...corpo, repete_ano: marcado('repete_ano'), dia_inteiro: marcado('dia_inteiro'), tem_expediente: marcado('tem_expediente'), ativo: marcado('ativo') };
+}
+
+router.get('/feriados', (req, res) => renderizarFeriados(req, res));
+router.post('/feriados/importar', (req, res) => {
+  res.redirect(`/painel/configuracoes/feriados?importados=${feriados.importarNacionais()}`);
+});
+router.get('/feriados/novo', (req, res) => renderizarFormFeriado(req, res, FERIADO_NOVO));
+router.post('/feriados/novo', (req, res) => {
+  const { campos, erro } = feriados.validar(req.body);
+  if (erro) return renderizarFormFeriado(req, res, feriadoDigitado(req.body), erro);
+  feriados.criarFeriado(campos);
+  res.redirect('/painel/configuracoes/feriados');
+});
+router.get('/feriados/:id', (req, res) => {
+  const feriado = feriados.obterFeriado(Number(req.params.id));
+  if (!feriado) return res.redirect('/painel/configuracoes/feriados');
+  renderizarFormFeriado(req, res, feriado);
+});
+router.post('/feriados/:id', (req, res) => {
+  const feriado = feriados.obterFeriado(Number(req.params.id));
+  if (!feriado) return res.redirect('/painel/configuracoes/feriados');
+  const { campos, erro } = feriados.validar(req.body);
+  if (erro) return renderizarFormFeriado(req, res, { ...feriadoDigitado(req.body), id: feriado.id }, erro);
+  feriados.atualizarFeriado(feriado.id, campos);
+  res.redirect('/painel/configuracoes/feriados');
+});
+router.post('/feriados/:id/excluir', (req, res) => {
+  feriados.excluirFeriado(Number(req.params.id));
+  res.redirect('/painel/configuracoes/feriados');
 });
 
 router.get('/whatsapp', (req, res) => {

@@ -1,0 +1,41 @@
+<%- include('../partials/inicio', { titulo: 'Feriados' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const dataBr = (f) => (f.repete_ano ? f.data.slice(5).split('-').reverse().join('/') : f.data.split('-').reverse().join('/')); %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Feriados</p>
+  <h1>Feriados</h1>
+  <p class="dica">Num feriado <strong>sem expediente</strong>, o bloco Horário do fluxo segue pelo caminho "fora do horário"
+    (mandando antes a mensagem do feriado, se tiver) e os setores com horário próprio ficam fechados.
+    Feriado <strong>com expediente</strong> só fica registrado.</p>
+  <% if (importados !== null) { %><p class="sucesso"><%= importados ? `${importados} feriado(s) nacional(is) importado(s).` : 'Os feriados nacionais já estavam todos na lista.' %></p><% } %>
+  <% if (feriadoHoje) { %><p class="aviso">Hoje é feriado: <strong><%= feriadoHoje.nome %></strong>. O atendimento automático está seguindo como fora do horário.</p><% } %>
+
+  <div class="acoes-topo">
+    <a class="botao" href="/painel/configuracoes/feriados/novo">+ Novo feriado</a>
+    <form method="post" action="/painel/configuracoes/feriados/importar" class="form-inline">
+      <button type="submit" class="botao-secundario">Importar feriados nacionais</button>
+    </form>
+  </div>
+
+  <table class="tabela">
+    <thead><tr><th>Data</th><th>Nome</th><th>Horário</th><th>Atendimento</th><th>Mensagem</th><th></th></tr></thead>
+    <tbody>
+      <% feriados.forEach((f) => { %>
+        <tr>
+          <td class="sem-quebra"><%= dataBr(f) %><% if (f.repete_ano) { %> <span class="selo" title="Vale todo ano nesse dia">todo ano</span><% } else if (!f.proxima) { %> <span class="selo">já passou</span><% } %></td>
+          <td><a href="/painel/configuracoes/feriados/<%= f.id %>"><strong><%= f.nome %></strong></a><% if (!f.ativo) { %> <span class="selo selo-inativo">inativo</span><% } %></td>
+          <td><%= f.dia_inteiro ? 'Dia inteiro' : `${f.hora_inicio} às ${f.hora_fim}` %></td>
+          <td><%= f.tem_expediente ? 'Abre normal' : 'Fechado' %></td>
+          <td><div class="texto-resumo" title="<%= f.mensagem || '' %>"><%= f.mensagem || '—' %></div></td>
+          <td class="acoes-linha">
+            <a href="/painel/configuracoes/feriados/<%= f.id %>">Editar</a>
+            <form method="post" action="/painel/configuracoes/feriados/<%= f.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir este feriado?')"><button type="submit" class="botao-link botao-link-perigo">Excluir</button></form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (feriados.length === 0) { %><tr><td colspan="6" class="dica">Nenhum feriado ainda. Use "Importar feriados nacionais" para começar.</td></tr><% } %>
+    </tbody>
+  </table>
+  <p class="dica">Feriados da cidade ou do estado (ex.: São João, padroeira) entram pelo "+ Novo feriado".</p>
+</main>
+<%- include('../partials/fim-painel') %>

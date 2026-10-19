@@ -81,4 +81,15 @@ function converterParaOggOpus(buffer) {
   });
 }
 
-module.exports = { DIRETORIO_UPLOADS, tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus };
+/** Lê de volta um arquivo salvo por salvarBufferDeMidia (pra reenviar): { buffer, mimetype } ou null. */
+function lerArquivoDeMidia(url) {
+  const nome = path.basename(String(url || ''));
+  if (!/^[\w-]+\.\w+$/.test(nome)) return null;
+  const arquivo = path.join(DIRETORIO_UPLOADS, nome);
+  if (!fs.existsSync(arquivo)) return null;
+  const extensao = nome.split('.').pop();
+  const mimetype = Object.keys(EXTENSAO_POR_MIMETYPE).find((m) => EXTENSAO_POR_MIMETYPE[m] === extensao) || 'application/octet-stream';
+  return { buffer: fs.readFileSync(arquivo), mimetype: extensao === 'ogg' ? 'audio/ogg; codecs=opus' : mimetype };
+}
+
+module.exports = { DIRETORIO_UPLOADS, tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, lerArquivoDeMidia };

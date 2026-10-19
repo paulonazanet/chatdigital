@@ -31,7 +31,12 @@ function aplicarRetencao() {
 
   for (const conversa of candidatas) {
     db.prepare('DELETE FROM mensagens WHERE conversa_id = ?').run(conversa.id);
-    db.prepare('UPDATE conversas SET numero = ? WHERE id = ?').run(anonimizarNumero(conversa.numero), conversa.id);
+    // a ficha do contato (menu Contatos) também é dado pessoal: sai junto
+    db.prepare(
+      `UPDATE conversas SET numero = ?, numero_exibicao = NULL, nome_contato = NULL, email = NULL, documento = NULL,
+         endereco = NULL, observacoes = NULL WHERE id = ?`,
+    ).run(anonimizarNumero(conversa.numero), conversa.id);
+    db.prepare('DELETE FROM conversas_tags WHERE conversa_id = ?').run(conversa.id);
   }
 
   return candidatas.length;

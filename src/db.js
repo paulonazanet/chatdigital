@@ -159,6 +159,49 @@ if (!colunaExiste('atendimentos', 'motivo_id')) {
   db.exec('ALTER TABLE atendimentos ADD COLUMN motivo_texto TEXT');
 }
 
+if (!colunaExiste('mensagens', 'wa_id')) {
+  // E1, 3a parte: id da mensagem no WhatsApp (pra responder citando e reagir), se fui eu quem
+  // mandou (fromMe), qual mensagem foi citada, reações do cliente e do atendente, e envio que falhou
+  // (fica no histórico com o botão Reenviar).
+  db.exec('ALTER TABLE mensagens ADD COLUMN wa_id TEXT');
+  db.exec('ALTER TABLE mensagens ADD COLUMN wa_de_mim INTEGER NOT NULL DEFAULT 0');
+  db.exec('ALTER TABLE mensagens ADD COLUMN citada_id INTEGER');
+  db.exec('ALTER TABLE mensagens ADD COLUMN reacao_cliente TEXT');
+  db.exec('ALTER TABLE mensagens ADD COLUMN reacao_atendente TEXT');
+  db.exec('ALTER TABLE mensagens ADD COLUMN falha INTEGER NOT NULL DEFAULT 0');
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_mensagens_wa_id ON mensagens (wa_id)');
+
+if (!colunaExiste('conversas', 'situacao_contato')) {
+  // Ficha do contato (menu Contatos). A linha de `conversas` já é uma por número pra sempre, então
+  // o cadastro mora nela. situacao_contato: 'normal'; 'ignorado' (o bot não responde e não abre
+  // atendimento, mas a mensagem fica no histórico; ex.: família, fornecedor); 'bloqueado' (nada é
+  // registrado). consentimento: aceitou receber mensagens (campanhas, LGPD); as datas guardam
+  // quando aceitou e quando pediu pra sair (opt-out).
+  db.exec('ALTER TABLE conversas ADD COLUMN email TEXT');
+  db.exec('ALTER TABLE conversas ADD COLUMN documento TEXT');
+  db.exec('ALTER TABLE conversas ADD COLUMN endereco TEXT');
+  db.exec('ALTER TABLE conversas ADD COLUMN observacoes TEXT');
+  db.exec("ALTER TABLE conversas ADD COLUMN situacao_contato TEXT NOT NULL DEFAULT 'normal'");
+  db.exec('ALTER TABLE conversas ADD COLUMN consentimento INTEGER NOT NULL DEFAULT 0');
+  db.exec('ALTER TABLE conversas ADD COLUMN consentimento_em TEXT');
+  db.exec('ALTER TABLE conversas ADD COLUMN optout_em TEXT');
+}
+
+// Tags de contato: segmentação do cliente (ex.: "Condomínio", "Comércio"), diferente dos
+// marcadores, que são do atendimento e o atendente tira quando resolve.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tags_contato (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL UNIQUE COLLATE NOCASE
+  );
+  CREATE TABLE IF NOT EXISTS conversas_tags (
+    conversa_id INTEGER NOT NULL REFERENCES conversas(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags_contato(id) ON DELETE CASCADE,
+    PRIMARY KEY (conversa_id, tag_id)
+  );
+`);
+
 // Respostas rápidas: textos prontos que o atendente puxa com "/" no campo de resposta. Sem setor
 // marcado = aparece pra todos os setores.
 db.exec(`
@@ -209,6 +252,31 @@ db.exec(`
     PRIMARY KEY (atendente_id, conversa_id)
   );
 `);
+
+// Feriados (Configurações > Feriados, ver feriados.js). repete_ano: vale todo ano no mesmo dia/mês;
+// tem_expediente: só fica registrado, não fecha nada.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS feriados (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    data TEXT NOT NULL,
+    repete_ano INTEGER NOT NULL DEFAULT 1,
+    dia_inteiro INTEGER NOT NULL DEFAULT 1,
+    hora_inicio TEXT,
+    hora_fim TEXT,
+    tem_expediente INTEGER NOT NULL DEFAULT 0,
+    mensagem TEXT,
+    ativo INTEGER NOT NULL DEFAULT 1
+  );
+`);
+
+// Horário próprio do setor: lista de janelas no formato do bloco Horário do fluxo
+// ("1,2,3,4,5 08:00-12:00"), em JSON; NULL = sem horário (sempre aberto). Fora do horário (ou
+// em feriado), quem cai na fila do setor recebe a mensagem_fora_horario.
+if (!colunaExiste('setores', 'horario')) {
+  db.exec('ALTER TABLE setores ADD COLUMN horario TEXT');
+  db.exec('ALTER TABLE setores ADD COLUMN mensagem_fora_horario TEXT');
+}
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.

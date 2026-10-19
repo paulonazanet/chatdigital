@@ -191,4 +191,22 @@
   } else if (botaoGravar) {
     botaoGravar.hidden = true; // navegador sem suporte a gravação — evita mostrar um botão que não funciona
   }
+
+  // "↩ Responder" numa mensagem do histórico: a próxima resposta vai citando ela (como no WhatsApp)
+  var campoCitar = form.querySelector('input[name="citar_id"]');
+  var caixaCitando = form.querySelector('.citando');
+  if (campoCitar && caixaCitando) {
+    document.querySelectorAll('.botao-citar').forEach(function (botao) {
+      botao.addEventListener('click', function () {
+        campoCitar.value = botao.getAttribute('data-id');
+        caixaCitando.querySelector('.citando-texto').textContent = 'Respondendo a: ' + botao.getAttribute('data-texto');
+        caixaCitando.hidden = false;
+        if (textarea) textarea.focus();
+      });
+    });
+    caixaCitando.querySelector('.botao-cancelar-citar').addEventListener('click', function () {
+      campoCitar.value = '';
+      caixaCitando.hidden = true;
+    });
+  }
 })();

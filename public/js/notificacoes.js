@@ -55,6 +55,9 @@
     var anexo = document.querySelector('.form-responder input[type="file"]');
     if (anexo && anexo.files && anexo.files.length > 0) return true;
     if (document.querySelector('.botao-gravar-audio.gravando')) return true;
+    var citar = document.querySelector('.form-responder input[name="citar_id"]');
+    if (citar && citar.value) return true;
+    if (document.querySelector('.reagir-popover[open]')) return true;
     var novaConversa = document.querySelectorAll('.nova-conversa-popover input, .nova-conversa-popover textarea');
     for (var i = 0; i < novaConversa.length; i++) {
       if (novaConversa[i].value.trim().length > 0) return true;

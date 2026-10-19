@@ -215,6 +215,52 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
 - Cadastro em `/painel/configuracoes/marcadores` (`views/configuracoes/marcadores.ejs`).
 - Testes no fim de `test/e1-atendente.test.js`.
 
+## Tela de Configurações reorganizada (18/10/2026, commit 2a2cda6)
+- Cartões no topo para as subtelas (WhatsApp, Motivos, Marcadores e, depois, Feriados), atalhos
+  para os quadros, quadro "Ao finalizar a conversa", barra de Salvar fixa (`.barra-salvar`) com
+  aviso de alteração não salva (`views/configuracoes/aviso-nao-salvo.ejs`, reaproveitado em outras
+  fichas). Motivos e Marcadores salvam tudo num botão só (`POST /motivos/salvar`, `/marcadores/salvar`,
+  campos `nome_<id>`/`ativo_<id>` ligados a um form vazio por `form="..."`).
+- Em produção a VM foi atualizada às 21:03 (E1 1ª e 2ª parte subiram junto).
+
+## E1, 3ª parte (18/10/2026): o que faltava da E1
+- **Responder citando / reações / reenviar**: colunas novas em `mensagens` (`wa_id`, `wa_de_mim`,
+  `citada_id`, `reacao_cliente`, `reacao_atendente`, `falha`). `registrarMensagem` ganhou o 6º
+  parâmetro `extra` ({ waId, deMim, citadaId, falha, semAtendimento }) e devolve o id. Em
+  `routes/fila.js`: `enviarConteudo` (texto/mídia com `quoted`), `POST /:id/reagir`,
+  `/:id/reenviar/:mensagemId`, `/:id/descartar/:mensagemId`. O arquivo de mídia é salvo **antes**
+  de mandar, pro Reenviar usar (`lerArquivoDeMidia` em `midia.js`). Mensagem com `falha = 1` não
+  conta como resposta (fila, Relatório) até ser reenviada (`marcarReenviada`). Só mensagens novas
+  têm `wa_id` (as antigas não mostram Responder/Reagir).
+- **bot.js**: o corpo do `messages.upsert` virou `tratarMensagemRecebida(sock, msg, negocio, fluxo)`
+  (exportada, testável sem WhatsApp). Trata `reactionMessage` (reação do cliente), citação
+  (`contextInfo.stanzaId` → `citada_id`) e a situação do contato.
+- **Contatos**: a ficha mora na linha de `conversas` (colunas `email`, `documento`, `endereco`,
+  `observacoes`, `situacao_contato` normal/ignorado/bloqueado, `consentimento` + datas). Tags em
+  `tags_contato` + `conversas_tags`. Módulo `src/contatos.js`, rotas `src/routes/contatos.js`
+  (permissão nova `gerenciar_contatos`), telas `views/contatos/`. Ignorado: guarda a mensagem com
+  `semAtendimento` (não abre `aberta_em`, então o fechamento automático não mexe), sem bot e sem fila.
+  Bloqueado: nada é guardado. `retencao.js` agora também apaga a ficha e o `numero_exibicao`.
+  `src/whatsapp-numero.js` (`resolverNumeroNoWhatsApp`) é usado pela "+ Nova conversa" e pelo
+  "Novo contato".
+- **Feriados**: tabela `feriados`, módulo `src/feriados.js` (importar nacionais com Páscoa
+  calculada, `feriadoAgora`), telas em `/painel/configuracoes/feriados`. O bloco `horario` do fluxo
+  vai pelo `fora` num feriado sem expediente (mensagem do feriado antes).
+- **Horário por setor**: colunas `setores.horario` (JSON de janelas no formato do bloco Horário) e
+  `mensagem_fora_horario`. Regra das janelas foi para `src/horario.js` (`dentroDasJanelas`), usada
+  pelo fluxo e por `setorAberto` (`setores.js`). `sincronizarConversa` devolve
+  `mensagemForaDoHorario` quando a conversa entra na fila de um setor fechado; o bot manda ela no
+  lugar do "sem atendente disponível". Tela `/painel/setores/:id`.
+- **Blocos do fluxo**: `aguardar` (espera a resposta, guarda em `variavel`), `nota` (nota interna
+  com variáveis; usa `require('./conversas')` dentro da função por causa do require circular) e
+  `transferir_atendente` (`estado.atendenteId`; `sincronizarConversa` já põe "atendendo" com ele).
+  Editor: `GET /painel/fluxo/opcoes` (atendentes e setores para os campos de escolha).
+- CSS: `[hidden] { display: none !important; }` global (vários elementos com display próprio
+  apareciam mesmo escondidos).
+- Testes: `test/e1-final.test.js` (10 testes). Total: 63 passam; as 8 "falhas" são o `EPERM` do
+  Windows ao apagar a pasta temporária dos testes antigos (já existia).
+- **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -240,7 +286,8 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
 - `src/modo-teste.js` — regra do `NUMEROS_TESTE` (chegando e saindo).
 - `src/flow-engine.js` — motor do fluxo do bot (estado em memória).
 - `src/conversas.js` — banco: conversas, mensagens, notas internas, fila, finalizadas, busca, nome do contato.
-- `src/respostas-rapidas.js`, `src/motivos-encerramento.js`, `src/marcadores.js` — cadastros da E1.
+- `src/respostas-rapidas.js`, `src/motivos-encerramento.js`, `src/marcadores.js`, `src/contatos.js`,
+  `src/feriados.js` — cadastros da E1. `src/horario.js` — regra das janelas de horário.
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`

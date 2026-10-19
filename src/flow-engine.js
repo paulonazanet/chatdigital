@@ -1,5 +1,7 @@
 const { salvarRegistro } = require('./registros');
 const { registrarNota } = require('./atendimentos');
+const { dentroDasJanelas } = require('./horario');
+const { feriadoAgora } = require('./feriados');
 
 const MAX_PASSOS_POR_TURNO = 25; // trava contra fluxo mal configurado (ciclo sem nó de pergunta/fim)
 
@@ -11,7 +13,7 @@ const MINUTOS_LIMITE_AVALIACAO = 30;
 const conversas = new Map();
 
 function estadoInicial(fluxo, numero) {
-  return { numero, no: fluxo.inicio, vars: {}, aguardando: false, humano: false, aguardandoAvaliacao: false, aguardandoAvaliacaoDesde: null };
+  return { numero, no: fluxo.inicio, vars: {}, aguardando: false, humano: false, atendenteId: null, aguardandoAvaliacao: false, aguardandoAvaliacaoDesde: null };
 }
 
 function obterEstado(numero, fluxo) {
@@ -90,21 +92,9 @@ function montarTexto(no, contexto, { invalido = false } = {}) {
   return texto;
 }
 
-// Cada janela é uma string "dias horaInicio-horaFim", ex.: "1,2,3,4,5 08:00-18:00" (dias:
-// 0=domingo … 6=sábado, separados por vírgula). `agora` é injetável pra dar pra testar sem
-// depender do relógio real.
+// (regra das janelas em horario.js, compartilhada com o horário próprio dos setores)
 function estaDentroDoHorario(no, agora = new Date()) {
-  const dia = agora.getDay();
-  const hora = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-
-  return (no.janelas || []).some((janela) => {
-    const [diasStr, horasStr] = String(janela).trim().split(/\s+/);
-    if (!diasStr || !horasStr) return false;
-    const dias = diasStr.split(',').map((d) => Number(d.trim()));
-    if (!dias.includes(dia)) return false;
-    const [inicio, fim] = horasStr.split('-');
-    return Boolean(inicio) && Boolean(fim) && hora >= inicio && hora <= fim;
-  });
+  return dentroDasJanelas(no.janelas, agora);
 }
 
 function tratarResposta(no, msg, contexto) {
@@ -201,7 +191,10 @@ async function executar(estado, contexto, fluxo) {
     }
 
     if (no.tipo === 'horario') {
-      estado.no = estaDentroDoHorario(no) ? no.dentro : no.fora;
+      // feriado sem expediente (Configurações > Feriados) = fora do horário, com a mensagem dele antes
+      const feriado = feriadoAgora();
+      if (feriado && feriado.mensagem) textos.push(substituirTextoDeMensagem(feriado.mensagem, contexto));
+      estado.no = !feriado && estaDentroDoHorario(no) ? no.dentro : no.fora;
       continue;
     }
 
@@ -216,6 +209,30 @@ async function executar(estado, contexto, fluxo) {
       estado.humano = true;
       estado.setor = no.setor || null;
       break;
+    }
+
+    // Transferir direto pra um atendente: a conversa já entra "atendendo" com ele (ver
+    // sincronizarConversa); o setor é opcional
+    if (no.tipo === 'transferir_atendente') {
+      if (no.texto) textos.push(montarTexto(no, contexto));
+      estado.humano = true;
+      estado.setor = no.setor || null;
+      estado.atendenteId = no.atendente_id ? Number(no.atendente_id) : null;
+      break;
+    }
+
+    // Aguardar: não manda nada, espera a próxima mensagem do cliente (guarda na variável, se tiver)
+    if (no.tipo === 'aguardar') {
+      estado.aguardando = true;
+      break;
+    }
+
+    // Nota interna no histórico da conversa (o cliente não recebe), ex.: "Cliente pediu boleto"
+    if (no.tipo === 'nota') {
+      const { obterOuCriarConversa, registrarNotaInterna } = require('./conversas'); // aqui: conversas também usa este arquivo
+      registrarNotaInterna(obterOuCriarConversa(estado.numero).id, substituir(no.texto, contexto));
+      estado.no = no.proximo;
+      continue;
     }
 
     if (no.tipo === 'fim') {
@@ -315,6 +332,7 @@ function transferirParaHumano(numero, fluxo, setor = null) {
   const estado = obterEstado(numero, fluxo);
   estado.humano = true;
   estado.setor = setor;
+  estado.atendenteId = null;
   // Um atendimento novo (ex.: "+ Nova conversa" logo depois de finalizar) cancela a pesquisa de
   // satisfação pendente — senão a primeira resposta do cliente viraria "obrigado pela avaliação"
   // e, passado o prazo, o aviso de encerramento automático cairia no meio do atendimento novo.
