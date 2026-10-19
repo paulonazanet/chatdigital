@@ -1,4 +1,4 @@
-<% const ABAS = [['lembretes', 'Lembretes de recompra', '/painel/campanhas/lembretes'], ['retornos', 'Retornos agendados', '/painel/campanhas/retornos'], ['envios', 'Envios', '/painel/campanhas/envios'], ['regras', 'Regras de envio', '/painel/campanhas/regras']]; %>
+<% const ABAS = [['campanhas', 'Campanhas', '/painel/campanhas/lista'], ['lembretes', 'Lembretes', '/painel/campanhas/lembretes'], ['retornos', 'Retornos', '/painel/campanhas/retornos'], ['envios', 'Envios', '/painel/campanhas/envios'], ['regras', 'Regras de envio', '/painel/campanhas/regras']]; %>
 <div class="relatorio-topo"><h1>Campanhas</h1></div>
 <nav class="abas-relatorio" aria-label="Partes de Campanhas">
   <% ABAS.forEach(([chave, rotulo, link]) => { %><a href="<%= link %>" class="<%= ativa === chave ? 'ativa' : '' %>"<%- ativa === chave ? ' aria-current="page"' : '' %>><%= rotulo %></a><% }) %>

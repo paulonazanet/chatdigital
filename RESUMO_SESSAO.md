@@ -419,6 +419,26 @@ precisa de uma API do lado dela.
 - Testes: `test/e3-lembretes.test.js` (5 testes). Total: 97 passam; as 8 "falhas" são o `EPERM` antigo.
 - Painel de teste da E3: `painel-e3` (porta 3058) no `.claude/launch.json` da pasta principal.
 
+## E3, 2ª parte (19/10/2026, branch `e3`): campanhas
+- **`src/campanhas.js`**: `publico` (JSON na campanha: `tags`, `modoTags` qualquer|todas,
+  `soConsentiu`, `excluirDias`), `montarPublico` (situação normal, não anonimizado, não saiu, tags,
+  sem campanha enviada nos últimos N dias, consentimento), `textoParaCliente` (variáveis +
+  `textoComSair`), `validar` (frase-chave até 3 palavras, sem sair/parar/stop/cancelar/menu/oi; bloco
+  precisa existir), `iniciarCampanha` (põe todos em `envios` com `agendado_para` = começar em; status
+  'enviando'), pausar/retomar/cancelar (cancela os pendentes), duplicar, excluir rascunho,
+  `enviarTeste` (fora da fila, envio tipo 'teste', não entra nos números), `fraseConfere`.
+- **Fila**: `processarFila` só pega envio de campanha com a campanha 'enviando' (pausada fica
+  parada); quando acaba o último pendente, a campanha vira 'concluida'.
+- **Respostas** (`resposta-envio.js`): campanha com frase-chave → `transferirParaHumano` no
+  `setor_frase` ou `{ bloco }` (o bot.js chama `iniciarFluxo` com `bloco`); outra resposta → nota
+  "Respondeu à campanha" e segue o fluxo normal.
+- **Telas**: aba Campanhas (`/painel/campanhas/lista`, `/nova`, `/campanha/:id` com `/teste`,
+  `/iniciar`, `/pausar`, `/retomar`, `/cancelar`, `/duplicar`, `/excluir`), `views/campanhas/
+  lista.ejs` e `campanha.ejs` (rascunho editável; depois, só leitura com os números).
+- Testes: `test/e3-campanhas.test.js` (5 testes). Total: 102 passam; as 8 "falhas" são o `EPERM` antigo.
+- **Não testado com WhatsApp de verdade**: recibo de entregue/lido (`messages.update`) e o ritmo
+  real da fila. Ficou para a 3ª parte: ligação com a GásDigital.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -452,7 +472,7 @@ precisa de uma API do lado dela.
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
   `public/js/editor-fluxo.js` (editor, simulador, importar).
-- `src/envios.js` (fila de envios automáticos), `src/lembretes.js` (recompra), `src/retornos.js`,
+- `src/campanhas.js` (campanhas), `src/envios.js` (fila de envios automáticos), `src/lembretes.js` (recompra), `src/retornos.js`,
   `src/resposta-envio.js` (SAIR e respostas a envios), `src/routes/campanhas.js` (menu Campanhas).
 - `src/grupos-permissao.js`, `src/acesso.js` (horário/IP de acesso e histórico),
   `src/status-sistema.js`, `src/contatos-planilha.js` (exportar/importar contatos).

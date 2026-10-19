@@ -1,0 +1,126 @@
+<%- include('../partials/inicio', { titulo: campanha && campanha.nome ? campanha.nome : 'Nova campanha' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const k = campanha || { status: 'rascunho', nome: '', texto: '', frase_chave: '', acao_frase: 'atendente', setor_frase: 'Geral', bloco_frase: '' };
+  const editavel = k.status === 'rascunho';
+  const acao = k.id ? `/painel/campanhas/campanha/${k.id}` : '/painel/campanhas/nova';
+  const AVISOS = { salva: 'Campanha salva.', teste: 'Mensagem de teste enviada.', iniciada: 'Campanha começou: os clientes entraram na fila de envios.', copia: 'Cópia criada: ajuste e comece quando quiser.' };
+  const hojeRecife = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+%>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <p class="trilha-config"><a href="/painel/campanhas/lista">Campanhas</a> › <%= k.nome || 'Nova campanha' %> <span class="selo selo-campanha-<%= k.status %>"><%= rotulo %></span></p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (aviso && AVISOS[aviso]) { %><p class="sucesso"><%= AVISOS[aviso] %></p><% } %>
+
+  <% if (numeros && !editavel) { const n = numeros; %>
+    <div class="cartoes">
+      <div class="cartao"><span class="numero"><%= n.enviados %></span><span class="rotulo">Enviadas</span><span class="rotulo-extra">de <%= n.total %><%= n.pendentes ? ` · ${n.pendentes} na fila` : '' %></span></div>
+      <div class="cartao"><span class="numero"><%= n.entregues %></span><span class="rotulo">Entregues</span></div>
+      <div class="cartao"><span class="numero"><%= n.lidos %></span><span class="rotulo">Lidas</span><span class="rotulo-extra"><%= n.enviados ? Math.round((n.lidos / n.enviados) * 100) : 0 %>% das enviadas</span></div>
+      <div class="cartao"><span class="numero"><%= n.respondidos %></span><span class="rotulo">Responderam</span></div>
+      <div class="cartao"><span class="numero"><%= n.sairam %></span><span class="rotulo">Pediram para sair</span></div>
+      <div class="cartao"><span class="numero"><%= n.pulados + n.falhas + n.cancelados %></span><span class="rotulo">Não mandadas</span></div>
+    </div>
+    <div class="acoes-topo">
+      <% if (k.status === 'enviando') { %><form method="post" action="<%= acao %>/pausar"><button type="submit" class="botao-secundario">⏸ Pausar</button></form><% } %>
+      <% if (k.status === 'pausada') { %><form method="post" action="<%= acao %>/retomar"><button type="submit">▶ Retomar</button></form><% } %>
+      <% if (k.status === 'enviando' || k.status === 'pausada') { %><form method="post" action="<%= acao %>/cancelar" onsubmit="return confirm('Cancelar a campanha? Quem ainda está na fila não recebe mais.')"><button type="submit" class="botao-link botao-link-perigo">Cancelar campanha</button></form><% } %>
+      <form method="post" action="<%= acao %>/duplicar"><button type="submit" class="botao-link">Fazer uma cópia</button></form>
+    </div>
+    <% if (k.status === 'pausada') { %><p class="aviso">Pausada: ninguém da fila recebe até você retomar.</p><% } %>
+  <% } %>
+
+  <form method="post" action="<%= acao %>" id="form-campanha">
+    <fieldset <%= editavel ? '' : 'disabled' %>>
+      <legend>Mensagem</legend>
+      <label>Nome da campanha (só a equipe vê)<input type="text" name="nome" maxlength="80" value="<%= k.nome %>" placeholder="Ex.: Promoção do P13 em novembro" required></label>
+      <label>Mensagem
+        <textarea name="texto" rows="5" maxlength="1000" required placeholder="Ex.: Oi, {{cliente.nome}}! Esta semana o P13 está com R$ 5 de desconto na {{negocio.nome}}. Responda PROMO para pedir."><%= k.texto %></textarea>
+        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code> e <code>{{negocio.nome}}</code>. Se a mensagem não falar em SAIR, o sistema põe no fim: "<%= 'Para não receber mais mensagens como esta, responda SAIR.' %>"</span>
+      </label>
+      <% if (exemplo) { %><p class="dica">Como chega para a Maria:</p><p class="balao-exemplo"><%= exemplo %></p><% } %>
+    </fieldset>
+
+    <fieldset <%= editavel ? '' : 'disabled' %>>
+      <legend>Para quem</legend>
+      <% if (tags.length) { %>
+        <p class="dica">Clientes com as tags (nenhuma marcada = todos os contatos):</p>
+        <div class="lista-tags-check">
+          <% tags.forEach((t) => { %><label class="linha-check"><input type="checkbox" name="tags" value="<%= t.id %>" <%= publico.tags.includes(t.id) ? 'checked' : '' %>> <%= t.nome %> <span class="dica-inline">(<%= t.em_uso %>)</span></label><% }) %>
+        </div>
+        <label class="linha"><input type="radio" name="modo_tags" value="qualquer" <%= publico.modoTags !== 'todas' ? 'checked' : '' %>> Com qualquer uma das tags marcadas</label>
+        <label class="linha"><input type="radio" name="modo_tags" value="todas" <%= publico.modoTags === 'todas' ? 'checked' : '' %>> Só com todas as tags marcadas</label>
+      <% } else { %>
+        <p class="dica">Sem tags cadastradas: vai para todos os contatos. Crie tags em <a href="/painel/contatos/tags">Contatos › Tags</a> para escolher grupos.</p>
+      <% } %>
+      <label class="linha"><input type="checkbox" name="so_consentiu" value="1" <%= publico.soConsentiu ? 'checked' : '' %>> Só para quem aceitou receber mensagens (consentimento na ficha do contato) <span class="dica-inline">recomendado (LGPD)</span></label>
+      <label>Não mandar para quem recebeu outra campanha nos últimos (dias)
+        <input type="number" name="excluir_dias" min="0" max="365" value="<%= publico.excluirDias %>" class="campo-curto"></label>
+      <p class="contagem-publico"><span><strong><%= totalPublico %></strong> cliente<%= totalPublico === 1 ? '' : 's' %> <%= totalPublico === 1 ? 'vai' : 'vão' %> receber<% if (semConsentimento) { %>; <%= semConsentimento %> ficaram de fora por não terem aceitado receber<% } %>.</span>
+        <% if (amostra.length) { %><span class="dica-inline">Ex.: <%= amostra.join(', ') %><%= totalPublico > amostra.length ? '…' : '' %></span><% } %>
+        <span class="dica-inline">Nunca recebem: ignorados, bloqueados e quem pediu para sair. Quem estiver em atendimento na hora fica de fora.</span></p>
+    </fieldset>
+
+    <fieldset <%= editavel ? '' : 'disabled' %>>
+      <legend>Frase-chave (opcional)</legend>
+      <label>Quem responder com
+        <input type="text" name="frase_chave" maxlength="30" value="<%= k.frase_chave || '' %>" placeholder="Ex.: PROMO" class="campo-curto">
+        <span class="ajuda">Sem diferença de maiúscula, acento ou pontuação. Vale por 7 dias depois de receber.</span></label>
+      <label class="linha"><input type="radio" name="acao_frase" value="atendente" <%= k.acao_frase !== 'bloco' ? 'checked' : '' %>> vai para um atendente, no setor
+        <select name="setor_frase" class="campo-inline"><% setores.forEach((s) => { %><option value="<%= s.nome %>" <%= s.nome === (k.setor_frase || 'Geral') ? 'selected' : '' %>><%= s.nome %></option><% }) %></select></label>
+      <label class="linha"><input type="radio" name="acao_frase" value="bloco" <%= k.acao_frase === 'bloco' ? 'checked' : '' %>> começa o bot neste bloco do fluxo
+        <select name="bloco_frase" class="campo-inline campo-bloco"><option value="">escolha…</option><% blocos.forEach((b) => { %><option value="<%= b.id %>" <%= b.id === k.bloco_frase ? 'selected' : '' %>><%= b.rotulo %></option><% }) %></select></label>
+      <p class="dica">Qualquer outra resposta segue o bot normal (o menu) e fica marcada como "respondeu".</p>
+    </fieldset>
+
+    <% if (editavel) { %>
+      <div class="acoes-topo">
+        <button type="submit"><%= k.id ? 'Salvar rascunho' : 'Salvar' %></button>
+        <% if (k.id) { %><button type="submit" form="form-excluir" class="botao-link botao-link-perigo">Excluir rascunho</button><% } %>
+      </div>
+    <% } %>
+  </form>
+  <% if (editavel && k.id) { %>
+    <form method="post" action="<%= acao %>/excluir" id="form-excluir" onsubmit="return confirm('Excluir este rascunho?')"></form>
+
+    <h2 class="subtitulo-painel">Testar</h2>
+    <form method="post" action="<%= acao %>/teste" class="linha-form">
+      <select name="conversa_id" aria-label="Contato para o teste" required>
+        <option value="">Mandar agora para…</option>
+        <% contatosTeste.forEach((c) => { %><option value="<%= c.id %>"><%= c.nome %></option><% }) %>
+      </select>
+      <button type="submit" class="botao-secundario">Mandar teste</button>
+    </form>
+    <p class="dica">Use um celular da equipe. O teste sai na hora (fora da fila) e não conta nos números da campanha.</p>
+
+    <h2 class="subtitulo-painel">Começar</h2>
+    <form method="post" action="<%= acao %>/iniciar" class="linha-form linha-form-inline form-iniciar" onsubmit="return confirm('Começar a campanha para <%= totalPublico %> cliente(s)? Eles entram na fila de envios.')">
+      <label>Começar em (opcional)<input type="date" name="data" min="<%= hojeRecife %>"></label>
+      <label>às<input type="time" name="hora" value="09:00"></label>
+      <button type="submit" <%= totalPublico ? '' : 'disabled' %>>Começar envio para <%= totalPublico %> cliente<%= totalPublico === 1 ? '' : 's' %></button>
+    </form>
+    <p class="dica">Salve antes de começar se mudou alguma coisa. Em branco, começa agora (respeitando o horário e o limite das Regras de envio: com <%= regras.limiteDia %> por dia, <%= totalPublico %> clientes levam <%= Math.max(1, Math.ceil(totalPublico / regras.limiteDia)) %> dia<%= Math.ceil(totalPublico / regras.limiteDia) > 1 ? 's' : '' %> ou mais).</p>
+  <% } %>
+
+  <% if (enviosDaCampanha.length) { %>
+    <h2 class="subtitulo-painel">Clientes <span class="subtitulo-detalhe">os 200 primeiros</span></h2>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Cliente</th><th>Situação</th><th>Quando</th><th>Lida</th><th>Respondeu</th></tr></thead>
+        <tbody>
+          <% enviosDaCampanha.forEach((e) => { %>
+            <tr>
+              <td><a href="/painel/fila/<%= e.conversa_id %>"><%= e.cliente %></a></td>
+              <td><span class="selo selo-envio-<%= e.status %>"><%= e.rotulo %></span><% if (e.motivo) { %> <span class="dica-inline"><%= e.motivo %></span><% } %></td>
+              <td class="sem-quebra"><%= e.quando %></td>
+              <td><%= e.lido_em ? '✓' : '—' %></td>
+              <td><%= e.saiu_em ? 'Saiu' : e.respondido_em ? '✓' : '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>

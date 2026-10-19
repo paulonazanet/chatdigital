@@ -216,6 +216,27 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 **faixa da fila de envios**: funcionando (quantos saíram hoje do limite) ou parada (WhatsApp
 desconectado, fora do horário, feriado ou limite do dia).
 
+### Campanhas > Campanhas
+- Lista com situação (rascunho, enviando, pausada, concluída, cancelada), para quantos, enviadas,
+  lidas, responderam e saíram. **+ Nova campanha**:
+  - **Mensagem** com `{{cliente.nome}}` e `{{negocio.nome}}` e o exemplo "como chega para a Maria".
+    Se o texto não falar em SAIR, o sistema põe no fim "(Para não receber mais mensagens como esta,
+    responda SAIR.)".
+  - **Para quem**: tags (qualquer uma ou todas; nenhuma = todos), **só quem aceitou receber**
+    (consentimento; vem marcado), e não mandar para quem recebeu outra campanha nos últimos N dias
+    (padrão 7). Mostra quantos vão receber, quantos ficaram de fora por falta de consentimento e
+    alguns nomes. Nunca recebem: ignorados, bloqueados, quem pediu para sair; quem estiver em
+    atendimento na hora fica de fora.
+  - **Frase-chave** (opcional, até 3 palavras, ex.: PROMO): quem responder com ela (até 7 dias, sem
+    diferença de maiúscula/acento) vai para um atendente no setor escolhido, ou começa o bot num
+    bloco do fluxo. Outra resposta segue o bot normal e fica marcada como "respondeu".
+  - **Mandar teste** para um contato (na hora, fora da fila, não conta nos números).
+  - **Começar** agora ou num dia e hora: todos do público entram na fila de envios e saem devagar,
+    pelas Regras de envio.
+- Depois de começar: números (enviadas, entregues, lidas e %, responderam, saíram, não mandadas),
+  **Pausar / Retomar**, **Cancelar** (quem está na fila não recebe), **Fazer uma cópia**, e a lista
+  dos clientes com a situação de cada um. O rascunho pode ser editado ou excluído.
+
 ### Campanhas > Lembretes de recompra
 - X dias depois da última **compra**, o cliente recebe um aviso para pedir de novo. Compra = pedido
   salvo pelo bot (coleção "pedidos") ou atendimento finalizado com um dos **motivos marcados**

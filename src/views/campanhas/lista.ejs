@@ -1,0 +1,30 @@
+<%- include('../partials/inicio', { titulo: 'Campanhas' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config pagina-relatorio">
+  <%- include('abas', { ativa, fila, regras }) %>
+  <div class="cabecalho-resultado">
+    <span class="dica">Uma mensagem para um grupo de clientes (por tag), mandada devagar pela fila de envios, dentro das regras de envio.</span>
+    <a class="botao" href="/painel/campanhas/nova">+ Nova campanha</a>
+  </div>
+  <div class="tabela-rolagem">
+    <table class="tabela tabela-notas">
+      <thead><tr><th>Campanha</th><th>Situação</th><th>Quando</th><th>Para</th><th>Enviadas</th><th>Lidas</th><th>Responderam</th><th>Saíram</th></tr></thead>
+      <tbody>
+        <% lista.forEach((k) => { const n = k.numeros; %>
+          <tr onclick="location.href='/painel/campanhas/campanha/<%= k.id %>'">
+            <td><a href="/painel/campanhas/campanha/<%= k.id %>"><strong><%= k.nome %></strong></a><% if (k.frase_chave) { %> <span class="selo">frase: <%= k.frase_chave %></span><% } %></td>
+            <td><span class="selo selo-campanha-<%= k.status %>"><%= k.rotulo %></span></td>
+            <td class="sem-quebra"><%= k.quando %></td>
+            <td><%= n.total || '—' %></td>
+            <td><%= n.enviados %><% if (n.pendentes) { %> <span class="dica-inline">(+<%= n.pendentes %> na fila)</span><% } %></td>
+            <td><%= n.lidos %></td>
+            <td><%= n.respondidos %></td>
+            <td><%= n.sairam %></td>
+          </tr>
+        <% }) %>
+        <% if (!lista.length) { %><tr><td colspan="8" class="dica">Nenhuma campanha ainda. Clique em "+ Nova campanha".</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('../partials/fim-painel') %>

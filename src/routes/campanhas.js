@@ -9,9 +9,12 @@ const retornos = require('../retornos');
 const { listarSetores, janelasDoFormulario } = require('../setores');
 const { horarioDoCorpo, horarioDasJanelas } = require('../horario');
 const { formatarDataHoraCompleta, formatarTelefone } = require('../relatorio');
+const campanhas = require('../campanhas');
+const contatos = require('../contatos');
+const { carregarFluxo } = require('../fluxo');
 
-// Menu Campanhas (permissão "gerenciar_campanhas"): Lembretes (recompra), Retornos agendados,
-// Envios (a fila e o histórico) e Regras de envio. A aba Campanhas entra na 2a parte da E3.
+// Menu Campanhas (permissão "gerenciar_campanhas"): Campanhas, Lembretes (recompra), Retornos
+// agendados, Envios (a fila e o histórico) e Regras de envio.
 
 const ROTULO_STATUS = { pendente: 'Na fila', enviado: 'Enviado', falhou: 'Falhou', pulado: 'Não mandado', cancelado: 'Cancelado' };
 const ROTULO_TIPO = { lembrete: 'Lembrete de recompra', campanha: 'Campanha', retorno: 'Retorno', teste: 'Teste' };
@@ -21,7 +24,132 @@ function base(req, ativa, extra = {}) {
   return { atendenteLogado: req.atendente, ativa, fila: envios.situacaoDaFila(), regras: envios.regrasDeEnvio(), ...extra };
 }
 
-router.get('/', (req, res) => res.redirect('/painel/campanhas/lembretes'));
+router.get('/', (req, res) => res.redirect('/painel/campanhas/lista'));
+
+// ---- Campanhas ----
+const ROTULO_CAMPANHA = { rascunho: 'Rascunho', enviando: 'Enviando', pausada: 'Pausada', concluida: 'Concluída', cancelada: 'Cancelada' };
+
+router.get('/lista', (req, res) => {
+  const lista = campanhas.listarCampanhas().map((k) => ({ ...k, rotulo: ROTULO_CAMPANHA[k.status], quando: formatarDataHoraCompleta(k.iniciada_em || k.criado_em) }));
+  res.render('campanhas/lista', base(req, 'campanhas', { lista }));
+});
+
+// blocos do fluxo que dá pra escolher como destino da frase-chave
+function blocosDoFluxo() {
+  try {
+    const fluxo = carregarFluxo();
+    return Object.entries(fluxo.nos)
+      .filter(([, no]) => !['inicio', 'fim'].includes(no.tipo))
+      .map(([id, no]) => ({ id, rotulo: `${id} (${no.tipo})${no.texto ? `: ${String(no.texto).replace(/\s+/g, ' ').slice(0, 50)}` : ''}` }));
+  } catch (erro) {
+    return [];
+  }
+}
+
+function renderizarCampanha(req, res, campanha, extra = {}) {
+  const publico = extra.publico || campanhas.lerPublico(campanha);
+  const calculado = campanhas.montarPublico(publico);
+  const numeros = campanha && campanha.id ? campanhas.numerosDaCampanha(campanha.id) : null;
+  const enviosDaCampanha = campanha && campanha.id
+    ? db
+        .prepare(`SELECT e.*, c.nome_contato, c.numero, c.numero_exibicao FROM envios e JOIN conversas c ON c.id = e.conversa_id WHERE e.tipo = 'campanha' AND e.referencia_id = ? ORDER BY CASE e.status WHEN 'pendente' THEN 1 ELSE 0 END, e.id DESC LIMIT 200`)
+        .all(campanha.id)
+        .map((e) => ({ ...e, cliente: nomeDoCliente(e), rotulo: ROTULO_STATUS[e.status], quando: formatarDataHoraCompleta(e.enviado_em || e.agendado_para) }))
+    : [];
+  const negocio = carregarNegocio();
+  res.render('campanhas/campanha', base(req, 'campanhas', {
+    campanha,
+    rotulo: campanha && campanha.status ? ROTULO_CAMPANHA[campanha.status] : 'Nova',
+    publico,
+    totalPublico: calculado.lista.length,
+    semConsentimento: calculado.semConsentimento,
+    amostra: calculado.lista.slice(0, 8).map(nomeDoCliente),
+    exemplo: campanha && campanha.texto ? campanhas.textoParaCliente(campanha, { nome_contato: 'Maria' }, negocio) : '',
+    tags: contatos.listarTags(),
+    setores: listarSetores(),
+    blocos: blocosDoFluxo(),
+    contatosTeste: db
+      .prepare("SELECT id, nome_contato, numero, numero_exibicao FROM conversas WHERE situacao_contato <> 'bloqueado' AND numero NOT LIKE 'anonimizado-%' ORDER BY nome_contato IS NULL, nome_contato LIMIT 300")
+      .all()
+      .map((c) => ({ id: c.id, nome: nomeDoCliente(c) })),
+    numeros,
+    enviosDaCampanha,
+    erro: null,
+    aviso: req.query.aviso || null,
+    ...extra,
+  }));
+}
+
+function lerFormulario(req) {
+  return campanhas.validar(req.body, { blocosDoFluxo: blocosDoFluxo().map((b) => b.id), setores: listarSetores().map((s) => s.nome) });
+}
+function publicoDoCorpo(corpo) {
+  return campanhas.lerPublico({ publico: JSON.stringify({ tags: [].concat(corpo.tags || []).map(Number), modoTags: corpo.modo_tags, soConsentiu: corpo.so_consentiu === '1', excluirDias: Number(corpo.excluir_dias) }) });
+}
+
+router.get('/nova', (req, res) => renderizarCampanha(req, res, null));
+router.post('/nova', (req, res) => {
+  const lido = lerFormulario(req);
+  if (lido.erro) return renderizarCampanha(req, res, { status: 'rascunho', ...req.body }, { erro: lido.erro, publico: publicoDoCorpo(req.body) });
+  const id = campanhas.criarCampanha(lido.campos, req.atendente.id);
+  res.redirect(`/painel/campanhas/campanha/${id}?aviso=salva`);
+});
+
+function carregar(req, res) {
+  const campanha = /^\d+$/.test(req.params.id) ? campanhas.obterCampanha(Number(req.params.id)) : null;
+  if (!campanha) res.redirect('/painel/campanhas/lista');
+  return campanha;
+}
+router.get('/campanha/:id', (req, res) => {
+  const campanha = carregar(req, res);
+  if (campanha) renderizarCampanha(req, res, campanha);
+});
+router.post('/campanha/:id', (req, res) => {
+  const campanha = carregar(req, res);
+  if (!campanha) return;
+  const lido = lerFormulario(req);
+  if (lido.erro) return renderizarCampanha(req, res, { ...campanha, ...req.body }, { erro: lido.erro, publico: publicoDoCorpo(req.body) });
+  campanhas.atualizarCampanha(campanha.id, lido.campos);
+  res.redirect(`/painel/campanhas/campanha/${campanha.id}?aviso=salva`);
+});
+router.post('/campanha/:id/teste', async (req, res) => {
+  const campanha = carregar(req, res);
+  if (!campanha) return;
+  const resultado = await campanhas.enviarTeste(campanha.id, Number(req.body.conversa_id));
+  if (resultado.erro) return renderizarCampanha(req, res, campanha, { erro: `Teste não enviado: ${resultado.erro}` });
+  res.redirect(`/painel/campanhas/campanha/${campanha.id}?aviso=teste`);
+});
+router.post('/campanha/:id/iniciar', (req, res) => {
+  const campanha = carregar(req, res);
+  if (!campanha) return;
+  // "começar em": dia e hora de Recife (em branco = agora)
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(req.body.data || '') ? req.body.data : '';
+  const hora = /^\d{2}:\d{2}$/.test(req.body.hora || '') ? req.body.hora : '00:00';
+  const comecarEm = data ? new Date(`${data}T${hora}:00-03:00`) : new Date();
+  const resultado = campanhas.iniciarCampanha(campanha.id, { comecarEm });
+  if (resultado.erro) return renderizarCampanha(req, res, campanha, { erro: resultado.erro });
+  res.redirect(`/painel/campanhas/campanha/${campanha.id}?aviso=iniciada`);
+});
+for (const [acao, funcao] of [['pausar', campanhas.pausarCampanha], ['retomar', campanhas.retomarCampanha], ['cancelar', campanhas.cancelarCampanha]]) {
+  router.post(`/campanha/:id/${acao}`, (req, res) => {
+    const campanha = carregar(req, res);
+    if (!campanha) return;
+    funcao(campanha.id);
+    res.redirect(`/painel/campanhas/campanha/${campanha.id}`);
+  });
+}
+router.post('/campanha/:id/duplicar', (req, res) => {
+  const campanha = carregar(req, res);
+  if (!campanha) return;
+  res.redirect(`/painel/campanhas/campanha/${campanhas.duplicarCampanha(campanha.id, req.atendente.id)}?aviso=copia`);
+});
+router.post('/campanha/:id/excluir', (req, res) => {
+  const campanha = carregar(req, res);
+  if (!campanha) return;
+  campanhas.excluirRascunho(campanha.id);
+  res.redirect('/painel/campanhas/lista');
+});
+
 
 // ---- Lembretes de recompra ----
 function renderizarLembretes(req, res, extra = {}) {
