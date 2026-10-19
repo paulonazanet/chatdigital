@@ -36,6 +36,16 @@
       <span class="cartao-config-info"><%= resumo.metasDefinidas ? `${resumo.metasDefinidas} meta${resumo.metasDefinidas === 1 ? '' : 's'} definida${resumo.metasDefinidas === 1 ? '' : 's'}` : 'Nenhuma meta' %></span>
       <span class="cartao-config-texto">Tempos e nota que o Relatório compara</span>
     </a>
+    <a class="cartao-config" href="/painel/configuracoes/pausas">
+      <span class="cartao-config-nome">Pausas e alertas</span>
+      <span class="cartao-config-info"><%= resumo.motivosPausaAtivos %> motivo<%= resumo.motivosPausaAtivos === 1 ? '' : 's' %> de pausa · <%= resumo.alertasLigados ? `${resumo.alertasLigados} alerta${resumo.alertasLigados === 1 ? '' : 's'}` : 'alertas desligados' %></span>
+      <span class="cartao-config-texto">Pausa do atendente e avisos de fila parada</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/painel-tv">
+      <span class="cartao-config-nome">Painel da TV</span>
+      <span class="cartao-config-info"><% if (resumo.painelTvLigado) { %><span class="ponto-status ponto-status-ok"></span>Ligado<% } else { %>Desligado<% } %></span>
+      <span class="cartao-config-texto">Tela ao vivo do atendimento para deixar numa TV</span>
+    </a>
   </nav>
 
   <nav class="atalhos-config" aria-label="Ir para o quadro">

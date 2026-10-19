@@ -28,6 +28,14 @@ const PADROES = {
   meta_duracao_minutos: 0,
   meta_nota: 0,
   reincidencia_dias: 7, // cliente que volta até X dias depois de finalizar conta como reincidência
+
+  // alertas de fila (src/alertas.js, Configurações > Pausas e alertas); 0 desliga
+  alerta_fila_minutos: 0, // cliente esperando na fila há mais de X min
+  alerta_fila_quantidade: 0, // fila cheia: N clientes ou mais esperando
+  alerta_sem_resposta_minutos: 0, // atendente com cliente sem resposta há mais de X min
+
+  // painel ao vivo para TV (/tv/<token>, sem login): null = desligado
+  painel_tv_token: null,
 };
 
 function carregarNegocio() {

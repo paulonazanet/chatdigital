@@ -37,7 +37,10 @@ Resumo rápido da operação (precisa da permissão "Ver Painel"; sem ela, cai d
 - Cartões: aguardando resposta, em atendimento, paradas no fluxo, registros de hoje (pedidos
   etc. salvos pelo fluxo), total de atendentes e de setores.
 - Situação do WhatsApp (conectado ou não).
-- Quem está online agora (quem está com o painel aberto).
+- **Alertas** de fila (faixa amarela), quando ligados em Configurações > Pausas e alertas.
+- **Equipe agora**: quem está com o painel aberto e a situação de cada um: livre, atendendo (com
+  quantas conversas e o limite), no limite ou em pausa (motivo e há quantos minutos; vermelho
+  quando passou do limite do motivo).
 
 ## Menu: Relatório
 Números do atendimento (só administrador, ou atendente com a permissão "Ver o Relatório"). Três
@@ -54,6 +57,8 @@ abas: **Resumo**, **Auditoria** e **Reincidências**.
 - **Metas** (definidas em Configurações > Metas): o cartão fica **verde** quando o tempo típico está
   dentro da meta e **vermelho** quando passa, com "meta 10 min · 75% dentro" (quantos % dos
   atendimentos ficaram dentro). A nota fica vermelha abaixo da média mínima. Sem meta, sem cor.
+- **Pausas**: por atendente, quantas pausas, tempo total, maior pausa, quantas passaram do limite
+  e o tempo por motivo.
 - **Por atendente** (só em "Todos os atendentes"): uma linha por atendente com atendimentos, espera,
   1ª resposta, duração, nota média e finalizados sem resposta, com as mesmas cores das metas.
   Clicar no nome abre o Relatório só dele.
@@ -90,6 +95,22 @@ Os atendimentos **finalizados**, para conferir depois.
   atendeu e o motivo). Clicar abre o atendimento anterior na Auditoria.
 - Filtro por período e por atendente (o atendente do atendimento **anterior**).
 ## Menu: Fila (a tela principal do atendente)
+**Topo da Fila**
+- **Pausar**: escolhe o motivo (Almoço, Lanche ou café, Banheiro, Reunião, Outro; editáveis em
+  Configurações > Pausas e alertas). Em pausa aparece a faixa "Você está em pausa" com o botão
+  **Voltar ao atendimento**; a faixa fica vermelha quando passa do limite do motivo. Em pausa a
+  pessoa **não recebe conversa nova**: não conta como atendente disponível (o bot manda "sem
+  atendente disponível" se ninguém mais estiver livre), ninguém consegue transferir pra ela, e o
+  bloco "Transferir para atendente" do fluxo deixa a conversa na fila do setor. **Assumir** uma
+  conversa ou **Sair** do sistema também encerra a pausa.
+- **Suas conversas: X de Y**: aparece quando o atendente tem limite de conversas ao mesmo tempo
+  (em Atendentes). No limite, ele não assume, não puxa do bot, não inicia conversa nova e ninguém
+  transfere pra ele, até finalizar ou transferir uma.
+- **Faixa de alertas** (amarela; em negrito vermelho os graves): cliente esperando na fila demais,
+  fila cheia, atendente com cliente sem resposta, pausa que passou do limite (essa só para a
+  gestão e para a própria pessoa). Quando um alerta aparece ou piora, quem está com o painel aberto
+  ouve o bipe e recebe o aviso do Windows (de novo a cada 15 min se continuar).
+
 **Lista de conversas (lado esquerdo)**
 - **Filtros** (duas linhas): **Minhas** (as que você está atendendo) · **Na fila** (o bot passou
   pra atendente e ninguém assumiu ainda) · **No bot** (cliente parou no meio do fluxo do bot) ·
@@ -180,8 +201,10 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - Na conversa, as variáveis já vêm trocadas pelos dados daquela conversa.
 
 ## Menu: Atendentes
-- Lista com nome, e-mail, papel, status (ativo/inativo), último login e bolinha de online.
-- Cadastrar / editar: nome, e-mail, senha, papel (admin ou atendente), setores e permissões.
+- Lista com nome, e-mail, papel, status (ativo/inativo; em pausa, com o motivo; o limite de
+  conversas), último login e bolinha de online.
+- Cadastrar / editar: nome, e-mail, senha, papel (admin ou atendente), **limite de conversas ao
+  mesmo tempo** (0 = sem limite), setores e permissões.
 - Ativar / desativar com um clique (não apaga). O sistema não deixa remover o último admin ativo,
   e um atendente comum não consegue se promover a admin.
 
@@ -250,6 +273,20 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Reincidência**: quantos dias depois de finalizar a volta do cliente conta como reincidência
   (1 a 90; padrão 7).
 
+### Configurações > Pausas e alertas
+- **Motivos de pausa**: nome, limite em minutos (0 = sem limite), ativo; adicionar e excluir (as
+  pausas já feitas continuam no Relatório). Sem nenhum motivo ativo, o botão Pausar some.
+- **Alertas de fila** (0 desliga cada um): cliente esperando na fila há mais de X min; fila com N
+  clientes ou mais; atendente com cliente sem resposta há mais de X min. Vêm desligados.
+
+### Configurações > Painel da TV
+- **Ligar e gerar o link**: cria um link secreto (`/tv/<código>`) que abre **sem senha** uma tela
+  grande para deixar numa TV: clientes esperando, maior espera, em atendimento, com o bot, a equipe
+  (livre, atendendo, no limite, em pausa, offline), a fila por setor, os alertas e os números de
+  hoje. Atualiza sozinha a cada 15 s e avisa se perdeu a conexão. **Não mostra mensagens, nomes
+  nem telefones de clientes.**
+- **Gerar novo link** troca o código (o antigo para de funcionar na hora). **Desligar** apaga.
+
 ### Configurações > WhatsApp
 - Mostra se está conectado; quando não está, mostra o QR Code pra escanear (Aparelhos
   conectados > Conectar aparelho), atualizando sozinho.
@@ -265,6 +302,7 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Lembrete e desistência por inatividade** (cliente parado no bot) — ver Configurações.
 - **Fechamento automático** do atendimento aberto há tempo demais — ver Configurações.
 - **Aviso de avaliação não respondida** 30 min depois da pesquisa.
+- **Alertas de fila**: confere a cada minuto e avisa quem está com o painel aberto — ver Configurações > Pausas e alertas.
 - **Depois de reiniciar o servidor**: quem estava com atendente continua com atendente (o bot não
   volta a falar).
 - **Backup do banco** 1 vez por dia, guardando os últimos 30 dias.

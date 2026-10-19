@@ -153,6 +153,27 @@
     });
   });
 
+  // Alerta de fila (cliente esperando demais, fila cheia, sem resposta, pausa longa): avisa com bipe e
+  // aviso do Windows, mas não recarrega a tela (a faixa de alertas aparece no próximo recarregamento).
+  origem.addEventListener('alerta', function (evento) {
+    var dados = {};
+    try {
+      dados = JSON.parse(evento.data);
+    } catch (e) {}
+    if (!dados.texto) return;
+    mostrarAvisoFlutuante('⚠️ ' + dados.texto);
+    avisarUmaVezEntreAbas(dados.id, function () {
+      tocarBipe();
+      if ('Notification' in window && Notification.permission === 'granted') {
+        var notificacao = new Notification('ChatDigital: alerta', { body: dados.texto, tag: 'chatdigital-' + dados.id });
+        notificacao.onclick = function () {
+          window.focus();
+          notificacao.close();
+        };
+      }
+    });
+  });
+
   origem.addEventListener('atencao', function (evento) {
     var dados = {};
     try {

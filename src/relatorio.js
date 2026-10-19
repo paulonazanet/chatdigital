@@ -1,5 +1,6 @@
 const { db } = require('./db');
 const { carregarNegocio } = require('./negocio');
+const { resumoDePausas } = require('./equipe');
 
 // Números do menu Relatório, lidos do livro de atendimentos (atendimentos.js). Tudo em horário de
 // Brasília/Recife: UTC-3 fixo (o Brasil não tem mais horário de verão desde 2019).
@@ -268,6 +269,14 @@ function montarRelatorio({ periodo = '30', atendenteId = null, agoraMs = Date.no
     reincidencias: reincidencias.length,
     reincidenciasPct: doCliente.length ? Math.round((reincidencias.length / doCliente.length) * 100) : 0,
     porAtendente: atendenteId ? [] : tabelaPorAtendente(lista, metas),
+    pausas: resumoDePausas({ inicio, fim, atendenteId, agoraMs }).map((p) => ({
+      nome: p.nome,
+      quantidade: p.quantidade,
+      total: formatarDuracao(p.totalMs),
+      maior: formatarDuracao(p.maiorMs),
+      passaram: p.passaram,
+      motivos: p.motivos.map(([motivo, ms]) => `${motivo} ${formatarDuracao(ms)}`).join(' · '),
+    })),
     barras,
     maiorBarra: Math.max(1, ...barras.map((b) => b.total)),
     porHora: umDia,

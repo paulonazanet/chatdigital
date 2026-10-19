@@ -278,6 +278,37 @@ if (!colunaExiste('setores', 'horario')) {
   db.exec('ALTER TABLE setores ADD COLUMN mensagem_fora_horario TEXT');
 }
 
+// E2, 2a parte: pausa do atendente com motivo (quem está em pausa não recebe conversa) e limite de
+// conversas ao mesmo tempo por atendente (0 = sem limite). limite_minutos do motivo: depois disso a
+// pausa vira alerta (0 = sem limite). A pausa guarda o nome e o limite do motivo como estavam.
+if (!colunaExiste('atendentes', 'limite_conversas')) {
+  db.exec('ALTER TABLE atendentes ADD COLUMN limite_conversas INTEGER NOT NULL DEFAULT 0');
+}
+const motivosPausaNovos = !db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'motivos_pausa'").get();
+db.exec(`
+  CREATE TABLE IF NOT EXISTS motivos_pausa (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    limite_minutos INTEGER NOT NULL DEFAULT 0,
+    ativo INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS pausas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    atendente_id INTEGER NOT NULL REFERENCES atendentes(id) ON DELETE CASCADE,
+    motivo_id INTEGER,
+    motivo_texto TEXT NOT NULL,
+    limite_minutos INTEGER NOT NULL DEFAULT 0,
+    inicio TEXT NOT NULL,
+    fim TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pausas_atendente ON pausas (atendente_id, fim);
+  CREATE INDEX IF NOT EXISTS idx_pausas_inicio ON pausas (inicio);
+`);
+if (motivosPausaNovos) {
+  const inserir = db.prepare('INSERT INTO motivos_pausa (nome, limite_minutos) VALUES (?, ?)');
+  for (const [nome, limite] of [['Almoço', 60], ['Lanche ou café', 15], ['Banheiro', 10], ['Reunião', 0], ['Outro', 0]]) inserir.run(nome, limite);
+}
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

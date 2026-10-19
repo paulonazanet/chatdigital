@@ -4,6 +4,7 @@ const { barramento } = require('./eventos');
 const { haAtendenteDisponivel, obterAtendentePorId } = require('./atendentes');
 const atendimentos = require('./atendimentos');
 const { obterSetorPorId, setorAberto } = require('./setores');
+const { podeReceberConversa } = require('./equipe');
 
 function obterOuCriarConversa(numero) {
   const existente = db.prepare('SELECT * FROM conversas WHERE numero = ?').get(numero);
@@ -166,9 +167,10 @@ function sincronizarConversa(numero, fluxo, { vinhaDoBot = false } = {}) {
   const acabouDeEntrarNaFila = status === 'aguardando' && conversa.status !== 'aguardando' && conversa.status !== 'atendendo';
   if (acabouDeEntrarNaFila) {
     atendimentos.abrirAtendimentoDoCliente(conversa.id, setorId);
-    // bloco "Transferir para atendente" do fluxo: já entra atendendo com ele (se ele estiver ativo)
+    // bloco "Transferir para atendente" do fluxo: já entra atendendo com ele (se ele estiver ativo,
+    // fora de pausa e abaixo do limite de conversas; senão fica na fila do setor)
     const destino = estado.atendenteId ? obterAtendentePorId(estado.atendenteId) : null;
-    if (destino && destino.ativo) {
+    if (destino && destino.ativo && podeReceberConversa(destino.id).ok) {
       db.prepare("UPDATE conversas SET status = 'atendendo', atendente_id = ? WHERE id = ?").run(destino.id, conversa.id);
       atendimentos.registrarAssumido(conversa.id, destino.id);
     }

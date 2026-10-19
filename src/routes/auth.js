@@ -4,6 +4,7 @@ const router = express.Router();
 const { contarAtendentes, criarAtendente, autenticar, registrarUltimoLogin } = require('../atendentes');
 const { definirSessao, limparSessao } = require('../sessao');
 const limiteLogin = require('../limite-login');
+const { encerrarPausa } = require('../equipe');
 
 router.get('/setup', (req, res) => {
   if (contarAtendentes() > 0) return res.redirect('/login');
@@ -50,6 +51,8 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
+  // saiu do sistema = a pausa acaba (senão ela ficaria correndo até o próximo login)
+  if (req.atendente) encerrarPausa(req.atendente.id);
   limparSessao(res);
   res.redirect('/login');
 });

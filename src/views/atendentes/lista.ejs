@@ -14,7 +14,9 @@
           <td><%= a.nome %></td>
           <td><%= a.email %></td>
           <td><%= a.papel === 'admin' ? 'Administrador' : 'Atendente' %></td>
-          <td><span class="selo <%= a.ativo ? 'ativo' : 'inativo' %>"><%= a.ativo ? 'Ativo' : 'Inativo' %></span></td>
+          <td><span class="selo <%= a.ativo ? 'ativo' : 'inativo' %>"><%= a.ativo ? 'Ativo' : 'Inativo' %></span>
+            <% if (a.situacao && a.situacao.pausa) { %> <span class="selo selo-equipe-pausa<%= a.situacao.pausa.passou ? ' selo-equipe-passou' : '' %>">Pausa: <%= a.situacao.pausa.motivo %> · <%= a.situacao.pausa.minutos %> min</span><% } %>
+            <% if (a.limite_conversas) { %> <span class="selo" title="Limite de conversas ao mesmo tempo">até <%= a.limite_conversas %> conversa<%= a.limite_conversas === 1 ? '' : 's' %></span><% } %></td>
           <td><%= a.ultimo_login ? new Date(a.ultimo_login).toLocaleString('pt-BR') : 'nunca' %></td>
           <td class="acoes-linha">
             <a href="/painel/atendentes/<%= a.id %>/editar">Editar</a>

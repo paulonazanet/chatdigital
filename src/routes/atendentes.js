@@ -15,13 +15,15 @@ const {
 const { listarSetores } = require('../setores');
 const { CHAVES, ROTULOS, listaPermissoes, permissoesPadraoAtendente } = require('../permissoes');
 const { estaOnline } = require('../presenca');
+const { situacaoDaEquipe } = require('../equipe');
 
 function dadosComuns(req) {
   return { atendenteLogado: req.atendente, chavesPermissao: CHAVES, rotulosPermissao: ROTULOS };
 }
 
 router.get('/', (req, res) => {
-  const atendentes = listarAtendentes().map((a) => ({ ...a, online: estaOnline(a.id) }));
+  const situacoes = new Map(situacaoDaEquipe().map((p) => [p.id, p]));
+  const atendentes = listarAtendentes().map((a) => ({ ...a, online: estaOnline(a.id), situacao: situacoes.get(a.id) || null }));
   res.render('atendentes/lista', { ...dadosComuns(req), atendentes });
 });
 
@@ -64,7 +66,7 @@ router.post('/', (req, res) => {
     });
   }
 
-  const novo = criarAtendente({ nome, email, senha, papel, permissoes });
+  const novo = criarAtendente({ nome, email, senha, papel, permissoes, limiteConversas: req.body.limite_conversas });
   definirSetoresDoAtendente(novo.id, setorIds);
   res.redirect('/painel/atendentes');
 });
@@ -112,7 +114,7 @@ router.post('/:id', (req, res) => {
     });
   }
 
-  atualizarAtendente(id, { nome, papel, ativo, novaSenha: senha || null, permissoes: permissoesSubmetidas });
+  atualizarAtendente(id, { nome, papel, ativo, novaSenha: senha || null, permissoes: permissoesSubmetidas, limiteConversas: req.body.limite_conversas });
   definirSetoresDoAtendente(id, setorIds);
   res.redirect('/painel/atendentes');
 });

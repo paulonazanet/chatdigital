@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Painel ao vivo · <%= dados.negocio %></title>
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" />
+  <style>
+    :root {
+      --fundo: #14293c; --painel: #1c3d5a; --borda: #2a5274; --texto: #e8eef4; --apagado: #9fb3c6;
+      --laranja: #ed813b; --verde: #3fbf7f; --azul: #6aa9e0; --amarelo: #f2c14e; --vermelho: #ef5b5b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--fundo); color: var(--texto); font-family: "Segoe UI", Arial, Helvetica, sans-serif; font-size: clamp(14px, 1.15vw, 22px); }
+    .tv { min-height: 100vh; display: flex; flex-direction: column; gap: 1.1em; padding: 1.4em 1.8em; }
+    .topo { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
+    .negocio { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.7em; }
+    .negocio .rotulo-tv { color: var(--laranja); font-weight: 600; font-size: 0.55em; display: block; letter-spacing: 0.08em; text-transform: uppercase; }
+    .relogio { font-family: "Poppins", sans-serif; font-weight: 600; font-size: 2.2em; font-variant-numeric: tabular-nums; }
+    .whatsapp { font-size: 0.85em; color: var(--apagado); display: flex; align-items: center; gap: 0.45em; justify-content: flex-end; }
+    .ponto { width: 0.7em; height: 0.7em; border-radius: 50%; background: var(--verde); display: inline-block; }
+    .ponto.fora { background: var(--vermelho); }
+    .alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4em; }
+    .alertas li { background: rgba(242, 193, 78, 0.16); border-left: 6px solid var(--amarelo); padding: 0.6em 0.9em; border-radius: 6px; font-size: 1.1em; font-weight: 600; }
+    .alertas li.grave { background: rgba(239, 91, 91, 0.18); border-left-color: var(--vermelho); animation: piscar 1.6s ease-in-out infinite; }
+    @keyframes piscar { 50% { background: rgba(239, 91, 91, 0.32); } }
+    @media (prefers-reduced-motion: reduce) { .alertas li.grave { animation: none; } }
+    .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1em; }
+    .numero { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 1em 1.2em; }
+    .numero .valor { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 4.2em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .numero .valor small { font-size: 0.35em; font-weight: 600; color: var(--apagado); margin-left: 0.2em; }
+    .numero .nome { color: var(--apagado); margin-top: 0.35em; font-size: 1.05em; }
+    .numero.destaque { border-color: var(--laranja); box-shadow: inset 0 -5px 0 var(--laranja); }
+    .numero.destaque .valor { color: var(--laranja); }
+    .numero.ruim { border-color: var(--vermelho); box-shadow: inset 0 -5px 0 var(--vermelho); }
+    .numero.ruim .valor { color: var(--vermelho); }
+    .meio { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1em; flex: 1; min-height: 0; }
+    .bloco { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 1em 1.2em; overflow: hidden; }
+    .bloco h2 { font-family: "Poppins", sans-serif; font-weight: 600; font-size: 1.1em; margin: 0 0 0.8em; color: var(--apagado); text-transform: uppercase; letter-spacing: 0.06em; }
+    .equipe { display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); gap: 0.7em; }
+    .pessoa { background: rgba(255, 255, 255, 0.04); border-radius: 10px; padding: 0.75em 0.9em; border-left: 6px solid var(--apagado); }
+    .pessoa .quem { font-weight: 700; font-size: 1.15em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pessoa .estado { margin-top: 0.25em; color: var(--apagado); }
+    .pessoa.livre { border-left-color: var(--verde); } .pessoa.livre .estado { color: var(--verde); }
+    .pessoa.atendendo { border-left-color: var(--azul); } .pessoa.atendendo .estado { color: var(--azul); }
+    .pessoa.limite { border-left-color: var(--laranja); } .pessoa.limite .estado { color: var(--laranja); }
+    .pessoa.pausa { border-left-color: var(--amarelo); } .pessoa.pausa .estado { color: var(--amarelo); }
+    .pessoa.pausa.passou { border-left-color: var(--vermelho); } .pessoa.pausa.passou .estado { color: var(--vermelho); }
+    .pessoa.offline { opacity: 0.55; }
+    .setores { width: 100%; border-collapse: collapse; font-size: 1.05em; }
+    .setores th { text-align: left; color: var(--apagado); font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0 0.5em; }
+    .setores td { padding: 0.55em 0; border-top: 1px solid var(--borda); font-variant-numeric: tabular-nums; }
+    .setores td.n { text-align: right; font-weight: 700; }
+    .setores tr.esperando td.n.fila { color: var(--laranja); }
+    .vazio { color: var(--apagado); }
+    .rodape { display: flex; justify-content: space-between; gap: 1em; color: var(--apagado); font-size: 0.95em; }
+    .rodape strong { color: var(--texto); }
+    .sem-conexao { color: var(--vermelho); }
+    @media (max-width: 900px) {
+      .numeros { grid-template-columns: repeat(2, 1fr); }
+      .meio { grid-template-columns: 1fr; }
+      .tv { padding: 1em 16px; }
+      .numero .valor { font-size: 3em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tv" id="tv">
+    <header class="topo">
+      <div class="negocio"><span class="rotulo-tv">Atendimento ao vivo</span><span id="nome-negocio"></span></div>
+      <div>
+        <div class="relogio" id="relogio">--:--</div>
+        <div class="whatsapp" id="whatsapp"></div>
+      </div>
+    </header>
+    <ul class="alertas" id="alertas" aria-live="polite"></ul>
+    <section class="numeros" aria-label="Agora">
+      <div class="numero" id="caixa-esperando"><div class="valor" id="esperando">0</div><div class="nome">Esperando na fila</div></div>
+      <div class="numero" id="caixa-espera"><div class="valor" id="maior-espera">0</div><div class="nome">Maior espera agora</div></div>
+      <div class="numero"><div class="valor" id="atendendo">0</div><div class="nome">Em atendimento</div></div>
+      <div class="numero"><div class="valor" id="no-bot">0</div><div class="nome">Com o bot</div></div>
+    </section>
+    <section class="meio">
+      <div class="bloco"><h2>Equipe</h2><div class="equipe" id="equipe"></div></div>
+      <div class="bloco"><h2>Fila por setor</h2><table class="setores"><thead><tr><th>Setor</th><th style="text-align:right">Na fila</th><th style="text-align:right">Maior espera</th><th style="text-align:right">Atendendo</th></tr></thead><tbody id="setores"></tbody></table></div>
+    </section>
+    <footer class="rodape">
+      <span id="hoje"></span>
+      <span id="atualizado"></span>
+    </footer>
+  </div>
+  <script>
+    (function () {
+      var codigo = <%- JSON.stringify(codigo).replace(/</g, '\\u003c') %>;
+      var dados = <%- JSON.stringify(dados).replace(/</g, '\\u003c') %>;
+      var ultimaBuscaOk = Date.now();
+
+      function el(id) { return document.getElementById(id); }
+      function texto(no, valor) { no.textContent = valor; }
+      function duracao(min) {
+        if (min < 60) return { valor: String(min), unidade: 'min' };
+        var h = Math.floor(min / 60), m = min % 60;
+        return { valor: h + 'h' + (m ? String(m).padStart(2, '0') : ''), unidade: '' };
+      }
+      function montarValor(no, d) {
+        no.textContent = d.valor;
+        if (d.unidade) { var s = document.createElement('small'); s.textContent = d.unidade; no.appendChild(s); }
+      }
+
+      function desenhar() {
+        texto(el('nome-negocio'), dados.negocio);
+        document.title = 'Painel ao vivo · ' + dados.negocio;
+        var w = el('whatsapp');
+        w.textContent = '';
+        var ponto = document.createElement('span');
+        ponto.className = 'ponto' + (dados.whatsappConectado ? '' : ' fora');
+        w.appendChild(ponto);
+        w.appendChild(document.createTextNode(dados.whatsappConectado ? 'WhatsApp conectado' : 'WhatsApp desconectado'));
+
+        var alertas = el('alertas');
+        alertas.textContent = '';
+        dados.alertas.forEach(function (a) {
+          var li = document.createElement('li');
+          li.className = a.gravidade === 'grave' ? 'grave' : '';
+          li.textContent = '⚠ ' + a.texto;
+          alertas.appendChild(li);
+        });
+
+        texto(el('esperando'), dados.esperando);
+        el('caixa-esperando').className = 'numero' + (dados.esperando ? ' destaque' : '');
+        montarValor(el('maior-espera'), duracao(dados.maiorEspera));
+        el('caixa-espera').className = 'numero' + (dados.limiteEspera && dados.maiorEspera >= dados.limiteEspera ? ' ruim' : dados.maiorEspera ? ' destaque' : '');
+        texto(el('atendendo'), dados.atendendo);
+        texto(el('no-bot'), dados.noBot);
+
+        var equipe = el('equipe');
+        equipe.textContent = '';
+        dados.equipe.forEach(function (p) {
+          var cartao = document.createElement('div');
+          cartao.className = 'pessoa ' + p.situacao + (p.pausa && p.pausa.passou ? ' passou' : '');
+          var quem = document.createElement('div');
+          quem.className = 'quem';
+          quem.textContent = p.nome;
+          var estado = document.createElement('div');
+          estado.className = 'estado';
+          var t = p.rotulo;
+          if (p.situacao === 'pausa') t = 'Pausa: ' + p.pausa.motivo + ' · ' + p.pausa.minutos + ' min';
+          else if (p.atendendo) t = p.rotulo + ' · ' + (p.limite ? p.atendendo + ' de ' + p.limite + ' conversas' : p.atendendo + (p.atendendo === 1 ? ' conversa' : ' conversas'));
+          estado.textContent = t;
+          cartao.appendChild(quem);
+          cartao.appendChild(estado);
+          equipe.appendChild(cartao);
+        });
+        if (!dados.equipe.length) { var v = document.createElement('p'); v.className = 'vazio'; v.textContent = 'Nenhum atendente ativo.'; equipe.appendChild(v); }
+
+        var setores = el('setores');
+        setores.textContent = '';
+        dados.setores.forEach(function (s) {
+          var tr = document.createElement('tr');
+          if (s.esperando) tr.className = 'esperando';
+          [[s.nome, ''], [s.esperando, 'n fila'], [s.esperando ? duracao(s.maiorEspera).valor + (duracao(s.maiorEspera).unidade ? ' min' : '') : '—', 'n'], [s.atendendo, 'n']].forEach(function (c) {
+            var td = document.createElement('td');
+            td.className = c[1];
+            td.textContent = c[0];
+            tr.appendChild(td);
+          });
+          setores.appendChild(tr);
+        });
+        if (!dados.setores.length) {
+          var tr = document.createElement('tr'); var td = document.createElement('td'); td.colSpan = 4; td.className = 'vazio'; td.textContent = 'Ninguém esperando nem em atendimento.'; tr.appendChild(td); setores.appendChild(tr);
+        }
+
+        var h = el('hoje');
+        h.textContent = '';
+        h.appendChild(document.createTextNode('Hoje: '));
+        var b1 = document.createElement('strong'); b1.textContent = dados.hoje.atendimentos + ' atendimento' + (dados.hoje.atendimentos === 1 ? '' : 's'); h.appendChild(b1);
+        h.appendChild(document.createTextNode(' · espera típica '));
+        var b2 = document.createElement('strong'); b2.textContent = dados.hoje.esperaFila; h.appendChild(b2);
+        h.appendChild(document.createTextNode(' · nota média '));
+        var b3 = document.createElement('strong'); b3.textContent = dados.hoje.nota; h.appendChild(b3);
+      }
+
+      function relogio() {
+        var agora = new Date();
+        texto(el('relogio'), agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }));
+        var semAtualizar = Math.round((Date.now() - ultimaBuscaOk) / 1000);
+        var a = el('atualizado');
+        a.className = semAtualizar > 60 ? 'sem-conexao' : '';
+        a.textContent = semAtualizar > 60 ? 'Sem conexão com o sistema há ' + Math.round(semAtualizar / 60) + ' min' : 'Atualiza sozinho a cada 15 segundos';
+      }
+
+      function buscar() {
+        fetch('/tv/' + encodeURIComponent(codigo) + '/dados', { cache: 'no-store' })
+          .then(function (r) {
+            if (r.status === 404) { document.body.textContent = 'Este link do painel foi trocado ou desligado. Abra o link novo.'; throw new Error('link'); }
+            return r.json();
+          })
+          .then(function (novo) { dados = novo; ultimaBuscaOk = Date.now(); desenhar(); })
+          .catch(function () {});
+      }
+
+      desenhar();
+      relogio();
+      setInterval(relogio, 1000);
+      setInterval(buscar, 15000);
+    })();
+  </script>
+</body>
+</html>

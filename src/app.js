@@ -10,6 +10,7 @@ const { iniciarBackupDiario } = require('./backup');
 const { iniciarRetencaoDiaria } = require('./retencao');
 const { iniciarChecagemAvaliacaoVencida } = require('./avaliacao-vencida');
 const { iniciarFechamentoAutomatico } = require('./fechamento-automatico');
+const { iniciarChecagemAlertas } = require('./alertas');
 const { livroDeAtendimentosVazio, reconstruirAtendimentosAntigos } = require('./atendimentos');
 const { MENSAGEM_ENCERRAMENTO_PADRAO } = require('./routes/fila');
 
@@ -44,6 +45,7 @@ async function iniciar() {
   iniciarRetencaoDiaria();
   iniciarChecagemAvaliacaoVencida();
   iniciarFechamentoAutomatico();
+  iniciarChecagemAlertas();
 }
 
 iniciar().catch((erro) => {

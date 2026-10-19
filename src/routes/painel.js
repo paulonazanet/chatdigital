@@ -9,6 +9,8 @@ const { carregarFluxo } = require('../fluxo');
 const whatsappStatus = require('../whatsapp-status');
 const { listarOnline } = require('../presenca');
 const { temPermissao } = require('../permissoes');
+const { situacaoDaEquipe } = require('../equipe');
+const { calcularAlertas, alertaParaAtendente } = require('../alertas');
 
 router.get('/', (req, res) => {
   if (!temPermissao(req.atendente, 'ver_painel')) return res.redirect('/painel/fila');
@@ -29,6 +31,8 @@ router.get('/', (req, res) => {
     registrosHoje: contarRegistrosHoje(),
     whatsappConectado: whatsappStatus.obterEstado().conectado,
     atendentesOnline: atendentes.filter((a) => a.ativo && idsOnline.has(a.id)),
+    equipe: situacaoDaEquipe().filter((p) => p.situacao !== 'offline'),
+    alertas: calcularAlertas().filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
   });
 });
 

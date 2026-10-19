@@ -1,0 +1,35 @@
+<%- include('../partials/inicio', { titulo: 'Painel da TV' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Painel da TV</p>
+  <h1>Painel da TV</h1>
+  <p class="dica">Uma tela grande, que se atualiza sozinha, para deixar aberta numa TV ou num monitor: quantos clientes estão
+    esperando e há quanto tempo, quantos estão com o bot, quem está livre, atendendo ou em pausa, e os alertas.
+    <strong>Não mostra o que os clientes escrevem</strong>, nem nome ou telefone deles.</p>
+  <p class="dica">Abre por um <strong>link secreto, sem senha</strong>: quem tiver o link vê a tela. Se o link vazar, clique em
+    "Gerar novo link" e o antigo para de funcionar na hora.</p>
+
+  <% if (link) { %>
+    <% if (gerado) { %><p class="sucesso">Link novo gerado. Abra ele na TV.</p><% } %>
+    <div class="caixa-link-tv">
+      <input type="text" value="<%= link %>" readonly id="link-tv" aria-label="Link do painel da TV" onclick="this.select()">
+      <button type="button" class="botao-secundario" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('link-tv').value).then(() => { this.textContent = 'Copiado!'; })">Copiar</button>
+      <a class="botao" href="<%= link %>" target="_blank" rel="noopener">Abrir</a>
+    </div>
+    <div class="acoes-topo">
+      <form method="post" action="/painel/configuracoes/painel-tv/gerar" onsubmit="return confirm('Gerar um link novo? O link de agora para de funcionar (a TV precisa abrir o novo).')">
+        <button type="submit" class="botao-secundario">Gerar novo link</button>
+      </form>
+      <form method="post" action="/painel/configuracoes/painel-tv/desligar" onsubmit="return confirm('Desligar o painel da TV? O link para de funcionar.')">
+        <button type="submit" class="botao-link botao-link-perigo">Desligar</button>
+      </form>
+    </div>
+    <p class="dica">Na TV: abra o link no navegador e aperte <strong>F11</strong> para tela cheia.</p>
+  <% } else { %>
+    <p><strong>Desligado.</strong></p>
+    <form method="post" action="/painel/configuracoes/painel-tv/gerar">
+      <button type="submit">Ligar e gerar o link</button>
+    </form>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>

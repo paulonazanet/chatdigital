@@ -25,6 +25,10 @@
     <% if (alvo) { %>
       <label class="linha"><input type="checkbox" name="ativo" <%= alvo.ativo ? 'checked' : '' %>> Ativo</label>
     <% } %>
+    <label>Limite de conversas ao mesmo tempo
+      <input type="number" name="limite_conversas" min="0" max="50" step="1" value="<%= alvo ? alvo.limite_conversas || 0 : (typeof limiteDigitado !== 'undefined' ? limiteDigitado : 0) %>" class="campo-curto">
+      <span class="ajuda">Com esse número de conversas, a pessoa não assume nem recebe outra até finalizar ou transferir uma. 0 = sem limite.</span>
+    </label>
     <fieldset>
       <legend>Setores</legend>
       <label class="linha"><input type="checkbox" id="marcar-todos-setores"> <strong>Marcar todos</strong></label>

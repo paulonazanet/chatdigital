@@ -295,6 +295,39 @@ restrição de login, status do sistema, importar/exportar contatos).
 - Painel de teste da E2: worktree em `.claude/worktrees/e2`, configuração `painel-e2` (porta 3057)
   no `.claude/launch.json` da pasta principal, com cópia própria do banco de teste.
 
+## E2, 2ª parte (18/10/2026, branch `e2`): equipe ao vivo
+- **Banco** (`db.js`): `atendentes.limite_conversas` (0 = sem limite), `motivos_pausa` (nome,
+  `limite_minutos`, ativo; vem com 5 motivos na 1ª vez) e `pausas` (atendente, motivo_texto e
+  limite copiados do motivo, `inicio`, `fim` NULL = em pausa).
+- **`src/equipe.js`**: motivos de pausa, `iniciarPausa`/`encerrarPausa`/`pausaAtual`,
+  `podeReceberConversa(id)` (em pausa ou no limite → `{ ok: false, motivo }`), `situacaoDaEquipe()`
+  (livre/atendendo/limite/pausa/offline, usa `presenca.js`) e `resumoDePausas` (Relatório). Não
+  pode dar `require` em `atendentes.js` (circular): usa SQL direto.
+- **Onde a regra vale**: `haAtendenteDisponivel` (atendentes.js) ignora quem não pode receber;
+  `sincronizarConversa` só entrega pelo bloco "Transferir para atendente" se `podeReceberConversa`;
+  em `routes/fila.js`, `impedimentoParaPegar` (assumir, puxar, nova conversa; pausa termina sozinha
+  ao pegar; reassumir a própria não conta) e a checagem no transferir para atendente. Logout
+  encerra a pausa (`routes/auth.js`).
+- **Rotas**: `POST /painel/fila/pausa` (`motivo_id`, `voltar` só aceita `/painel/fila...`),
+  `POST /painel/fila/pausa/voltar`.
+- **`src/alertas.js`**: `calcularAlertas()` (fila_espera, fila_cheia, sem_resposta_<id>,
+  pausa_<id>; `para` 'todos' | 'gestao' + `atendenteId`), `inicioDaEspera(c)` (o mais recente entre
+  `esperando_desde` e `aberta_em`: uma mensagem solta de atendimento antigo não conta),
+  `checarAlertas()` emite `alerta` no barramento quando aparece, piora (`nivel` maior) ou a cada
+  15 min; `iniciarChecagemAlertas()` (1 min) no `app.js`. SSE manda `event: alerta` só pra quem
+  é (`alertaParaAtendente`); `public/js/notificacoes.js` toca o bipe e mostra o aviso **sem
+  recarregar**. Campos do `negocio.json`: `alerta_fila_minutos`, `alerta_fila_quantidade`,
+  `alerta_sem_resposta_minutos` (0 = desligado, padrão).
+- **Painel da TV**: `src/routes/tv.js` montado em `/tv` **antes do login** (`server.js`);
+  `negocio.painel_tv_token` (`crypto.randomBytes(18)` base64url; comparação com `timingSafeEqual`;
+  null = desligado). `GET /tv/:codigo` (view `tv.ejs`, página própria, escura, sem menu) e
+  `/tv/:codigo/dados` (JSON, a página busca a cada 15 s). Só números e nomes da equipe.
+  Configurações > Painel da TV gera, troca e desliga.
+- Telas: `configuracoes/pausas.ejs`, `configuracoes/painel-tv.ejs`, cartões novos em
+  Configurações, faixa de pausa/alertas e botão Pausar na Fila, "Equipe agora" no Painel, limite no
+  cadastro de Atendentes, tabela Pausas no Relatório.
+- Testes: `test/e2-equipe.test.js` (8 testes). Total: 78 passam; as 8 "falhas" são o `EPERM` antigo.
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
@@ -324,12 +357,14 @@ restrição de login, status do sistema, importar/exportar contatos).
   `src/feriados.js` — cadastros da E1. `src/horario.js` — regra das janelas de horário.
 - `src/relatorio.js` + `src/auditoria.js` + `src/routes/relatorio.js` + `src/views/relatorio*` —
   menu Relatório (Resumo, Auditoria, Reincidências).
+- `src/equipe.js` (pausa, limite, situação da equipe), `src/alertas.js` (alertas de fila),
+  `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`
   (padrões dos campos novos em `PADROES`).
 - Jobs periódicos (setInterval, iniciados em `src/app.js`): `inatividade.js`,
-  `fechamento-automatico.js`, `avaliacao-vencida.js`, `backup.js` (diário, 30 dias),
+  `fechamento-automatico.js`, `avaliacao-vencida.js`, `alertas.js` (1 min), `backup.js` (diário, 30 dias),
   `retencao.js` (anonimiza conversa sem atividade há 12 meses).
 - `.env` (não commitado) — `PORTA`, `NUMEROS_TESTE`, `SESSION_SECRET`, `NUMERO_ATENDENTE`.
 - `config/negocio.json` — dados reais do negócio, **NUNCA fazer `git add` nele** (pra atualizar

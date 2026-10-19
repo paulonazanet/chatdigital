@@ -80,6 +80,27 @@
     <p class="dica">Clique num atendente para ver o Relatório só dele.</p>
   <% } %>
 
+  <% if (r.pausas.length) { %>
+    <h2 class="subtitulo-painel">Pausas <span class="subtitulo-detalhe">tempo em pausa no período, por atendente</span></h2>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Atendente</th><th>Pausas</th><th>Tempo total</th><th>Maior pausa</th><th>Passaram do limite</th><th>Por motivo</th></tr></thead>
+        <tbody>
+          <% r.pausas.forEach((p) => { %>
+            <tr>
+              <td><%= p.nome %></td>
+              <td><%= p.quantidade %></td>
+              <td><%= p.total %></td>
+              <td><%= p.maior %></td>
+              <td class="<%= p.passaram ? 'celula-meta-fora' : '' %>"><%= p.passaram || '—' %></td>
+              <td><%= p.motivos %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
   <h2 class="subtitulo-painel">Atendimentos <%= r.porHora ? 'por hora' : 'por dia' %></h2>
   <% if (!r.total) { %>
     <p class="dica">Nenhum atendimento nesse período.</p>

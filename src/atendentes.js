@@ -2,12 +2,13 @@ const { db } = require('./db');
 const { gerarHashSenha, conferirSenha } = require('./auth');
 const { permissoesParaSalvar, temPermissao } = require('./permissoes');
 const { listarOnline } = require('./presenca');
+const { podeReceberConversa } = require('./equipe');
 
 function normalizarEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-const COLUNAS = 'id, nome, email, papel, ativo, permissoes, ultimo_login, criado_em';
+const COLUNAS = 'id, nome, email, papel, ativo, permissoes, ultimo_login, criado_em, limite_conversas';
 
 function listarAtendentes() {
   return db.prepare(`SELECT ${COLUNAS} FROM atendentes ORDER BY nome`).all();
@@ -32,14 +33,20 @@ function contarAdminsAtivos(excluirId = null) {
     .filter((a) => a.id !== excluirId).length;
 }
 
-function criarAtendente({ nome, email, senha, papel, permissoes }) {
+// limite de conversas ao mesmo tempo: inteiro de 0 (sem limite) a 50
+function normalizarLimite(valor) {
+  const n = Number(valor);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, 50) : 0;
+}
+
+function criarAtendente({ nome, email, senha, papel, permissoes, limiteConversas = 0 }) {
   const senhaHash = gerarHashSenha(senha);
   const permissoesFinal = JSON.stringify(permissoesParaSalvar(papel, permissoes));
   const info = db
     .prepare(
-      'INSERT INTO atendentes (nome, email, senha_hash, papel, ativo, permissoes, criado_em) VALUES (?, ?, ?, ?, 1, ?, ?)',
+      'INSERT INTO atendentes (nome, email, senha_hash, papel, ativo, permissoes, criado_em, limite_conversas) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
     )
-    .run(nome, normalizarEmail(email), senhaHash, papel, permissoesFinal, new Date().toISOString());
+    .run(nome, normalizarEmail(email), senhaHash, papel, permissoesFinal, new Date().toISOString(), normalizarLimite(limiteConversas));
   return obterAtendentePorId(Number(info.lastInsertRowid));
 }
 
@@ -54,7 +61,7 @@ function registrarUltimoLogin(id) {
   db.prepare('UPDATE atendentes SET ultimo_login = ? WHERE id = ?').run(new Date().toISOString(), id);
 }
 
-function atualizarAtendente(id, { nome, papel, ativo, novaSenha, permissoes }) {
+function atualizarAtendente(id, { nome, papel, ativo, novaSenha, permissoes, limiteConversas }) {
   const permissoesFinal = JSON.stringify(permissoesParaSalvar(papel, permissoes));
   db.prepare('UPDATE atendentes SET nome = ?, papel = ?, ativo = ?, permissoes = ? WHERE id = ?').run(
     nome,
@@ -63,6 +70,9 @@ function atualizarAtendente(id, { nome, papel, ativo, novaSenha, permissoes }) {
     permissoesFinal,
     id,
   );
+  if (limiteConversas !== undefined) {
+    db.prepare('UPDATE atendentes SET limite_conversas = ? WHERE id = ?').run(normalizarLimite(limiteConversas), id);
+  }
   if (novaSenha) {
     db.prepare('UPDATE atendentes SET senha_hash = ? WHERE id = ?').run(gerarHashSenha(novaSenha), id);
   }
@@ -96,12 +106,13 @@ function listarSetoresDoAtendente(atendenteId) {
  * decidir se manda a mensagem "sem atendente disponível" quando uma conversa é transferida pro
  * humano — mesma regra de quem "pode ver" a conversa na fila (routes/fila.js podeVerConversa):
  * quem tem ver_fila_outros_setores vê/atende qualquer setor; sem isso, só o(s) setor(es) dele
- * (ou setorId nulo, que aparece pra todo mundo).
+ * (ou setorId nulo, que aparece pra todo mundo). Quem está em pausa ou no limite não conta.
  */
 function haAtendenteDisponivel(setorId) {
   const online = new Set(listarOnline());
   return listarAtendentes()
-    .filter((a) => a.ativo && online.has(a.id) && temPermissao(a, 'responder_conversas'))
+    // em pausa ou no limite de conversas não conta (E2, 2a parte)
+    .filter((a) => a.ativo && online.has(a.id) && temPermissao(a, 'responder_conversas') && podeReceberConversa(a.id).ok)
     .some((a) => {
       if (!setorId) return true;
       if (temPermissao(a, 'ver_fila_outros_setores')) return true;

@@ -1395,3 +1395,35 @@ form input.campo-curto, form input[type="number"].campo-curto { max-width: 8rem;
 .linha-auditoria-quando { font-size: 0.75rem; color: #8a97a3; margin-left: 0.5rem; }
 .linha-auditoria-citada { margin: 0.25rem 0 0; padding: 0.2rem 0.6rem; border-left: 3px solid var(--marca-laranja); color: #5f6d7a; font-size: 0.82rem; }
 .linha-auditoria .mensagem-midia { display: block; }
+
+/* E2, 2a parte: pausa, limite de conversas e alertas na Fila */
+.fila-cabecalho-acoes { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.pausa-popover .botao-como-summary { background: transparent; border-color: var(--cinza-borda); color: var(--azul-marinho); font-weight: 600; }
+.pausa-popover .botao-como-summary:hover { background: #e9edf1; }
+.form-pausa { min-width: 240px; display: flex; flex-direction: column; gap: 0.35rem; }
+.form-pausa .dica { margin: 0 0 0.25rem; }
+.botao-motivo-pausa { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.9rem; color: var(--azul-marinho); }
+.contador-limite { font-size: 0.85rem; color: var(--cinza-texto); }
+.contador-limite strong { color: var(--azul-marinho); }
+.contador-limite-cheio strong { color: var(--vermelho-erro); }
+.faixa-pausa {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: 0.6rem 1.5rem; background: #fff3d6; border-bottom: 1px solid #f1d58f; color: #7a5a00; font-size: 0.9rem; margin: 0;
+}
+.faixa-pausa button { padding: 0.45rem 1rem; font-size: 0.9rem; background: var(--marca-laranja); }
+.faixa-pausa button:hover { background: #d46d2a; }
+.faixa-pausa-passou { background: #fbe6e7; border-bottom-color: #f0c4c7; color: var(--vermelho-erro); }
+.faixa-alertas { list-style: none; margin: 0; padding: 0.4rem 1.5rem; background: #fff8e6; border-bottom: 1px solid #f1d58f; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.faixa-alertas .alerta-atencao { color: #7a5a00; }
+.faixa-alertas .alerta-grave { color: var(--vermelho-erro); font-weight: 600; }
+.faixa-alertas-painel { border: 1px solid #f1d58f; border-radius: 6px; margin: 1rem 0 0; padding: 0.6rem 1rem; }
+.ponto-online.em-pausa { background: #e0a800; }
+.selo-equipe { margin-left: 0.3rem; }
+.selo-equipe-livre { background: #e3f3ea; color: var(--verde-ativo); }
+.selo-equipe-atendendo { background: #e6f1fb; color: var(--azul-destaque); }
+.selo-equipe-limite { background: #fdebdc; color: #a8501a; }
+.selo-equipe-pausa { background: #fff3d6; color: #7a5a00; }
+.selo-equipe-passou { background: #fbe6e7; color: var(--vermelho-erro); }
+.caixa-link-tv { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin: 1rem 0 0.75rem; }
+.caixa-link-tv input { flex: 1; min-width: 240px; margin: 0; font-family: Consolas, monospace; font-size: 0.85rem; }
+input.campo-tabela { margin-top: 0; width: 6rem; padding: 0.5rem 0.6rem; border: 1px solid var(--cinza-borda); border-radius: 4px; font-family: inherit; font-size: 0.95rem; }
