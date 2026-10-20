@@ -1341,3 +1341,169 @@ form .campo-com-unidade input[type="number"] { width: 6.5rem; margin-top: 0; }
 .no-fluxo-aguardar .no-cabecalho { background: #2f6690; }
 .no-fluxo-nota .no-cabecalho { background: #a8892a; }
 .sem-quebra { white-space: nowrap; }
+/* ---- Menu: página atual e gaveta do celular ---- */
+
+/* no computador a "gaveta" não existe: nav e Sair continuam filhos diretos da barra lateral */
+.menu-gaveta { display: contents; }
+.fundo-menu { display: none; }
+.voltar-lista { display: none; }
+.aviso-so-celular { display: none; }
+
+/* página em que a pessoa está: o traço laranja da marca */
+.barra-lateral nav a[aria-current="page"] {
+  color: var(--branco);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 3px 0 0 var(--marca-laranja);
+}
+.barra-lateral nav a:focus-visible,
+.botao-recolher:focus-visible { outline: 2px solid var(--marca-laranja); outline-offset: -2px; }
+
+@media (max-width: 760px) {
+  :root { --altura-barra-celular: 56px; }
+
+  /* a barra lateral vira uma faixa fina no topo; o menu abre por cima, pela esquerda */
+  .app-shell { flex-direction: column; }
+  .barra-lateral,
+  html.menu-recolhido .barra-lateral {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    width: 100%;
+    height: var(--altura-barra-celular);
+    overflow: visible;
+    transition: none;
+  }
+  .barra-lateral .marca,
+  html.menu-recolhido .barra-lateral .marca {
+    height: var(--altura-barra-celular);
+    padding: 0 1rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    border-bottom: none;
+  }
+  html.menu-recolhido .marca-icone { height: 30px; width: 30px; }
+  .marca-icone { height: 30px; width: 30px; }
+  .botao-recolher { padding: 0.5rem; margin-left: -0.5rem; }
+  /* o "recolhido" do computador não vale no celular */
+  html.menu-recolhido .recolhivel { display: revert; }
+
+  .menu-gaveta {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: var(--altura-barra-celular);
+    bottom: 0;
+    left: 0;
+    width: min(280px, 85vw);
+    background: var(--azul-marinho);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    z-index: 41;
+  }
+  html.menu-aberto .menu-gaveta { transform: none; visibility: visible; transition: transform 0.2s ease; }
+  .barra-lateral nav { flex: 0 0 auto; padding: 0.5rem 0; }
+  .barra-lateral nav a,
+  html.menu-recolhido .barra-lateral nav a { justify-content: flex-start; padding: 0.8rem 1.5rem; font-size: 0.95rem; }
+  .sair,
+  html.menu-recolhido .sair { margin-top: auto; align-items: flex-start; padding: 1rem 1.5rem; }
+
+  .fundo-menu {
+    position: fixed;
+    inset: var(--altura-barra-celular) 0 0 0;
+    background: rgba(20, 41, 60, 0.5);
+    z-index: 39;
+  }
+  html.menu-aberto .fundo-menu { display: block; }
+  html.menu-aberto { overflow: hidden; }
+
+  /* páginas comuns: margem de 1rem dos lados, títulos menores */
+  .conteudo { margin: 1.25rem auto; padding: 0 1rem; }
+  .conteudo h1 { font-size: 1.45rem; margin: 0 0 0.75rem; }
+  .cabecalho-lista { flex-wrap: wrap; gap: 0.6rem; }
+  .cabecalho-lista h1 { margin: 0; }
+
+  /* tabelas: deslizam para o lado em vez de espremer as colunas */
+  .tabela { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tabela th, .tabela td { padding: 0.55rem 0.75rem; }
+  .tabela th { white-space: nowrap; }
+  .tabela-rolagem .tabela { display: table; }
+
+  /* campos e botões com área de toque confortável, e sem zoom automático do iPhone (16px) */
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"],
+  input[type="tel"], input[type="date"], input[type="time"], input[type="datetime-local"], select, textarea { font-size: 16px; }
+
+  /* Fila: ou a lista ou a conversa, uma de cada vez */
+  .conteudo-fila { height: calc(100vh - var(--altura-barra-celular)); height: calc(100dvh - var(--altura-barra-celular)); }
+  .fila-cabecalho { min-height: 0; padding: 0.6rem 1rem; }
+  .fila-cabecalho h1 { font-size: 1.05rem; }
+  .faixa-alertas { padding: 0.4rem 1rem; max-height: 6.5rem; overflow-y: auto; }
+  .fila-lista { width: 100%; border-right: none; }
+  .conteudo-fila:not([data-conversa-numero]) .fila-detalhe { display: none; }
+  .conteudo-fila[data-conversa-numero] .fila-lista,
+  .conteudo-fila[data-conversa-numero] .fila-cabecalho,
+  .conteudo-fila[data-conversa-numero] .faixa-alertas { display: none; }
+  .voltar-lista { display: inline-block; width: 100%; font-weight: 600; font-size: 0.9rem; }
+  .cabecalho-conversa { padding: 0.6rem 1rem; gap: 0.5rem; }
+  .cabecalho-conversa-info { min-width: 0; }
+  .cabecalho-conversa-titulo h2 { font-size: 1.05rem; }
+  .fila-detalhe .historico { margin: 0.75rem 0.75rem 0; }
+  .fila-detalhe > .erro, .fila-detalhe > .aviso { margin: 0.5rem 0.75rem 0; }
+  .fila-detalhe .form-responder { margin: 0.5rem 0.75rem 0.75rem; }
+  .mensagem-nota { max-width: 95%; }
+
+  /* nada passa da largura da tela: fieldset encolhe, linhas de formulário quebram, abas deslizam */
+  fieldset { min-width: 0; }
+  .linha-form { flex-wrap: wrap; }
+  .linha-form > input[type="text"], .linha-form > input[type="file"], .linha-form > select { flex: 1 1 10rem; min-width: 0; }
+  .linha-form-inline > input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+  .abas-relatorio { overflow-x: auto; scrollbar-width: none; }
+  .abas-relatorio a { flex-shrink: 0; white-space: nowrap; }
+
+  select { max-width: 100%; }
+
+  /* menus que abrem por cima (Ações, Transferir, nome, Nova conversa, Pausar): sobem do pé da tela */
+  .form-transferir,
+  .renomear-popover .form-renomear,
+  .cabecalho-conversa .transferir-popover .form-transferir,
+  .nova-conversa-popover .form-transferir {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: 0.75rem;
+    width: auto;
+    min-width: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 45;
+    box-shadow: 0 -6px 24px rgba(20, 41, 60, 0.25);
+  }
+
+  /* botões-link lado a lado quebram de linha sem encavalar */
+  a.botao { display: inline-block; margin: 0 0.35rem 0.4rem 0; }
+
+  /* cartões de números: duas colunas iguais */
+  .cartoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+  .cartao { min-width: 0; padding: 1rem; }
+  .cartao .numero { font-size: 1.6rem; }
+
+  /* editor de fluxo: blocos numa faixa em cima, quadro no meio, edição embaixo, teste por cima */
+  .aviso-so-celular { display: block; margin: 0; padding: 0.5rem 1rem; font-size: 0.8rem; background: #eaf1f6; border-bottom: 1px solid #cddce6; }
+  .conteudo-fluxo { height: calc(100vh - var(--altura-barra-celular)); height: calc(100dvh - var(--altura-barra-celular)); }
+  .editor-cabecalho { flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 1rem; }
+  .editor-acoes { flex-wrap: wrap; gap: 0.5rem; }
+  .editor-corpo { flex-direction: column; }
+  .paleta-nos { width: 100%; display: flex; gap: 0.4rem; align-items: center; overflow-x: auto; padding: 0.5rem 1rem; border-right: none; border-bottom: 1px solid var(--cinza-borda); }
+  .paleta-titulo, .paleta-dica { display: none; }
+  .botao-paleta { display: inline-block; width: auto; flex-shrink: 0; margin: 0; white-space: nowrap; }
+  .quadro-scroll { flex: 1; min-height: 40vh; }
+  .painel-edicao { width: 100%; max-height: 45vh; border-left: none; border-top: 1px solid var(--cinza-borda); padding: 1rem; }
+  .simulador { position: fixed; inset: var(--altura-barra-celular) 0 0 0; width: auto; z-index: 30; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-gaveta, html.menu-aberto .menu-gaveta { transition: none; }
+}

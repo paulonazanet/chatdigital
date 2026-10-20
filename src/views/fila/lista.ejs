@@ -155,6 +155,7 @@
         <%# fixo no topo: a tela rola sozinha até a última mensagem, e sem isso o número do
             cliente ficava escondido lá em cima numa conversa comprida %>
         <div class="cabecalho-conversa">
+          <a class="voltar-lista" href="/painel/fila">‹ Conversas</a>
           <div class="cabecalho-conversa-info">
             <div class="cabecalho-conversa-titulo">
               <h2><%= exibirNumero(conversaSelecionada) %><% if (conversaSelecionada.nome_contato) { %> <span class="nome-contato">· <%= conversaSelecionada.nome_contato %></span><% } %></h2>

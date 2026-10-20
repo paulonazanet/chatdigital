@@ -12,7 +12,13 @@ Atualizar sempre que uma funcionalidade nova entrar (o histórico técnico fica 
 - **Login**: e-mail e senha. Depois de 5 tentativas erradas, o e-mail fica bloqueado por 15 min.
 - **Sair**: botão no rodapé da barra lateral, embaixo do nome de quem está logado.
 - **Barra lateral recolhível**: o ☰ no topo esconde os textos e deixa só os ícones (a escolha
-  fica lembrada no navegador).
+  fica lembrada no navegador). A página em que você está fica marcada no menu com um traço laranja.
+- **No celular** (tela até 760 px): o menu vira uma faixa fina no topo; o ☰ abre o menu por cima da
+  página (fecha tocando fora, no Esc ou escolhendo a página). As tabelas deslizam para o lado, os
+  cartões de números ficam em duas colunas, e os menus que abrem por cima (Ações, Transferir, nome,
+  Nova conversa) sobem do pé da tela. Na **Fila**, aparece a lista ou a conversa, uma de cada
+  vez, com **‹ Conversas** para voltar. No **editor de fluxo**, os blocos ficam numa faixa em cima, o
+  quadro no meio e a edição embaixo (com o aviso de que fluxo grande se monta no computador).
 
 ## Permissões
 - **Administrador** tem acesso a tudo.

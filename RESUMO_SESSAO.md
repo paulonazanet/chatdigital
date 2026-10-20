@@ -261,6 +261,20 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Painel no celular (20/10/2026, no main, copiado do `e4`)
+Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já usar. Só CSS + 3 parciais, nada de rota.
+- `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e
+  `.fundo-menu` depois do `aside`. `public/js/barra-lateral.js`: até 760 px o ☰ abre/fecha a gaveta
+  (`html.menu-aberto`, `aria-expanded`), fecha no fundo, no Esc, ao escolher link e ao virar computador;
+  em qualquer tamanho marca `aria-current="page"` no link mais comprido que bate com o endereço.
+- `estilo.css` (bloco no fim, `@media (max-width: 760px)`): barra no topo de 56 px, gaveta fixa,
+  `.tabela` com `display: block; overflow-x: auto`, fieldset/linha-form/abas que não passam da tela,
+  campos com 16 px (sem zoom do iPhone), `.cartoes` em 2 colunas, `.form-transferir` como painel que sobe
+  do pé da tela, Fila mostrando lista ou conversa (`main[data-conversa-numero]`), editor de fluxo em
+  coluna (e o simulador por cima, quando existir). `fila/lista.ejs`: link `.voltar-lista`; `fluxo/editor.ejs`: `.aviso-so-celular`.
+- Conferido em 375 px: nenhuma tela rola para o lado; computador sem mudança (fora o traço laranja da
+  página atual).
+
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
   interno (`@lid`). Bot e painel precisam usar o mesmo JID pra mesma pessoa, senão vira conversa
