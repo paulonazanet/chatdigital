@@ -110,8 +110,13 @@ async function processarFila({ agora = new Date(), forcar = false } = {}) {
     return { pulado: envio.id, motivo };
   }
 
+  // Instagram (E4): a empresa não começa conversa; só vai se o cliente escreveu nas últimas 24 h
+  if (String(conversa.numero).endsWith('@instagram') && !oficial.dentroDaJanela(conversa.id)) {
+    db.prepare("UPDATE envios SET status = 'pulado', motivo = ? WHERE id = ?").run('Instagram: passaram 24 h sem o cliente escrever', envio.id);
+    return { pulado: envio.id, motivo: 'Instagram fora das 24 h' };
+  }
   // API oficial: com modelo vai o modelo; sem modelo, texto só dentro das 24 h do cliente
-  const viaOficial = modoAtual() === 'oficial';
+  const viaOficial = modoAtual() === 'oficial' && !String(conversa.numero).endsWith('@instagram');
   const modelo = envio.modelo ? JSON.parse(envio.modelo) : null;
   if (viaOficial && !modelo && !oficial.dentroDaJanela(conversa.id)) {
     db.prepare("UPDATE envios SET status = 'pulado', motivo = ? WHERE id = ?").run('API oficial: passaram 24 h sem o cliente escrever; precisa de um modelo aprovado', envio.id);

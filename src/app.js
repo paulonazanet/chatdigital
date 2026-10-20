@@ -59,7 +59,14 @@ async function iniciar() {
     const { listarCanais } = require('./canais');
     const { definirIniciadorDeCanal } = require('./socket-atual');
     definirIniciadorDeCanal((canal) => iniciarBot(negocio, fluxo, canal));
-    for (const canal of listarCanais({ soAtivos: true })) await iniciarBot(negocio, fluxo, canal);
+    for (const canal of listarCanais({ soAtivos: true, tipo: 'celular' })) await iniciarBot(negocio, fluxo, canal);
+  }
+  // Instagram (E4): independe de como o WhatsApp está ligado; recebe pelo /webhook/instagram
+  const instagram = require('./instagram');
+  if (instagram.configurado()) {
+    const teste = await instagram.testarConexao();
+    console.log(teste.ok ? `Instagram ligado (@${teste.usuario}).` : `Instagram com problema: ${teste.erro}`);
+    instagram.iniciarRenovacaoDaChave();
   }
   iniciarChecagemInatividade();
   iniciarBackupDiario();

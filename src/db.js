@@ -491,6 +491,27 @@ if (!colunaExiste('canais', 'fluxo_id')) db.exec('ALTER TABLE canais ADD COLUMN 
 if (!colunaExiste('fluxo_versoes', 'fluxo_id')) db.exec('ALTER TABLE fluxo_versoes ADD COLUMN fluxo_id INTEGER NOT NULL DEFAULT 1');
 if (!colunaExiste('mensagens', 'canal_id')) db.exec('ALTER TABLE mensagens ADD COLUMN canal_id INTEGER');
 
+// E4: Instagram (Direct), pela API do Instagram com login do Instagram (graph.instagram.com).
+// Uma conta por instalação. A conversa do Instagram usa "<IGSID>@instagram" como número e um canal
+// próprio (canais.tipo = 'instagram'), então tem etiqueta e fluxo como um número de WhatsApp.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS instagram_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    conta_id TEXT,
+    usuario TEXT,
+    chave TEXT,
+    chave_renovada_em TEXT,
+    segredo_app TEXT,
+    codigo_verificacao TEXT,
+    versao TEXT,
+    endereco_publico TEXT,
+    testado_em TEXT,
+    erro TEXT
+  );
+`);
+db.prepare('INSERT OR IGNORE INTO instagram_config (id, codigo_verificacao, versao) VALUES (1, ?, ?)').run(require('crypto').randomBytes(16).toString('hex'), 'v26.0');
+if (!colunaExiste('canais', 'tipo')) db.exec("ALTER TABLE canais ADD COLUMN tipo TEXT NOT NULL DEFAULT 'celular'");
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

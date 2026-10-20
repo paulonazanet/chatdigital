@@ -1,0 +1,75 @@
+<%- include('../partials/inicio', { titulo: 'Configurações · Instagram' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const AVISOS = {
+    testado: 'Dados salvos e conferidos: a conexão com o Instagram funcionou.',
+    falhou: 'Dados salvos, mas a conferência com o Instagram falhou. Veja o erro abaixo.',
+    incompleto: 'Dados salvos. Falta o código da conta ou a chave de acesso para ligar o Instagram.',
+    codigo: 'Código de verificação trocado. Atualize na Meta (Webhooks › Verify token).',
+    salvo: 'Instagram salvo.',
+  };
+  const c = config;
+%>
+<main class="conteudo conteudo-estreita pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Instagram</p>
+  <h1>Instagram</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (aviso && AVISOS[aviso]) { %><p class="<%= aviso === 'falhou' || aviso === 'incompleto' ? 'aviso' : 'sucesso' %>"><%= AVISOS[aviso] %></p><% } %>
+
+  <p class="dica">As mensagens do <strong>Direct</strong> do Instagram caem na mesma Fila do WhatsApp, com a etiqueta do Instagram, e o bot
+    responde do mesmo jeito. Regras do Instagram: só dá para responder até <strong>24 horas</strong> depois da última mensagem do cliente,
+    a empresa não começa conversa e não vai áudio gravado (foto, vídeo e PDF vão).</p>
+
+  <% if (c.testado_em) { %>
+    <% if (c.erro) { %><p class="erro">Última conferência falhou: <%= c.erro %></p>
+    <% } else { %><p class="sucesso">✅ Conectado ao Instagram<% if (c.usuario) { %>: <strong>@<%= c.usuario %></strong><% } %></p><% } %>
+  <% } %>
+
+  <form method="post" action="/painel/configuracoes/instagram" autocomplete="off">
+    <fieldset>
+      <legend>Dados da conta</legend>
+      <p class="dica">Aparecem no painel de desenvolvedores da Meta, no app da empresa › Instagram › Configuração da API com login do Instagram
+        (o passo a passo está no documento do Instagram).</p>
+      <label>Código da conta do Instagram (Instagram account ID)<input type="text" name="conta_id" value="<%= c.conta_id || '' %>" inputmode="numeric"></label>
+      <label>Chave de acesso (token)<input type="password" name="chave" value="" placeholder="<%= c.temChave ? `Guardada (${c.chave}). Deixe em branco para manter.` : 'Cole aqui a chave gerada para a conta' %>">
+        <span class="ajuda">Vale 60 dias; o sistema renova sozinho antes de vencer. Fica guardada só no banco e nunca aparece inteira de novo.</span></label>
+      <label>Segredo do app (Instagram app secret)<input type="password" name="segredo_app" value="" placeholder="<%= c.temSegredo ? `Guardado (${c.segredo_app}). Deixe em branco para manter.` : 'Cole aqui o segredo do app do Instagram' %>">
+        <span class="ajuda">Confere que as mensagens que chegam vieram mesmo da Meta.</span></label>
+      <label>Endereço do sistema<input type="text" name="endereco_publico" value="<%= c.endereco_publico || '' %>" placeholder="https://empresa.eunodigital.com">
+        <span class="ajuda">O Instagram busca as fotos, vídeos e PDFs que a equipe manda por este endereço.</span></label>
+      <label>Versão da API<input type="text" name="versao" value="<%= c.versao %>" class="campo-curto"></label>
+      <p><button type="submit">Salvar e conferir com o Instagram</button></p>
+    </fieldset>
+  </form>
+  <% if (c.temChave) { %><form method="post" action="/painel/configuracoes/instagram/testar" class="acoes-topo"><button type="submit" class="botao-secundario">Conferir de novo</button></form><% } %>
+
+  <fieldset>
+    <legend>Webhook (onde a Meta entrega as mensagens)</legend>
+    <p class="dica">Na Meta, no app › Instagram › Configuração da API › Configurar webhooks, cole:</p>
+    <label>URL de retorno (Callback URL)<input type="text" readonly value="<%= enderecoWebhook %>" onclick="this.select()"></label>
+    <label>Token de verificação (Verify token)<input type="text" readonly value="<%= c.codigo_verificacao %>" onclick="this.select()"></label>
+    <p class="dica">E assine os campos <strong>messages</strong> e <strong>message_reactions</strong>. O endereço precisa ser HTTPS e público (o do servidor, não o do computador).</p>
+    <form method="post" action="/painel/configuracoes/instagram/codigo" onsubmit="return confirm('Trocar o token de verificação? Vai ser preciso atualizar na Meta.')"><button type="submit" class="botao-link">Trocar o token de verificação</button></form>
+  </fieldset>
+
+  <% if (canal) { %>
+    <fieldset class="cartao-numero<%= canal.ativo ? '' : ' cartao-numero-desligado' %>">
+      <legend>Na Fila e no bot</legend>
+      <% if (!canal.ativo) { %><p class="dica">Desligado: as mensagens do Instagram não entram. As conversas de antes continuam no histórico.</p><% } %>
+      <form method="post" action="/painel/configuracoes/instagram/canal" class="linha-form linha-form-inline form-numero">
+        <label>Nome na Fila<input type="text" name="nome" value="<%= canal.nome %>" maxlength="40" required></label>
+        <label>Fluxo do bot
+          <select name="fluxo_id">
+            <% fluxos.forEach((f) => { %><option value="<%= f.id %>" <%= (canal.fluxo_id || 1) === f.id ? 'selected' : '' %>><%= f.nome %></option><% }) %>
+          </select>
+        </label>
+        <button type="submit" class="botao-pequeno">Salvar</button>
+      </form>
+      <form method="post" action="/painel/configuracoes/instagram/ativo" onsubmit="return confirm('<%= canal.ativo ? 'Desligar o Instagram? As mensagens do Direct param de entrar na Fila.' : 'Ligar o Instagram de novo?' %>')">
+        <button type="submit" class="botao-link <%= canal.ativo ? 'botao-link-perigo' : '' %>"><%= canal.ativo ? 'Desligar o Instagram' : 'Ligar o Instagram' %></button>
+      </form>
+      <p class="dica">Os fluxos são criados no menu <a href="/painel/fluxo">Fluxo</a> (Mais ▾ › Fluxos).</p>
+    </fieldset>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>

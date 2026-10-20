@@ -30,6 +30,7 @@ const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { obterSocket, modoAtual } = require('../socket-atual');
 const oficial = require('../whatsapp-oficial');
+const instagram = require('../instagram');
 const canais = require('../canais');
 const { socketDoCanal } = require('../socket-atual');
 const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
@@ -202,7 +203,9 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     setorFiltro: filtros.setor,
     marcadorFiltro: filtros.marcador,
     numeroFiltro: filtros.numero,
+    // filtro "Número": todos os ligados (o Instagram também); a Nova conversa só sai por WhatsApp
     numerosLigados: canais.temVariosNumeros() ? canais.listarCanais({ soAtivos: true }) : [],
+    numerosParaNovaConversa: canais.listarCanais({ soAtivos: true, tipo: 'celular' }),
     numeroDaConversa: conversaSelecionada && canais.temVariosNumeros() ? canais.obterCanal(conversaSelecionada.canal_id || 1) : null,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }),
     marcadoresDaConversa: conversaSelecionada ? marcadores.marcadoresPorConversa([conversaSelecionada.id])[conversaSelecionada.id] || [] : [],
@@ -227,8 +230,10 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     alertas: calcularAlertas({ negocio }).filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
     retornosDaConversa: conversaSelecionada ? retornos.retornosDaConversa(conversaSelecionada.id) : [],
     // API oficial (E4): depois de 24 h sem o cliente escrever, só vai modelo aprovado
-    viaOficial: modoAtual() === 'oficial',
-    foraDaJanela: modoAtual() === 'oficial' && !!conversaSelecionada && !oficial.dentroDaJanela(conversaSelecionada.id),
+    viaOficial: modoAtual() === 'oficial' && !(conversaSelecionada && instagram.ehInstagram(conversaSelecionada.numero)),
+    foraDaJanela: modoAtual() === 'oficial' && !!conversaSelecionada && !instagram.ehInstagram(conversaSelecionada.numero) && !oficial.dentroDaJanela(conversaSelecionada.id),
+    // Instagram (E4): só dá para responder até 24 h depois da última mensagem do cliente
+    instagramForaDaJanela: !!conversaSelecionada && instagram.ehInstagram(conversaSelecionada.numero) && !oficial.dentroDaJanela(conversaSelecionada.id),
     modelosAprovados: modoAtual() === 'oficial' ? oficial.listarModelos({ soAprovados: true }) : [],
     erroRetorno: res.locals.erroRetorno || null,
   });
@@ -247,7 +252,7 @@ router.post('/nova', async (req, res) => {
   const numeroDigitado = (req.body.numero || '').replace(/\D/g, '');
   const texto = (req.body.texto || '').trim();
   // por qual número começar (com mais de um ligado; E4, 3a parte)
-  const canalEscolhido = canais.listarCanais({ soAtivos: true }).find((k) => String(k.id) === String(req.body.canal_id)) || null;
+  const canalEscolhido = canais.listarCanais({ soAtivos: true, tipo: 'celular' }).find((k) => String(k.id) === String(req.body.canal_id)) || null;
   const sock = canalEscolhido && modoAtual() === 'celular' ? socketDoCanal(canalEscolhido.id) : obterSocket();
 
   if (!numeroDigitado) {
@@ -529,7 +534,8 @@ router.post('/:id/finalizar', async (req, res) => {
 
 // Monta o conteúdo do Baileys pra texto ou mídia (imagem, vídeo, áudio, PDF) e manda, citando
 // `citada` (mensagem do histórico com wa_id) se vier. Devolve o id da mensagem no WhatsApp.
-async function enviarConteudo(sock, numero, { texto, midia = null, citada = null }) {
+// `urlLocal`: o arquivo já salvo em /uploads (o Instagram só recebe mídia por endereço público)
+async function enviarConteudo(sock, numero, { texto, midia = null, citada = null, urlLocal = null }) {
   let conteudo;
   if (!midia) conteudo = { text: texto };
   else if (midia.tipo === 'imagem') conteudo = { image: midia.buffer, caption: texto || undefined };
@@ -539,6 +545,7 @@ async function enviarConteudo(sock, numero, { texto, midia = null, citada = null
   const opcoes = citada?.wa_id
     ? { quoted: { key: { remoteJid: numero, id: citada.wa_id, fromMe: !!citada.wa_de_mim }, message: { conversation: citada.texto } } }
     : undefined;
+  if (urlLocal && instagram.ehInstagram(numero)) conteudo.urlLocal = urlLocal;
   const enviada = await sock.sendMessage(numero, conteudo, opcoes);
   return enviada?.key?.id || null;
 }
@@ -585,7 +592,10 @@ router.post('/:id/responder', (req, res) => {
     if (!arquivo && !texto) {
       return reexibirComErro('Escreva alguma coisa ou anexe uma imagem, vídeo, áudio ou PDF antes de enviar.');
     }
-    if (modoAtual() === 'oficial' && !oficial.dentroDaJanela(conversa.id)) {
+    if (instagram.ehInstagram(conversa.numero) && !oficial.dentroDaJanela(conversa.id)) {
+      return reexibirComErro('Passaram 24 horas desde a última mensagem do cliente: pelo Instagram não dá mais para responder. Quando ele escrever de novo, a conversa volta a aceitar resposta.');
+    }
+    if (modoAtual() === 'oficial' && !instagram.ehInstagram(conversa.numero) && !oficial.dentroDaJanela(conversa.id)) {
       return reexibirComErro('Passaram 24 horas desde a última mensagem do cliente: pela API oficial, só dá para mandar um modelo aprovado (botão "Mandar modelo").');
     }
 
@@ -613,14 +623,18 @@ router.post('/:id/responder', (req, res) => {
     const midiaSalva = midia ? { tipo: midia.tipo, url: salvarBufferDeMidia(midia.buffer, midia.mimetype) } : null;
 
     try {
-      const waId = await enviarConteudo(sock, conversa.numero, { texto, midia, citada });
+      const waId = await enviarConteudo(sock, conversa.numero, { texto, midia, citada, urlLocal: midiaSalva?.url });
       registrarMensagem(conversa.numero, 'atendente', textoDoHistorico, midiaSalva, req.atendente.id, { waId, deMim: true, citadaId: citada?.id });
       res.redirect(`/painel/fila/${conversa.id}`);
     } catch (erro) {
       console.error(`Falha ao enviar mensagem para ${conversa.numero}:`, erro);
       // fica no histórico com aviso e botão Reenviar, pra não perder o que foi escrito
       registrarMensagem(conversa.numero, 'atendente', textoDoHistorico, midiaSalva, req.atendente.id, { citadaId: citada?.id, falha: true });
-      reexibirComErro('Não consegui enviar pelo WhatsApp agora. A mensagem ficou no histórico com o botão Reenviar.');
+      reexibirComErro(
+        instagram.ehInstagram(conversa.numero)
+          ? `Não consegui enviar pelo Instagram: ${erro.message} A mensagem ficou no histórico com o botão Reenviar.`
+          : 'Não consegui enviar pelo WhatsApp agora. A mensagem ficou no histórico com o botão Reenviar.',
+      );
     }
   });
 });
@@ -647,7 +661,7 @@ router.post('/:id/reenviar/:mensagemId', async (req, res) => {
   // sem legenda escrita, o histórico guardou só o "[imagem enviada]" — esse não vai pro cliente
   const legenda = midia && [...Object.values(LEGENDA_PADRAO), '[PDF enviado]'].includes(m.texto) ? '' : m.texto;
   try {
-    const waId = await enviarConteudo(sock, conversa.numero, { texto: legenda, midia, citada: m.citada_id ? obterMensagem(m.citada_id) : null });
+    const waId = await enviarConteudo(sock, conversa.numero, { texto: legenda, midia, citada: m.citada_id ? obterMensagem(m.citada_id) : null, urlLocal: m.midia_url });
     marcarReenviada(m.id, waId);
     res.redirect(`/painel/fila/${conversa.id}`);
   } catch (erro) {

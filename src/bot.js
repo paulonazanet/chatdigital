@@ -43,7 +43,8 @@ const AVISO_MIDIA_NAO_SUPORTADA =
 // `@g.us`, o Status/stories em `status@broadcast`, listas de transmissão, canais `@newsletter`)
 // não é uma conversa com um cliente e não deve virar atendimento.
 function ehConversaDeCliente(numero) {
-  return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid'));
+  // `@instagram`: conversa do Direct do Instagram (E4), "<IGSID>@instagram"
+  return Boolean(numero) && (numero.endsWith('@s.whatsapp.net') || numero.endsWith('@lid') || numero.endsWith('@instagram'));
 }
 
 // Modo de teste (NUMEROS_TESTE no .env): regra em src/modo-teste.js, que também vale pras

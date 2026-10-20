@@ -3,7 +3,7 @@ const router = express.Router();
 
 const contatos = require('../contatos');
 const { obterOuCriarConversa, definirNumeroExibicao, renomearContato } = require('../conversas');
-const { obterSocket } = require('../socket-atual');
+const { obterSocketWhatsapp } = require('../socket-atual');
 const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
 const multer = require('multer');
 const planilha = require('../contatos-planilha');
@@ -41,7 +41,7 @@ router.get('/exportar.csv', (req, res) => {
 });
 
 function renderizarImportar(req, res, extra = {}) {
-  res.render('contatos/importar', { atendenteLogado: req.atendente, erro: null, conferencia: null, resultado: null, limite: planilha.LIMITE_LINHAS, whatsappConectado: !!obterSocket(), ...extra });
+  res.render('contatos/importar', { atendenteLogado: req.atendente, erro: null, conferencia: null, resultado: null, limite: planilha.LIMITE_LINHAS, whatsappConectado: !!obterSocketWhatsapp(), ...extra });
 }
 router.get('/importar', (req, res) => renderizarImportar(req, res));
 router.post('/importar', (req, res) => {
@@ -61,7 +61,7 @@ router.post('/importar', (req, res) => {
 router.post('/importar/confirmar', async (req, res) => {
   const pendente = planilha.pegarConferencia(req.body.token, req.atendente.id);
   if (!pendente) return renderizarImportar(req, res, { erro: 'Essa conferência expirou (vale 30 minutos). Envie a planilha de novo.' });
-  const resultado = await planilha.aplicar(pendente.itens, { substituir: req.body.substituir === '1', sock: obterSocket() });
+  const resultado = await planilha.aplicar(pendente.itens, { substituir: req.body.substituir === '1', sock: obterSocketWhatsapp() });
   renderizarImportar(req, res, { resultado: { ...resultado, nomeArquivo: pendente.nomeArquivo } });
 });
 
@@ -97,7 +97,7 @@ router.post('/novo', async (req, res) => {
   const digitos = String(req.body.telefone || '').replace(/\D/g, '');
   if (digitos.length < 10) return renderizarNovo(req, res, 'Informe o telefone com DDD (e o 55 do Brasil na frente, se quiser).');
   const comPais = digitos.length <= 11 ? `55${digitos}` : digitos;
-  const sock = obterSocket();
+  const sock = obterSocketWhatsapp();
   if (!sock) return renderizarNovo(req, res, 'O WhatsApp não está conectado agora — não dá pra conferir o número. Tente daqui a pouco.');
   try {
     const numero = await resolverNumeroNoWhatsApp(sock, comPais);

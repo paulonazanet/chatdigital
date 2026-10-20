@@ -26,7 +26,7 @@ function construirVerificadorNumeroPermitido(listaPermitidos) {
   const permitidosNaFormaCurta = listaPermitidos.map(formaCurtaNumeroBr);
   return function numeroPermitido(numero, senderPn) {
     if (listaPermitidos.length === 0) return true;
-    const candidato = String(senderPn || numero).replace('@s.whatsapp.net', '').replace('@lid', '');
+    const candidato = String(senderPn || numero).replace('@s.whatsapp.net', '').replace('@lid', '').replace('@instagram', '');
     const candidatoCurto = formaCurtaNumeroBr(candidato);
     return permitidosNaFormaCurta.some((permitido) => candidatoCurto === permitido);
   };

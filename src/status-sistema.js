@@ -146,7 +146,7 @@ function itemSistema() {
 // pelo celular com mais de um número: um item por número ligado
 function itensWhatsapp() {
   if (require('./socket-atual').modoAtual() === 'oficial') return [itemWhatsapp()];
-  const ligados = require('./canais').listarCanais({ soAtivos: true });
+  const ligados = require('./canais').listarCanais({ soAtivos: true, tipo: 'celular' });
   if (ligados.length <= 1) return [itemWhatsapp()];
   return ligados.map((c) => {
     const { conectado, qr } = whatsappStatus.obterEstado(c.id);

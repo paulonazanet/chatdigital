@@ -21,6 +21,11 @@
       <% } %>
       <span class="cartao-config-texto">Ver a conexão e o QR Code</span>
     </a>
+    <a class="cartao-config" href="/painel/configuracoes/instagram">
+      <span class="cartao-config-nome">Instagram</span>
+      <span class="cartao-config-info"><% if (resumo.instagram.nivel !== 'nenhum') { %><span class="ponto-status <%= resumo.instagram.nivel === 'ok' ? 'ponto-status-ok' : resumo.instagram.nivel === 'atencao' ? 'ponto-status-atencao' : 'ponto-status-falha' %>"></span><% } %><%= resumo.instagram.texto %></span>
+      <span class="cartao-config-texto">Mensagens do Direct na mesma Fila</span>
+    </a>
     <a class="cartao-config" href="/painel/configuracoes/motivos">
       <span class="cartao-config-nome">Motivos de encerramento</span>
       <span class="cartao-config-info"><%= resumo.motivosAtivos %> motivo<%= resumo.motivosAtivos === 1 ? '' : 's' %> ativo<%= resumo.motivosAtivos === 1 ? '' : 's' %></span>

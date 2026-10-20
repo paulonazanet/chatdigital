@@ -16,6 +16,7 @@ const oficial = require('../whatsapp-oficial');
 const { modoAtual, ligarCanal } = require('../socket-atual');
 const canais = require('../canais');
 const { listarFluxos } = require('../fluxo');
+const instagram = require('../instagram');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -53,6 +54,13 @@ function resumoDasSubtelas() {
   const motivosAtivos = motivos.listarArvore({ soAtivos: true }).reduce((total, g) => total + g.motivos.length, 0);
   return {
     whatsappConectado: whatsappStatus.obterEstado().conectado,
+    instagram: (() => {
+      const c = instagram.lerConfig();
+      const canal = canais.canalInstagram();
+      if (!instagram.configurado(c)) return { nivel: 'nenhum', texto: 'Não configurado' };
+      if (canal && !canal.ativo) return { nivel: 'atencao', texto: 'Desligado' };
+      return c.erro ? { nivel: 'falha', texto: 'Com problema' } : { nivel: 'ok', texto: c.usuario ? `@${c.usuario}` : 'Configurado' };
+    })(),
     motivosAtivos,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }).length,
     feriadosAtivos: feriados.listarFeriados().filter((f) => f.ativo).length,
@@ -369,7 +377,7 @@ function renderizarWhatsapp(req, res, extra = {}) {
     enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/whatsapp`,
     modelos: oficial.listarModelos(),
     // números pelo celular (E4, 3a parte): cada um com o estado, o QR Code e o fluxo dele
-    numeros: canais.listarCanais().map((c) => ({ ...c, estado: whatsappStatus.obterEstado(c.id) })),
+    numeros: canais.listarCanais({ tipo: 'celular' }).map((c) => ({ ...c, estado: whatsappStatus.obterEstado(c.id) })),
     fluxos: listarFluxos(),
     erro: null,
     aviso: req.query.aviso || null,
@@ -428,6 +436,51 @@ router.post('/whatsapp/oficial/modelos', async (req, res) => {
   const resultado = await oficial.sincronizarModelos();
   if (resultado.erro) return renderizarWhatsapp(req, res, { erro: `Modelos: ${resultado.erro}` });
   res.redirect('/painel/configuracoes/whatsapp?aviso=modelos');
+});
+
+// Instagram (E4): conta, chave, webhook e o canal (nome na Fila, fluxo do bot, ligar/desligar)
+function renderizarInstagram(req, res, extra = {}) {
+  res.render('configuracoes/instagram', {
+    atendenteLogado: req.atendente,
+    config: instagram.configParaTela(),
+    canal: canais.canalInstagram(),
+    fluxos: listarFluxos(),
+    enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/instagram`,
+    erro: null,
+    aviso: req.query.aviso || null,
+    ...extra,
+  });
+}
+router.get('/instagram', (req, res) => renderizarInstagram(req, res));
+router.post('/instagram', async (req, res) => {
+  const resultado = instagram.salvarConfig(req.body);
+  if (resultado.erro) return renderizarInstagram(req, res, { erro: resultado.erro });
+  if (!instagram.configurado()) return res.redirect('/painel/configuracoes/instagram?aviso=incompleto');
+  canais.canalInstagram({ criar: true });
+  const teste = await instagram.testarConexao();
+  res.redirect(`/painel/configuracoes/instagram?aviso=${teste.ok ? 'testado' : 'falhou'}`);
+});
+router.post('/instagram/testar', async (req, res) => {
+  const teste = await instagram.testarConexao();
+  res.redirect(`/painel/configuracoes/instagram?aviso=${teste.ok ? 'testado' : 'falhou'}`);
+});
+router.post('/instagram/codigo', (req, res) => {
+  instagram.trocarCodigoVerificacao();
+  res.redirect('/painel/configuracoes/instagram?aviso=codigo');
+});
+router.post('/instagram/canal', (req, res) => {
+  const canal = canais.canalInstagram();
+  if (!canal) return res.redirect('/painel/configuracoes/instagram');
+  const renomeado = canais.renomearCanal(canal.id, req.body.nome);
+  if (renomeado.erro) return renderizarInstagram(req, res, { erro: renomeado.erro });
+  const fluxoId = listarFluxos().some((f) => String(f.id) === String(req.body.fluxo_id)) ? Number(req.body.fluxo_id) : 1;
+  require('../db').db.prepare('UPDATE canais SET fluxo_id = ? WHERE id = ?').run(fluxoId === 1 ? null : fluxoId, canal.id);
+  res.redirect('/painel/configuracoes/instagram?aviso=salvo');
+});
+router.post('/instagram/ativo', (req, res) => {
+  const canal = canais.canalInstagram();
+  if (canal) canais.definirAtivo(canal.id, !canal.ativo);
+  res.redirect('/painel/configuracoes/instagram');
 });
 
 // Imagem do QR Code atual, gerada a partir da string que o Baileys manda — sem cache, porque o

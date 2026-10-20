@@ -75,9 +75,33 @@ const roteador = {
  * A conexão por onde as mensagens saem agora (null se não há nenhuma). Pelo celular, o roteador acima;
  * pela API oficial, o adaptador dela.
  */
-function obterSocket() {
+function obterSocketWhatsapp() {
   if (modoEmUso === 'oficial') return canalOficial;
   return socketsCelular.size ? roteador : null;
+}
+
+// Instagram (E4): a conversa "<IGSID>@instagram" sai pelo Instagram, seja qual for a conexão do
+// WhatsApp. Só entra no caminho quando o Instagram está configurado (senão nada muda).
+function comInstagram(whatsapp) {
+  const sendMessage = (numero, conteudo, opcoes) => {
+    if (String(numero || '').endsWith('@instagram')) return require('./instagram').criarAdaptador().sendMessage(numero, conteudo, opcoes);
+    if (!whatsapp) throw new Error('Nenhum número de WhatsApp conectado.');
+    return whatsapp.sendMessage(numero, conteudo, opcoes);
+  };
+  if (!whatsapp) return { tipo: 'instagram', sendMessage };
+  // o resto (enviarModelo da API oficial, onWhatsApp, signalRepository...) continua o do WhatsApp
+  return new Proxy(whatsapp, { get: (alvo, nome) => (nome === 'sendMessage' ? sendMessage : alvo[nome]) });
+}
+
+function obterSocket() {
+  const whatsapp = obterSocketWhatsapp();
+  let instagramLigado = false;
+  try {
+    instagramLigado = require('./instagram').configurado();
+  } catch (erro) {
+    // banco ainda não carregado
+  }
+  return instagramLigado ? comInstagram(whatsapp) : whatsapp;
 }
 
 function definirIniciadorDeCanal(funcao) {
@@ -105,6 +129,7 @@ function desligarCanal(canalId) {
 }
 
 module.exports = {
+  obterSocketWhatsapp,
   definirSocket,
   definirCanalOficial,
   definirModo,

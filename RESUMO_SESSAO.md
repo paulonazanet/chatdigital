@@ -476,6 +476,31 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## E4: Instagram (19/10/2026, branch `e4`)
+Pedido do Paulo para a Novanet e para a Naza Gás (cada empresa na sua instalação, com o seu @).
+- **API**: Instagram API com login do Instagram (`graph.instagram.com`, v26.0; não precisa de página do
+  Facebook). `src/instagram.js`: config (tabela `instagram_config`, id 1; chave e segredo mascarados na
+  tela), `testarConexao` (`GET /me`), adaptador `sendMessage` no jeito do Baileys (texto ≤1000 bytes,
+  `reply_to`, foto/vídeo/PDF por URL pública `endereco_publico + /uploads/...` com a legenda numa 2a
+  mensagem, reação `sender_action react/unreact`, áudio recusado), `perfilDe` (nome e @),
+  `lerWebhook` (ignora eco e outra conta; texto, anexos com `baixarMidia`, `reply_to` → citação,
+  reação → `reactionMessage`), `renovarChaveSePrecisar` (`/refresh_access_token`, 1x por dia, depois
+  de 30 dias). Endereço trocável por `CHATDIGITAL_INSTAGRAM_URL` (testes).
+- **Conversa** `"<IGSID>@instagram"` (`ehConversaDeCliente` aceita), `numero_exibicao` = `@usuario`
+  (`formatarTelefone` mostra o @). **Canal** em `canais` com `tipo = 'instagram'` (coluna nova; os outros
+  são `'celular'`): etiqueta e fluxo próprios; criado ao salvar a configuração. `listarCanais({ tipo })`;
+  o app.js só liga Baileys para `tipo 'celular'`; a tela do WhatsApp, a Nova conversa e o Status só
+  listam os de celular; o filtro Número da Fila mostra todos.
+- **Central** (`socket-atual.js`): com o Instagram configurado, `obterSocket()` devolve um Proxy do
+  WhatsApp em uso cujo `sendMessage` manda `@instagram` pelo Instagram (sem WhatsApp, um objeto só com
+  `sendMessage`). `obterSocketWhatsapp()` para quem precisa do WhatsApp mesmo (Contatos).
+- **Webhook** `src/routes/webhook-instagram.js` em `/webhook/instagram` (antes do login): GET confere o
+  token, POST confere `X-Hub-Signature-256` com o segredo do app do Instagram; canal desligado = ignora.
+- **24 h**: Fila (faixa e recusa ao responder) e envios (lembrete/campanha pulado) usam
+  `oficial.dentroDaJanela`.
+- Tela: Configurações › Instagram (+ cartão). Testes: `test/e4-instagram.test.js` (8, Instagram de
+  mentira). Total: 124 passam, zero falhas. Não testado com o Instagram de verdade (depende da Meta).
+
 ## E4, 3ª parte (19/10/2026, branch `e4`): vários números pelo celular, cada um com o seu fluxo
 Pedido do Paulo para a Novanet (dois WhatsApp de suporte, mesmo bot) e pensando em venda (cada
 número com o seu fluxo).

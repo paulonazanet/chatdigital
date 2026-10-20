@@ -78,6 +78,9 @@ function formatarDataHoraCompleta(iso) {
 
 // Telefone legível: 5581996850663 → (81) 99685-0663
 function formatarTelefone(numero) {
+  // Instagram (E4): o @ do perfil (numero_exibicao) ou só "Instagram"
+  if (String(numero || '').startsWith('@')) return String(numero);
+  if (String(numero || '').endsWith('@instagram')) return 'Instagram';
   const digitos = String(numero || '').split('@')[0].replace(/\D/g, '');
   const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(digitos);
   return br ? `(${br[1]}) ${br[2]}-${br[3]}` : digitos || 'cliente';

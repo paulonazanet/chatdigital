@@ -123,6 +123,11 @@ Os atendimentos **finalizados**, para conferir depois.
 - **Vários números**: com mais de um número ligado, cada conversa da lista mostra a etiqueta do número
   por onde chegou, o cabeçalho diz "Pelo número …", há o filtro **Número** (lembrado, como o setor)
   e a **+ Nova conversa** pergunta por qual número mandar.
+- **Instagram**: as conversas do Direct entram na mesma lista, com a etiqueta do Instagram e o @ do
+  cliente no lugar do telefone. A equipe responde com texto, foto, vídeo e PDF (a legenda vai logo
+  depois, numa mensagem à parte), cita e reage; áudio gravado não vai. Passadas 24 h da última
+  mensagem do cliente aparece a faixa "Passaram 24 horas" e não dá mais para responder até ele
+  escrever de novo (regra do Instagram). A **+ Nova conversa** só sai por WhatsApp.
 - **API oficial: regra das 24 horas.** Passadas 24 h da última mensagem do cliente, aparece a faixa
   "Passaram 24 horas" e só dá para mandar um **modelo aprovado** (escolhe o modelo, preenche as
   informações {{1}}, {{2}}... e **Mandar modelo**); o texto do modelo fica no histórico.
@@ -431,6 +436,21 @@ desconectado, fora do horário, feriado ou limite do dia).
   colar na Meta (dá para trocar o token). **Modelos aprovados**: **Atualizar modelos da Meta** puxa
   os modelos (nome, idioma, tipo, situação e texto).
 - Passo a passo da Meta: `passo_a_passo_meta_E4.md` (pasta do ChatDigital no OneDrive).
+
+### Configurações > Instagram
+- Liga o **Direct** do Instagram da empresa (uma conta por instalação; conta profissional, sem página
+  do Facebook). **Dados da conta**: código da conta (Instagram account ID), chave de acesso e segredo
+  do app (só aparecem com o final ••••), **endereço do sistema** (https; por ele o Instagram busca as
+  fotos, vídeos e PDFs) e versão da API. **Salvar e conferir com o Instagram** mostra o @ da conta (ou
+  o erro em português). A chave vale 60 dias e o sistema **renova sozinho** depois de 30.
+- **Webhook**: URL de retorno (`/webhook/instagram`) e token de verificação para colar na Meta (dá para
+  trocar o token).
+- **Na Fila e no bot**: nome da etiqueta na Fila, **fluxo do bot** do Instagram e **Desligar/Ligar**
+  (desligado, as mensagens do Direct não entram; o histórico fica). O cartão em Configurações mostra o
+  @ da conta, "Com problema", "Desligado" ou "Não configurado".
+- Lembretes e campanhas só vão para contato do Instagram que escreveu nas últimas 24 h (os outros
+  ficam como pulados, com o motivo).
+- Passo a passo da Meta: `passo_a_passo_instagram.md` (pasta do ChatDigital no OneDrive).
 
 - Mostra se está conectado; quando não está, mostra o QR Code pra escanear (Aparelhos
   conectados > Conectar aparelho), atualizando sozinho.

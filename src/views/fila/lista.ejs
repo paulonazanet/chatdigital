@@ -8,7 +8,7 @@
   // @lid, que não trazem o número de telefone no endereço) ou, na falta dele, o próprio número
   // sem o sufixo técnico.
   function exibirNumero(c) {
-    return c.numero_exibicao || c.numero.replace('@s.whatsapp.net', '').replace('@lid', '');
+    return c.numero_exibicao || (c.numero.endsWith('@instagram') ? 'Instagram' : c.numero.replace('@s.whatsapp.net', '').replace('@lid', ''));
   }
 
   // Mostra o texto como o WhatsApp mostra: *negrito*, _itálico_, ~riscado~ (as quebras de linha
@@ -76,9 +76,9 @@
         <label>Mensagem inicial (opcional)
           <textarea name="texto" rows="2" placeholder="Escreva a primeira mensagem..."></textarea>
         </label>
-        <% if (numerosLigados.length) { %>
+        <% if (numerosParaNovaConversa.length > 1) { %>
           <label>Mandar pelo número
-            <select name="canal_id"><% numerosLigados.forEach((k) => { %><option value="<%= k.id %>"><%= k.nome %></option><% }) %></select>
+            <select name="canal_id"><% numerosParaNovaConversa.forEach((k) => { %><option value="<%= k.id %>"><%= k.nome %></option><% }) %></select>
           </label>
         <% } %>
         <button type="submit">Iniciar conversa</button>
@@ -409,6 +409,11 @@
           <p class="aviso">Essa conversa ainda está com o bot. Use <strong>Puxar pra mim</strong> no topo pra assumir.</p>
         <% } else if (conversaSelecionada.status !== 'finalizado') { %>
           <% if (conversaSelecionada.status === 'atendendo') { %>
+            <% if (instagramForaDaJanela) { %>
+            <div class="faixa-janela">
+              <p>⏱ <strong>Passaram 24 horas</strong> desde a última mensagem do cliente. Pelo Instagram não dá mais para responder: quando ele escrever de novo, a conversa volta a aceitar resposta.</p>
+            </div>
+            <% } %>
             <% if (viaOficial && foraDaJanela) { %>
             <div class="faixa-janela">
               <p>⏱ <strong>Passaram 24 horas</strong> desde a última mensagem do cliente. Pela API oficial, só dá para mandar um <strong>modelo aprovado</strong> até ele responder.</p>

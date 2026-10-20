@@ -18,6 +18,7 @@ const rotasContatos = require('./routes/contatos');
 const rotasTv = require('./routes/tv');
 const rotasCampanhas = require('./routes/campanhas');
 const rotasWebhookWhatsapp = require('./routes/webhook-whatsapp');
+const rotasWebhookInstagram = require('./routes/webhook-instagram');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use(carregarAtendenteLogado);
 app.use('/tv', rotasTv.router);
 // API oficial do WhatsApp: a Meta entrega mensagens e recibos aqui (sem login, assinado pela Meta)
 app.use('/webhook/whatsapp', rotasWebhookWhatsapp.router);
+app.use('/webhook/instagram', rotasWebhookInstagram.router);
 app.use(rotasAuth);
 app.use('/painel/atendentes', exigirLogin, exigirPermissao('gerenciar_atendentes'), rotasAtendentes);
 app.use('/painel/setores', exigirLogin, exigirPermissao('gerenciar_setores'), rotasSetores);
