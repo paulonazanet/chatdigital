@@ -7,14 +7,20 @@
     incompleto: 'Dados salvos. Falta o código da conta ou a chave de acesso para ligar o Instagram.',
     codigo: 'Código de verificação trocado. Atualize na Meta (Webhooks › Verify token).',
     salvo: 'Instagram salvo.',
+    'central-salva': 'Dados da central salvos. Agora clique em "Entrar com Instagram".',
+    conectado: 'Instagram conectado pelo app do ChatDigital. As mensagens do Direct já entram na Fila.',
+    cancelado: 'A conexão foi cancelada no Instagram. Nada mudou.',
+    'falhou-central': 'Não deu para conectar pela central. Tente de novo; se continuar, confira os dados da central.',
+    desconectado: 'Instagram desconectado. As conversas de antes continuam no histórico.',
   };
+  const AVISOS_RUINS = ['falhou', 'incompleto', 'cancelado', 'falhou-central'];
   const c = config;
 %>
 <main class="conteudo conteudo-estreita pagina-config">
   <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Instagram</p>
   <h1>Instagram</h1>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
-  <% if (aviso && AVISOS[aviso]) { %><p class="<%= aviso === 'falhou' || aviso === 'incompleto' ? 'aviso' : 'sucesso' %>"><%= AVISOS[aviso] %></p><% } %>
+  <% if (aviso && AVISOS[aviso]) { %><p class="<%= AVISOS_RUINS.includes(aviso) ? 'aviso' : 'sucesso' %>"><%= AVISOS[aviso] %></p><% } %>
 
   <p class="dica">As mensagens do <strong>Direct</strong> do Instagram caem na mesma Fila do WhatsApp, com a etiqueta do Instagram, e o bot
     responde do mesmo jeito. Regras do Instagram: só dá para responder até <strong>24 horas</strong> depois da última mensagem do cliente,
@@ -25,32 +31,64 @@
     <% } else { %><p class="sucesso">✅ Conectado ao Instagram<% if (c.usuario) { %>: <strong>@<%= c.usuario %></strong><% } %></p><% } %>
   <% } %>
 
-  <form method="post" action="/painel/configuracoes/instagram" autocomplete="off">
-    <fieldset>
-      <legend>Dados da conta</legend>
-      <p class="dica">Aparecem no painel de desenvolvedores da Meta, no app da empresa › Instagram › Configuração da API com login do Instagram
-        (o passo a passo está no documento do Instagram).</p>
-      <label>Código da conta do Instagram (Instagram account ID)<input type="text" name="conta_id" value="<%= c.conta_id || '' %>" inputmode="numeric"></label>
-      <label>Chave de acesso (token)<input type="password" name="chave" value="" placeholder="<%= c.temChave ? `Guardada (${c.chave}). Deixe em branco para manter.` : 'Cole aqui a chave gerada para a conta' %>">
-        <span class="ajuda">Vale 60 dias; o sistema renova sozinho antes de vencer. Fica guardada só no banco e nunca aparece inteira de novo.</span></label>
-      <label>Segredo do app (Instagram app secret)<input type="password" name="segredo_app" value="" placeholder="<%= c.temSegredo ? `Guardado (${c.segredo_app}). Deixe em branco para manter.` : 'Cole aqui o segredo do app do Instagram' %>">
-        <span class="ajuda">Confere que as mensagens que chegam vieram mesmo da Meta.</span></label>
-      <label>Endereço do sistema<input type="text" name="endereco_publico" value="<%= c.endereco_publico || '' %>" placeholder="https://empresa.eunodigital.com">
-        <span class="ajuda">O Instagram busca as fotos, vídeos e PDFs que a equipe manda por este endereço.</span></label>
-      <label>Versão da API<input type="text" name="versao" value="<%= c.versao %>" class="campo-curto"></label>
-      <p><button type="submit">Salvar e conferir com o Instagram</button></p>
-    </fieldset>
-  </form>
-  <% if (c.temChave) { %><form method="post" action="/painel/configuracoes/instagram/testar" class="acoes-topo"><button type="submit" class="botao-secundario">Conferir de novo</button></form><% } %>
-
   <fieldset>
-    <legend>Webhook (onde a Meta entrega as mensagens)</legend>
-    <p class="dica">Na Meta, no app › Instagram › Configuração da API › Configurar webhooks, cole:</p>
-    <label>URL de retorno (Callback URL)<input type="text" readonly value="<%= enderecoWebhook %>" onclick="this.select()"></label>
-    <label>Token de verificação (Verify token)<input type="text" readonly value="<%= c.codigo_verificacao %>" onclick="this.select()"></label>
-    <p class="dica">E assine os campos <strong>messages</strong> e <strong>message_reactions</strong>. O endereço precisa ser HTTPS e público (o do servidor, não o do computador).</p>
-    <form method="post" action="/painel/configuracoes/instagram/codigo" onsubmit="return confirm('Trocar o token de verificação? Vai ser preciso atualizar na Meta.')"><button type="submit" class="botao-link">Trocar o token de verificação</button></form>
+    <legend>Conectar pelo app do ChatDigital</legend>
+    <% if (usaCentral) { %>
+      <% if (c.temChave) { %>
+        <p class="dica">Para trocar de conta, desconecte e entre com o outro Instagram.</p>
+        <form method="post" action="/painel/configuracoes/instagram/desconectar" onsubmit="return confirm('Desconectar o Instagram? As mensagens do Direct param de entrar na Fila até conectar de novo.')">
+          <button type="submit" class="botao-link botao-link-perigo">Desconectar o Instagram</button>
+        </form>
+      <% } else { %>
+        <p class="dica">Clique, entre com o Instagram <strong>da empresa</strong> (conta profissional) e aceite as permissões de mensagens.
+          Você volta para cá já conectado.</p>
+        <p><a class="botao" href="/painel/configuracoes/instagram/conectar">Entrar com Instagram</a></p>
+      <% } %>
+    <% } else { %>
+      <p class="dica">O jeito mais simples: a empresa só entra com o Instagram dela. Antes, quem instala o sistema preenche os dados da central abaixo (uma vez).</p>
+    <% } %>
+    <details class="detalhes-config" <%= usaCentral ? '' : 'open' %>>
+      <summary>Dados da central (preenchidos uma vez por quem instala)</summary>
+      <form method="post" action="/painel/configuracoes/instagram/central" autocomplete="off">
+        <label>Endereço da central<input type="text" name="central_url" value="<%= c.central_url || '' %>" placeholder="https://chat.eunodigital.com"></label>
+        <label>Código desta instalação na central<input type="text" name="central_instalacao" value="<%= c.central_instalacao || '' %>" placeholder="nazagas" class="campo-curto"></label>
+        <label>Segredo combinado com a central<input type="password" name="segredo_app" value="" placeholder="<%= c.temSegredo ? `Guardado (${c.segredo_app}). Deixe em branco para manter.` : 'Cole aqui o segredo desta instalação' %>">
+          <span class="ajuda">O mesmo que está na lista de instalações da central. Confere que as mensagens vieram mesmo de lá.</span></label>
+        <p><button type="submit" class="botao-pequeno">Salvar dados da central</button></p>
+      </form>
+    </details>
   </fieldset>
+
+  <details class="detalhes-config" <%= !usaCentral && c.temChave ? 'open' : '' %>>
+    <summary>Usar um app próprio da empresa na Meta (avançado)</summary>
+    <p class="dica">Só se a empresa criou o app dela na Meta. Nesse caso ela mesma passa pela verificação e pela análise do app.</p>
+    <form method="post" action="/painel/configuracoes/instagram" autocomplete="off">
+      <fieldset>
+        <legend>Dados da conta</legend>
+        <p class="dica">Aparecem no painel de desenvolvedores da Meta, no app da empresa › Instagram › Configuração da API com login do Instagram
+          (o passo a passo está no documento do Instagram).</p>
+        <label>Código da conta do Instagram (Instagram account ID)<input type="text" name="conta_id" value="<%= c.conta_id || '' %>" inputmode="numeric"></label>
+        <label>Chave de acesso (token)<input type="password" name="chave" value="" placeholder="<%= c.temChave ? `Guardada (${c.chave}). Deixe em branco para manter.` : 'Cole aqui a chave gerada para a conta' %>">
+          <span class="ajuda">Vale 60 dias; o sistema renova sozinho antes de vencer. Fica guardada só no banco e nunca aparece inteira de novo.</span></label>
+        <label>Segredo do app (Instagram app secret)<input type="password" name="segredo_app" value="" placeholder="<%= c.temSegredo ? `Guardado (${c.segredo_app}). Deixe em branco para manter.` : 'Cole aqui o segredo do app do Instagram' %>">
+          <span class="ajuda">Confere que as mensagens que chegam vieram mesmo da Meta.</span></label>
+        <label>Endereço do sistema<input type="text" name="endereco_publico" value="<%= c.endereco_publico || '' %>" placeholder="https://empresa.eunodigital.com">
+          <span class="ajuda">O Instagram busca as fotos, vídeos e PDFs que a equipe manda por este endereço.</span></label>
+        <label>Versão da API<input type="text" name="versao" value="<%= c.versao %>" class="campo-curto"></label>
+        <p><button type="submit">Salvar e conferir com o Instagram</button></p>
+      </fieldset>
+    </form>
+    <% if (c.temChave) { %><form method="post" action="/painel/configuracoes/instagram/testar" class="acoes-topo"><button type="submit" class="botao-secundario">Conferir de novo</button></form><% } %>
+
+    <fieldset>
+      <legend>Webhook (onde a Meta entrega as mensagens)</legend>
+      <p class="dica">Na Meta, no app › Instagram › Configuração da API › Configurar webhooks, cole:</p>
+      <label>URL de retorno (Callback URL)<input type="text" readonly value="<%= enderecoWebhook %>" onclick="this.select()"></label>
+      <label>Token de verificação (Verify token)<input type="text" readonly value="<%= c.codigo_verificacao %>" onclick="this.select()"></label>
+      <p class="dica">E assine os campos <strong>messages</strong> e <strong>message_reactions</strong>. O endereço precisa ser HTTPS e público (o do servidor, não o do computador).</p>
+      <form method="post" action="/painel/configuracoes/instagram/codigo" onsubmit="return confirm('Trocar o token de verificação? Vai ser preciso atualizar na Meta.')"><button type="submit" class="botao-link">Trocar o token de verificação</button></form>
+    </fieldset>
+  </details>
 
   <% if (canal) { %>
     <fieldset class="cartao-numero<%= canal.ativo ? '' : ' cartao-numero-desligado' %>">

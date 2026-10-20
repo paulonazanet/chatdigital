@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/app.js",
     "painel": "node src/server.js",
+    "central-instagram": "node src/central-instagram.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

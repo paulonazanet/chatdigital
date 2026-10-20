@@ -476,6 +476,29 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## E4: central do Instagram (19/10/2026, branch `e4`)
+Decisão do Paulo: **um app só na Meta** ("ChatDigital"), no portfólio da Nazanet até sair o CNPJ da Eu no
+Digital, para todas as instalações. Só o dono do app passa pela verificação e pela análise.
+- **`src/central-instagram.js`** (`npm run central-instagram`, porta 3100): app Express separado,
+  configurado por `CENTRAL_*` (app ID/secret, verify token, endereço, arquivo de instalações
+  `[{id, nome, endereco, segredo}]`, arquivo de dados com conta → instalação). Rotas:
+  `GET /instagram/conectar` (pedido da instalação assinado `HMAC(segredo, id.t)`, vale 10 min → login
+  `instagram.com/oauth/authorize` com `state` assinado pelo app secret), `GET /instagram/retorno` (troca o
+  código em `api.instagram.com/oauth/access_token`, chave longa em `graph.instagram.com/access_token`
+  `ig_exchange_token`, `GET /me` user_id/username, `POST /me/subscribed_apps`, anota a conta, entrega
+  à instalação em `POST <instalação>/webhook/instagram/conta` assinado com o segredo dela, volta o
+  navegador com `?aviso=conectado|cancelado|falhou-central`), `GET/POST /webhook/instagram` (confere a
+  Meta com o app secret e repassa cada `entry` à instalação dona da conta, reassinado com o segredo dela).
+  URLs trocáveis por `CHATDIGITAL_INSTAGRAM_URL`, `_OAUTH_URL`, `_LOGIN_URL` (testes).
+- **Instalação**: `instagram_config.central_url` e `central_instalacao` (o segredo combinado fica em
+  `segredo_app`, então o webhook repassado é conferido igual ao da Meta). `usaCentral`,
+  `salvarCentral`, `linkDeConexao`, `receberContaDaCentral`, `desconectar`. Rotas: `POST
+  /painel/configuracoes/instagram/central`, `GET .../conectar`, `POST .../desconectar`, `POST
+  /webhook/instagram/conta`. Tela: "Conectar pelo app do ChatDigital" + app próprio em `<details>`.
+- A instalação continua mandando direto ao Instagram com a chave dela e renovando sozinha.
+- Testes: `test/e4-central-instagram.test.js` (5, instalação + central + Instagram de mentira). Total:
+  129 passam, zero falhas. Passo a passo: `passo_a_passo_instagram.md` (OneDrive).
+
 ## E4: Instagram (19/10/2026, branch `e4`)
 Pedido do Paulo para a Novanet e para a Naza Gás (cada empresa na sua instalação, com o seu @).
 - **API**: Instagram API com login do Instagram (`graph.instagram.com`, v26.0; não precisa de página do

@@ -510,6 +510,10 @@ db.exec(`
   );
 `);
 db.prepare('INSERT OR IGNORE INTO instagram_config (id, codigo_verificacao, versao) VALUES (1, ?, ?)').run(require('crypto').randomBytes(16).toString('hex'), 'v26.0');
+// central do Instagram (um app só na Meta para todas as instalações): endereço dela e o código desta
+// instalação lá; o segredo combinado com a central fica em segredo_app
+if (!colunaExiste('instagram_config', 'central_url')) db.exec('ALTER TABLE instagram_config ADD COLUMN central_url TEXT');
+if (!colunaExiste('instagram_config', 'central_instalacao')) db.exec('ALTER TABLE instagram_config ADD COLUMN central_instalacao TEXT');
 if (!colunaExiste('canais', 'tipo')) db.exec("ALTER TABLE canais ADD COLUMN tipo TEXT NOT NULL DEFAULT 'celular'");
 
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista

@@ -443,6 +443,7 @@ function renderizarInstagram(req, res, extra = {}) {
   res.render('configuracoes/instagram', {
     atendenteLogado: req.atendente,
     config: instagram.configParaTela(),
+    usaCentral: instagram.usaCentral(),
     canal: canais.canalInstagram(),
     fluxos: listarFluxos(),
     enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/instagram`,
@@ -459,6 +460,21 @@ router.post('/instagram', async (req, res) => {
   canais.canalInstagram({ criar: true });
   const teste = await instagram.testarConexao();
   res.redirect(`/painel/configuracoes/instagram?aviso=${teste.ok ? 'testado' : 'falhou'}`);
+});
+// Pela central do Instagram (app do ChatDigital na Meta): dados da central e "Entrar com Instagram"
+router.post('/instagram/central', (req, res) => {
+  const resultado = instagram.salvarCentral(req.body);
+  if (resultado.erro) return renderizarInstagram(req, res, { erro: resultado.erro });
+  res.redirect('/painel/configuracoes/instagram?aviso=central-salva');
+});
+router.get('/instagram/conectar', (req, res) => {
+  const link = instagram.linkDeConexao();
+  if (!link) return res.redirect('/painel/configuracoes/instagram');
+  res.redirect(link);
+});
+router.post('/instagram/desconectar', (req, res) => {
+  instagram.desconectar();
+  res.redirect('/painel/configuracoes/instagram?aviso=desconectado');
 });
 router.post('/instagram/testar', async (req, res) => {
   const teste = await instagram.testarConexao();

@@ -439,7 +439,13 @@ desconectado, fora do horário, feriado ou limite do dia).
 
 ### Configurações > Instagram
 - Liga o **Direct** do Instagram da empresa (uma conta por instalação; conta profissional, sem página
-  do Facebook). **Dados da conta**: código da conta (Instagram account ID), chave de acesso e segredo
+  do Facebook).
+- **Conectar pelo app do ChatDigital** (o normal): um app só na Meta para todas as instalações, com a
+  **central do Instagram** no meio. Quem instala preenche uma vez os **dados da central** (endereço,
+  código desta instalação e segredo combinado); depois a empresa só clica em **Entrar com Instagram**,
+  entra com o Instagram dela, aceita as permissões e volta conectada. **Desconectar o Instagram** tira
+  a conta (os dados da central ficam).
+- **Usar um app próprio da empresa na Meta (avançado)**, fechado por padrão. **Dados da conta**: código da conta (Instagram account ID), chave de acesso e segredo
   do app (só aparecem com o final ••••), **endereço do sistema** (https; por ele o Instagram busca as
   fotos, vídeos e PDFs) e versão da API. **Salvar e conferir com o Instagram** mostra o @ da conta (ou
   o erro em português). A chave vale 60 dias e o sistema **renova sozinho** depois de 30.

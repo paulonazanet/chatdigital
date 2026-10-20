@@ -48,6 +48,51 @@ function salvarConfig(campos) {
   return {};
 }
 
+// ---- Pela central do Instagram (um app só na Meta para todas as instalações) ----
+
+const usaCentral = (c = lerConfig()) => !!(c.central_url && c.central_instalacao && c.segredo_app);
+
+/** Grava o endereço da central, o código desta instalação e o segredo combinado. Devolve { erro } ou {} */
+function salvarCentral(campos) {
+  const atual = lerConfig();
+  const limpo = (v) => String(v || '').trim();
+  const url = limpo(campos.central_url).replace(/\/+$/, '');
+  if (url && !/^https?:\/\/[^\s/]+/.test(url)) return { erro: 'O endereço da central tem que começar com https:// (ex.: https://chat.eunodigital.com).' };
+  const instalacao = limpo(campos.central_instalacao);
+  if (instalacao && !/^[a-z0-9-]{2,40}$/.test(instalacao)) return { erro: 'O código desta instalação na central é em letras minúsculas, números e hífen (ex.: nazagas).' };
+  db.prepare('UPDATE instagram_config SET central_url = ?, central_instalacao = ?, segredo_app = ? WHERE id = 1').run(url || null, instalacao || null, limpo(campos.segredo_app) || atual.segredo_app);
+  return {};
+}
+
+/** Endereço do "Entrar com Instagram": a central, com um pedido assinado que vale 10 minutos */
+function linkDeConexao(agoraMs = Date.now()) {
+  const c = lerConfig();
+  if (!usaCentral(c)) return null;
+  const { assinarPedidoDeConexao } = require('./central-instagram');
+  const pedido = assinarPedidoDeConexao(c.central_instalacao, c.segredo_app, agoraMs);
+  return `${c.central_url}/instagram/conectar?${new URLSearchParams(pedido)}`;
+}
+
+/** A central entregou a conta conectada (já conferida e inscrita no webhook) */
+function receberContaDaCentral({ conta_id: contaId, usuario, chave, endereco_publico: endereco }) {
+  if (!/^\d{5,30}$/.test(String(contaId || '')) || !chave) return { erro: 'dados incompletos' };
+  const agora = new Date().toISOString();
+  db.prepare('UPDATE instagram_config SET conta_id = ?, usuario = ?, chave = ?, chave_renovada_em = ?, testado_em = ?, erro = NULL, endereco_publico = COALESCE(endereco_publico, ?) WHERE id = 1').run(
+    String(contaId),
+    usuario || null,
+    String(chave),
+    agora,
+    agora,
+    /^https:\/\//.test(String(endereco || '')) ? String(endereco).replace(/\/+$/, '') : null,
+  );
+  return {};
+}
+
+/** Tira a conta (a configuração da central fica, pra conectar de novo) */
+function desconectar() {
+  db.prepare('UPDATE instagram_config SET conta_id = NULL, usuario = NULL, chave = NULL, chave_renovada_em = NULL, testado_em = NULL, erro = NULL WHERE id = 1').run();
+}
+
 function trocarCodigoVerificacao() {
   db.prepare('UPDATE instagram_config SET codigo_verificacao = ? WHERE id = 1').run(crypto.randomBytes(16).toString('hex'));
 }
@@ -234,6 +279,11 @@ module.exports = {
   configurado,
   configParaTela,
   salvarConfig,
+  usaCentral,
+  salvarCentral,
+  linkDeConexao,
+  receberContaDaCentral,
+  desconectar,
   trocarCodigoVerificacao,
   testarConexao,
   renovarChaveSePrecisar,

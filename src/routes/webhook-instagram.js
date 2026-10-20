@@ -42,6 +42,23 @@ async function tratarWebhook(corpo) {
   }
 }
 
+// A central do Instagram entrega a conta conectada pelo "Entrar com Instagram" (assinado com o
+// segredo combinado com ela, o mesmo que confere as mensagens que ela repassa)
+router.post('/conta', express.raw({ type: 'application/json', limit: '100kb' }), (req, res) => {
+  const bruto = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+  if (!instagram.usaCentral() || !instagram.conferirAssinatura(bruto, req.get('x-hub-signature-256'))) return res.sendStatus(401);
+  let corpo;
+  try {
+    corpo = JSON.parse(bruto.toString('utf8'));
+  } catch (erro) {
+    return res.sendStatus(400);
+  }
+  const resultado = instagram.receberContaDaCentral(corpo);
+  if (resultado.erro) return res.status(400).json(resultado);
+  canalInstagram({ criar: true });
+  res.json({ ok: true });
+});
+
 router.post('/', express.raw({ type: 'application/json', limit: '2mb' }), (req, res) => {
   const bruto = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
   if (!instagram.conferirAssinatura(bruto, req.get('x-hub-signature-256'))) return res.sendStatus(401);

@@ -1550,3 +1550,7 @@ fieldset[disabled] { opacity: 0.85; }
 .campo-renomear-fluxo { width: 9rem; margin: 0; padding: 0.3rem 0.4rem; font-size: 0.8rem; }
 .form-novo-fluxo { display: flex; flex-direction: column; gap: 0.5rem; }
 .form-novo-fluxo select, .form-novo-fluxo input { margin-top: 0.25rem; }
+
+/* Configurações › Instagram: partes que abrem e fecham (dados da central, app próprio) */
+.detalhes-config { margin: 1rem 0; }
+.detalhes-config > summary { cursor: pointer; font-weight: 600; color: var(--azul-marinho); margin-bottom: 0.5rem; }
