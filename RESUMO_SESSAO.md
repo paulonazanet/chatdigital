@@ -476,6 +476,20 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## Painel no celular (20/10/2026, branch `e4`)
+Feito no `e4` porque ele tem todas as telas (E1 a E4). Só CSS + 3 parciais, nada de rota.
+- `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e
+  `.fundo-menu` depois do `aside`. `public/js/barra-lateral.js`: até 760 px o ☰ abre/fecha a gaveta
+  (`html.menu-aberto`, `aria-expanded`), fecha no fundo, no Esc, ao escolher link e ao virar computador;
+  em qualquer tamanho marca `aria-current="page"` no link mais comprido que bate com o endereço.
+- `estilo.css` (bloco no fim, `@media (max-width: 760px)`): barra no topo de 56 px, gaveta fixa,
+  `.tabela` com `display: block; overflow-x: auto`, fieldset/linha-form/abas que não passam da tela,
+  campos com 16 px (sem zoom do iPhone), `.cartoes` em 2 colunas, `.form-transferir` como painel que sobe
+  do pé da tela, Fila mostrando lista ou conversa (`main[data-conversa-numero]`), editor de fluxo em
+  coluna e simulador por cima. `fila/lista.ejs`: link `.voltar-lista`; `fluxo/editor.ejs`: `.aviso-so-celular`.
+- Conferido em 375 px: nenhuma das ~35 telas rola para o lado; computador sem mudança (fora o traço
+  laranja da página atual). 129 testes passam.
+
 ## E4: central do Instagram (19/10/2026, branch `e4`)
 Decisão do Paulo: **um app só na Meta** ("ChatDigital"), no portfólio da Nazanet até sair o CNPJ da Eu no
 Digital, para todas as instalações. Só o dono do app passa pela verificação e pela análise.

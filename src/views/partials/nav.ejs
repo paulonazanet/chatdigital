@@ -2,7 +2,7 @@
 <div class="app-shell">
   <aside class="barra-lateral">
     <div class="marca">
-      <button type="button" id="botao-recolher" class="botao-recolher" aria-label="Recolher menu" title="Recolher menu">
+      <button type="button" id="botao-recolher" class="botao-recolher" aria-label="Recolher menu" title="Recolher menu" aria-controls="menu-gaveta">
         <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="6" x2="21" y2="6"></line>
           <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -20,6 +20,8 @@
       try { permissoesAtendente = JSON.parse(atendenteLogado.permissoes || '[]'); } catch (e) {}
       const podeAcessar = (chave) => ehAdmin || permissoesAtendente.includes(chave);
     %>
+    <%# no celular, nav + sair viram a gaveta que abre pelo ☰ (no computador, display: contents) %>
+    <div class="menu-gaveta" id="menu-gaveta">
     <nav>
       <% if (podeAcessar('ver_painel')) { %>
         <a href="/painel">
@@ -130,5 +132,7 @@
         <span class="recolhivel">Sair</span>
       </button>
     </form>
+    </div>
   </aside>
+  <div class="fundo-menu" id="fundo-menu" aria-hidden="true"></div>
   <div class="area-principal">
