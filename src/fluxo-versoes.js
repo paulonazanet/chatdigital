@@ -1,5 +1,5 @@
 const { db } = require('./db');
-const { carregarFluxo, salvarFluxo, validarFluxo } = require('./fluxo');
+const { carregarFluxoPorId, salvarFluxoPorId, validarFluxo } = require('./fluxo');
 
 // Versões do fluxo (E2, 3a parte): o que foi salvo, quando, por quem e de onde veio. Voltar para uma
 // versão grava ela de novo como o fluxo atual (e isso também vira uma versão, então dá pra desfazer).
@@ -20,37 +20,39 @@ function contarBlocos(fluxo) {
   return Object.keys((fluxo && fluxo.nos) || {}).length;
 }
 
-function registrarVersao(fluxo, { atendente = null, origem = 'Salvo no editor' } = {}) {
-  db.prepare('INSERT INTO fluxo_versoes (criado_em, atendente_id, atendente_nome, origem, conteudo) VALUES (?, ?, ?, ?, ?)').run(
+// `fluxoId` (E4, 3a parte): cada fluxo tem as versões dele (1 = o Principal); 100 por fluxo
+function registrarVersao(fluxo, { atendente = null, origem = 'Salvo no editor', fluxoId = 1 } = {}) {
+  db.prepare('INSERT INTO fluxo_versoes (criado_em, atendente_id, atendente_nome, origem, conteudo, fluxo_id) VALUES (?, ?, ?, ?, ?, ?)').run(
     new Date().toISOString(),
     atendente ? atendente.id : null,
     atendente ? atendente.nome : null,
     origem,
     JSON.stringify(fluxo),
+    fluxoId,
   );
-  db.prepare('DELETE FROM fluxo_versoes WHERE id NOT IN (SELECT id FROM fluxo_versoes ORDER BY id DESC LIMIT ?)').run(MAXIMO_VERSOES);
+  db.prepare('DELETE FROM fluxo_versoes WHERE fluxo_id = ? AND id NOT IN (SELECT id FROM fluxo_versoes WHERE fluxo_id = ? ORDER BY id DESC LIMIT ?)').run(fluxoId, fluxoId, MAXIMO_VERSOES);
 }
 
 // Na 1a vez (histórico vazio), guarda o fluxo que já estava em uso, pra ele também ter volta.
-function garantirVersaoInicial() {
-  if (db.prepare('SELECT 1 FROM fluxo_versoes LIMIT 1').get()) return;
+function garantirVersaoInicial(fluxoId = 1) {
+  if (db.prepare('SELECT 1 FROM fluxo_versoes WHERE fluxo_id = ? LIMIT 1').get(fluxoId)) return;
   try {
-    registrarVersao(carregarFluxo(), { origem: descreverOrigem('inicial') });
+    registrarVersao(carregarFluxoPorId(fluxoId), { origem: descreverOrigem('inicial'), fluxoId });
   } catch (erro) {
     // sem fluxo legível não há o que guardar
   }
 }
 
 /** Salva o fluxo (valida antes; lança erro com .detalhes) e guarda a versão. */
-function salvarComVersao(fluxo, { atendente = null, origem = 'Salvo no editor' } = {}) {
-  garantirVersaoInicial();
-  salvarFluxo(fluxo);
-  registrarVersao(fluxo, { atendente, origem });
+function salvarComVersao(fluxo, { atendente = null, origem = 'Salvo no editor', fluxoId = 1 } = {}) {
+  garantirVersaoInicial(fluxoId);
+  salvarFluxoPorId(fluxo, fluxoId);
+  registrarVersao(fluxo, { atendente, origem, fluxoId });
 }
 
-function listarVersoes() {
-  garantirVersaoInicial();
-  const linhas = db.prepare('SELECT id, criado_em, atendente_nome, origem, conteudo FROM fluxo_versoes ORDER BY id DESC').all();
+function listarVersoes(fluxoId = 1) {
+  garantirVersaoInicial(fluxoId);
+  const linhas = db.prepare('SELECT id, criado_em, atendente_nome, origem, conteudo FROM fluxo_versoes WHERE fluxo_id = ? ORDER BY id DESC').all(fluxoId);
   return linhas.map((v, i) => {
     let blocos = 0;
     try {
@@ -72,7 +74,7 @@ function obterVersao(id) {
 function restaurarVersao(id, { atendente = null, quando = '' } = {}) {
   const versao = obterVersao(id);
   if (!versao || validarFluxo(versao.fluxo).length) return false;
-  salvarComVersao(versao.fluxo, { atendente, origem: descreverOrigem('restaurada', `Voltou para a versão de ${quando}`.trim()) });
+  salvarComVersao(versao.fluxo, { atendente, origem: descreverOrigem('restaurada', `Voltou para a versão de ${quando}`.trim()), fluxoId: versao.fluxo_id || 1 });
   return true;
 }
 

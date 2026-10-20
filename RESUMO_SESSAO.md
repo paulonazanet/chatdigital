@@ -476,6 +476,37 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## E4, 3ª parte (19/10/2026, branch `e4`): vários números pelo celular, cada um com o seu fluxo
+Pedido do Paulo para a Novanet (dois WhatsApp de suporte, mesmo bot) e pensando em venda (cada
+número com o seu fluxo).
+- **Modelo escolhido**: continua **uma conversa por cliente** (`conversas.numero` UNIQUE e a memória
+  do motor por número, sem reconstruir tabela). A conversa guarda `canal_id` = o número por onde o
+  cliente escreveu por último (gravado em `registrarMensagem` com `extra.canalId`); `mensagens.canal_id`
+  diz por onde cada mensagem chegou. A resposta sai por esse número; o fluxo é o desse número.
+- **Banco**: `canais` (id 1 = "Principal", pasta `auth`; os outros `auth-numero-<id>`; `fluxo_id`),
+  `fluxos` (id 1 = Principal, o arquivo `config/fluxo.json`, sem conteúdo; os outros com o JSON),
+  `fluxo_versoes.fluxo_id`.
+- **`src/socket-atual.js`**: um socket do Baileys por canal; `obterSocket()` pelo celular devolve um
+  **roteador** (`sendMessage(numero, …)` escolhe o socket pelo `canal_id` da conversa, cai no Principal),
+  então os ~20 lugares que mandam mensagem não mudaram. `socketDoCanal`, `ligarCanal` (app.js registra o
+  iniciador; no painel de teste não liga), `desligarCanal`.
+- **`src/whatsapp-status.js`**: estado por canal; `obterEstado()` sem número = todos conectados.
+- **`src/bot.js`**: `iniciarBot(negocio, fluxo, canal)` com a pasta do canal; `tratarMensagemRecebida(…,
+  { canalId })` usa o fluxo do canal; `pararBot(canalId)` (não reconecta). `app.js` liga todos os ativos.
+- **`src/fluxo.js`**: `carregarFluxoPorId` (o fluxo leva `_id`, não enumerável, fora do JSON),
+  `carregarFluxoDoCanal`, `carregarFluxoDaConversa`, `leitorDeFluxos()` (cache pra listas),
+  `salvarFluxoPorId`, `listarFluxos`, `criarFluxo`, `renomearFluxo`, `excluirFluxo`.
+  **flow-engine**: o estado guarda `fluxoId`; fluxo diferente (cliente trocou de número) = recomeça,
+  menos com atendente ou esperando a nota. Inatividade, fechamento automático, "paradas no fluxo"
+  (Fila, Painel), finalizar, devolver ao bot, puxar e retornos usam o fluxo da conversa.
+- **Telas**: Configurações › WhatsApp (Números: estado, QR `qr.png?numero=<id>`, nome, fluxo, ligar/
+  desligar, adicionar), Fila (etiqueta, filtro `numero` no cookie, número na Nova conversa, "Pelo
+  número…"), editor de fluxo (`?fluxo=<id>` em tudo, seletor, Mais › Fluxos), Status do sistema (um
+  item por número).
+- A API oficial continua sendo uma conexão da instalação inteira (o Principal). Misturar números
+  pelo celular e pela API oficial na mesma instalação fica para depois.
+- Testes: `test/e4-numeros.test.js` (6 testes). Total: 116 passam, zero falhas.
+
 ## Testes sem as 8 falhas de EPERM (19/10/2026)
 Os 8 testes antigos (atendimento-avancado, configuracoes, eventos, fila, fluxo-editor, painel,
 seguranca, whatsapp) não fechavam o banco antes de apagar a pasta temporária, e o Windows não
@@ -516,7 +547,7 @@ deixava apagar. Agora o `after()` fecha o banco, se ele foi aberto. `npm test`: 
   `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
 - `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
   `public/js/editor-fluxo.js` (editor, simulador, importar).
-- `src/socket-atual.js` (central de envio), `src/whatsapp-oficial.js` (API oficial da Meta),
+- `src/canais.js` (números), `src/socket-atual.js` (central de envio e roteador), `src/whatsapp-oficial.js` (API oficial da Meta),
   `src/routes/webhook-whatsapp.js` (webhook da Meta).
 - `src/campanhas.js` (campanhas), `src/envios.js` (fila de envios automáticos), `src/lembretes.js` (recompra), `src/retornos.js`,
   `src/resposta-envio.js` (SAIR e respostas a envios), `src/routes/campanhas.js` (menu Campanhas).

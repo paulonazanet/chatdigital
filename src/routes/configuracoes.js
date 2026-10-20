@@ -13,7 +13,9 @@ const equipe = require('../equipe');
 const crypto = require('crypto');
 const { montarStatus } = require('../status-sistema');
 const oficial = require('../whatsapp-oficial');
-const { modoAtual } = require('../socket-atual');
+const { modoAtual, ligarCanal } = require('../socket-atual');
+const canais = require('../canais');
+const { listarFluxos } = require('../fluxo');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -366,12 +368,42 @@ function renderizarWhatsapp(req, res, extra = {}) {
     config: oficial.configParaTela(),
     enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/whatsapp`,
     modelos: oficial.listarModelos(),
+    // números pelo celular (E4, 3a parte): cada um com o estado, o QR Code e o fluxo dele
+    numeros: canais.listarCanais().map((c) => ({ ...c, estado: whatsappStatus.obterEstado(c.id) })),
+    fluxos: listarFluxos(),
     erro: null,
     aviso: req.query.aviso || null,
     ...extra,
   });
 }
 router.get('/whatsapp', (req, res) => renderizarWhatsapp(req, res));
+// Números pelo celular: adicionar (liga na hora, se o sistema estiver rodando de verdade), renomear,
+// escolher o fluxo, ligar/desligar
+router.post('/whatsapp/numeros', async (req, res) => {
+  const canal = canais.criarCanal(req.body.nome);
+  if (canal.erro) return renderizarWhatsapp(req, res, { erro: canal.erro });
+  const ligou = modoAtual() === 'celular' && (await ligarCanal(canal));
+  res.redirect(`/painel/configuracoes/whatsapp?aviso=${ligou ? 'numero' : 'numero-reiniciar'}#numero-${canal.id}`);
+});
+router.post('/whatsapp/numeros/:id', (req, res) => {
+  const canal = canais.obterCanal(Number(req.params.id));
+  if (!canal) return res.redirect('/painel/configuracoes/whatsapp');
+  const renomeado = canais.renomearCanal(canal.id, req.body.nome);
+  if (renomeado.erro) return renderizarWhatsapp(req, res, { erro: renomeado.erro });
+  const fluxoId = listarFluxos().some((f) => String(f.id) === String(req.body.fluxo_id)) ? Number(req.body.fluxo_id) : 1;
+  require('../db').db.prepare('UPDATE canais SET fluxo_id = ? WHERE id = ?').run(fluxoId === 1 ? null : fluxoId, canal.id);
+  res.redirect(`/painel/configuracoes/whatsapp?aviso=salvo#numero-${canal.id}`);
+});
+router.post('/whatsapp/numeros/:id/ativo', async (req, res) => {
+  const canal = canais.obterCanal(Number(req.params.id));
+  if (!canal) return res.redirect('/painel/configuracoes/whatsapp');
+  const resultado = canais.definirAtivo(canal.id, !canal.ativo);
+  if (resultado.erro) return renderizarWhatsapp(req, res, { erro: resultado.erro });
+  if (canal.ativo) require('../bot').pararBot(canal.id);
+  else if (modoAtual() === 'celular') await ligarCanal(resultado);
+  res.redirect('/painel/configuracoes/whatsapp');
+});
+
 router.post('/whatsapp/conexao', (req, res) => {
   salvarConfiguracoes({ whatsapp_conexao: req.body.whatsapp_conexao === 'oficial' ? 'oficial' : 'celular' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');
@@ -401,7 +433,8 @@ router.post('/whatsapp/oficial/modelos', async (req, res) => {
 // Imagem do QR Code atual, gerada a partir da string que o Baileys manda — sem cache, porque o
 // QR muda (o WhatsApp expira e reenvia um novo) toda vez que o painel recarrega essa tag <img>.
 router.get('/whatsapp/qr.png', async (req, res) => {
-  const { qr } = whatsappStatus.obterEstado();
+  const canalId = /^\d+$/.test(String(req.query.numero || '')) ? Number(req.query.numero) : 1;
+  const { qr } = whatsappStatus.obterEstado(canalId);
   if (!qr) return res.status(404).end();
 
   res.set('Cache-Control', 'no-store');

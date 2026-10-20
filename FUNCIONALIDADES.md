@@ -120,6 +120,9 @@ Os atendimentos **finalizados**, para conferir depois.
   gestão e para a própria pessoa). Quando um alerta aparece ou piora, quem está com o painel aberto
   ouve o bipe e recebe o aviso do Windows (de novo a cada 15 min se continuar).
 
+- **Vários números**: com mais de um número ligado, cada conversa da lista mostra a etiqueta do número
+  por onde chegou, o cabeçalho diz "Pelo número …", há o filtro **Número** (lembrado, como o setor)
+  e a **+ Nova conversa** pergunta por qual número mandar.
 - **API oficial: regra das 24 horas.** Passadas 24 h da última mensagem do cliente, aparece a faixa
   "Passaram 24 horas" e só dá para mandar um **modelo aprovado** (escolhe o modelo, preenche as
   informações {{1}}, {{2}}... e **Mandar modelo**); o texto do modelo fica no histórico.
@@ -345,6 +348,12 @@ desconectado, fora do horário, feriado ou limite do dia).
   conferir se é válido; também só vale depois de Salvar.
 - **Mais ▾ > Exportar**: baixa o fluxo **salvo** num arquivo (.json), para guardar ou levar para
   outra instalação.
+- **Vários fluxos (um por número)**: com mais de um fluxo, o topo mostra qual está aberto (e quantos
+  números usam cada um). **Mais ▾ > Fluxos**: lista, editar, renomear, excluir (o Principal e fluxo em
+  uso por um número não) e **criar** um fluxo novo, começando de uma cópia, de um fluxo pronto ou em
+  branco. Salvar, testar, exportar e as versões são de cada fluxo. Qual número usa qual fluxo se
+  escolhe em Configurações > WhatsApp. Se o cliente passa a escrever por um número com outro fluxo,
+  ele começa no bot desse número (o histórico continua um só).
 - **Mais ▾ > Versões salvas**: cada Salvar guarda a versão (as últimas 100), com quando, quem e de
   onde veio (editor, fluxo pronto, arquivo, volta de versão). **Voltar para esta versão** passa a
   valer na hora para o bot (e o fluxo de antes também fica guardado). **Baixar** cada versão.
@@ -410,6 +419,11 @@ desconectado, fora do horário, feriado ou limite do dia).
 ### Configurações > WhatsApp
 - **Como o WhatsApp está ligado**: **WhatsApp do celular (QR Code)** ou **API oficial da Meta**. A
   escolha vale depois de reiniciar o sistema (a tela mostra a em uso e avisa quando falta reiniciar).
+- **Números** (pelo celular): cada número é um WhatsApp ligado pelo QR Code, com o estado e o QR
+  dele, **nome** (ex.: Suporte 1, Suporte 2) e o **fluxo do bot** que usa (pode ser o mesmo para
+  todos). **+ Adicionar número** (liga na hora e mostra o QR para ler no celular desse número),
+  **Desligar/Ligar** (o último ligado não desliga; o histórico fica). Todas as conversas caem na mesma
+  Fila e a resposta sai pelo número por onde o cliente escreveu por último.
 - **API oficial da Meta**: código do número (Phone number ID), código da conta (WhatsApp Business
   Account ID), chave de acesso permanente e segredo do app (os dois só aparecem com o final
   ••••), versão da API. **Salvar e conferir com a Meta** mostra o número, o nome verificado e a

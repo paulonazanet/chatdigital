@@ -26,7 +26,9 @@ const { salvarBufferDeMidia } = require('./midia');
 const whatsappStatus = require('./whatsapp-status');
 const { numeroPermitido, construirVerificadorNumeroPermitido } = require('./modo-teste');
 
-const AUTH_DIR = path.join(__dirname, '..', 'auth');
+// pasta de login de cada número: o Principal usa "auth" (a de sempre), os outros "auth-numero-<id>"
+const pastaDoCanal = (canal) => path.join(__dirname, '..', canal.pasta || 'auth');
+const canaisParados = new Set(); // números desligados na tela: não reconectam
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 
 const AVISO_MIDIA_RECEBIDA =
@@ -106,7 +108,8 @@ async function enviarComSeguranca(sock, numero, texto) {
  * Trata uma mensagem que chegou do WhatsApp (cliente escreveu, mandou mídia ou reagiu). Separado do
  * evento do Baileys pra dar pra testar sem conexão de verdade.
  */
-async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
+// `canalId`: por qual número (E4, 3a parte) a mensagem chegou; a conversa passa a responder por ele
+async function tratarMensagemRecebida(sock, msg, negocio, fluxo, { canalId = null } = {}) {
   if (!msg.message || msg.key.fromMe) return;
   const numero = msg.key.remoteJid;
   if (!ehConversaDeCliente(numero)) return; // ignora grupos, Status, canais etc.
@@ -129,7 +132,9 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
     msg.message.extendedTextMessage?.text ||
     '';
   // id no WhatsApp (pra citar/reagir depois) e a mensagem que o cliente citou, se citou
-  const extra = { waId: msg.key.id, citadaId: mensagemCitada(numero, msg.message)?.id };
+  const extra = { waId: msg.key.id, citadaId: mensagemCitada(numero, msg.message)?.id, canalId };
+  // fluxo do número por onde chegou (cada número pode ter o seu bot)
+  if (canalId) fluxo = require('./fluxo').carregarFluxoDoCanal(canalId);
 
   if (situacao === 'ignorado') {
     const rotulo = texto ? null : identificarMidia(msg.message)?.rotulo;
@@ -197,15 +202,16 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo) {
   await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
 }
 
-async function iniciarBot(negocio, fluxoDoBoot) {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+async function iniciarBot(negocio, fluxoDoBoot, canal = { id: 1, nome: 'Principal', pasta: 'auth' }) {
+  canaisParados.delete(canal.id);
+  const { state, saveCreds } = await useMultiFileAuthState(pastaDoCanal(canal));
 
   const sock = makeWASocket({
     auth: state,
     logger,
     printQRInTerminal: false,
   });
-  definirSocket(sock);
+  definirSocket(sock, canal.id);
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -215,18 +221,19 @@ async function iniciarBot(negocio, fluxoDoBoot) {
     if (qr) {
       console.log('\nEscaneie este QR Code no WhatsApp do número RESERVA (Aparelhos conectados > Conectar) — ou pela tela Configurações > WhatsApp do painel:\n');
       qrcode.generate(qr, { small: true });
-      whatsappStatus.definirQr(qr);
+      whatsappStatus.definirQr(qr, canal.id);
     }
 
     if (connection === 'close') {
       const deveReconectar =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Conexão do WhatsApp fechada.', deveReconectar ? 'Reconectando...' : 'Sessão encerrada (escaneie o QR de novo).');
-      whatsappStatus.definirDesconectado();
-      if (deveReconectar) iniciarBot(negocio, fluxoDoBoot);
+      if (canaisParados.has(canal.id)) return; // desligado na tela: fica parado
+      console.log(`Conexão do WhatsApp (${canal.nome}) fechada.`, deveReconectar ? 'Reconectando...' : 'Sessão encerrada (escaneie o QR de novo).');
+      whatsappStatus.definirDesconectado(canal.id);
+      if (deveReconectar) iniciarBot(negocio, fluxoDoBoot, canal);
     } else if (connection === 'open') {
-      console.log(`Bot da ${negocio.nome} conectado e pronto para atender.`);
-      whatsappStatus.definirConectado();
+      console.log(`Bot da ${negocio.nome} (${canal.nome}) conectado e pronto para atender.`);
+      whatsappStatus.definirConectado(canal.id);
     }
   });
 
@@ -252,11 +259,18 @@ async function iniciarBot(negocio, fluxoDoBoot) {
     }
 
     for (const msg of messages) {
-      await tratarMensagemRecebida(sock, msg, negocio, fluxo);
+      await tratarMensagemRecebida(sock, msg, negocio, fluxo, { canalId: canal.id });
     }
   });
 
   return sock;
 }
 
-module.exports = { iniciarBot, tratarMensagemRecebida, ehConversaDeCliente, construirVerificadorNumeroPermitido };
+/** Desliga um número (desativado em Configurações > WhatsApp), sem deslogar o celular */
+function pararBot(canalId) {
+  canaisParados.add(canalId);
+  require('./socket-atual').desligarCanal(canalId);
+  whatsappStatus.esquecer(canalId);
+}
+
+module.exports = { iniciarBot, pararBot, tratarMensagemRecebida, ehConversaDeCliente, construirVerificadorNumeroPermitido };

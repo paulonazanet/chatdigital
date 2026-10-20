@@ -30,8 +30,10 @@ const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { obterSocket, modoAtual } = require('../socket-atual');
 const oficial = require('../whatsapp-oficial');
+const canais = require('../canais');
+const { socketDoCanal } = require('../socket-atual');
 const { resolverNumeroNoWhatsApp } = require('../whatsapp-numero');
-const { carregarFluxo } = require('../fluxo');
+const { carregarFluxo, carregarFluxoDaConversa, leitorDeFluxos } = require('../fluxo');
 const { carregarNegocio } = require('../negocio');
 const { encerrarAtendimento, iniciarFluxo, transferirParaHumano, aguardarAvaliacao, substituirVariaveis } = require('../flow-engine');
 const { temPermissao } = require('../permissoes');
@@ -87,10 +89,12 @@ const FILTROS = ['minhas', 'fila', 'bot', 'finalizadas', 'todas'];
 // pararam de responder no meio de uma pergunta) — aparecem no filtro "No bot", com botão Puxar.
 // Usa `no_fluxo_atual` salvo no banco (não a memória do motor de fluxo), então continua
 // funcionando certinho mesmo depois de reiniciar o processo.
-function listarParadasNoFluxo(atendente, fluxo) {
+// cada conversa segue o fluxo do número dela (E4, 3a parte)
+function listarParadasNoFluxo(atendente) {
+  const fluxoDe = leitorDeFluxos();
   return listarConversasComBot()
     .filter((c) => podeVerConversa(atendente, c))
-    .filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxo.inicio);
+    .filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxoDe(c).inicio);
 }
 
 // Filtro e setor escolhidos: vêm da URL quando o atendente clica, e ficam num cookie pra
@@ -100,17 +104,19 @@ function lerFiltros(req, res) {
   const filtro = FILTROS.includes(req.query.filtro) ? req.query.filtro : FILTROS.includes(salvo[0]) ? salvo[0] : 'minhas';
   const setor = req.query.setor !== undefined ? String(req.query.setor) : salvo[1] || '';
   const marcador = req.query.marcador !== undefined ? String(req.query.marcador).replace(/\D/g, '') : salvo[2] || '';
-  if (req.query.filtro !== undefined || req.query.setor !== undefined || req.query.marcador !== undefined) {
-    res.cookie('filtroFila', `${filtro}|${setor}|${marcador}`, { httpOnly: true, sameSite: 'lax' });
+  // número de WhatsApp (E4, 3a parte), quando tem mais de um
+  const numero = req.query.numero !== undefined ? String(req.query.numero).replace(/\D/g, '') : salvo[3] || '';
+  if (req.query.filtro !== undefined || req.query.setor !== undefined || req.query.marcador !== undefined || req.query.numero !== undefined) {
+    res.cookie('filtroFila', `${filtro}|${setor}|${marcador}|${numero}`, { httpOnly: true, sameSite: 'lax' });
   }
   // a busca não fica no cookie: é de momento, trocar de filtro já limpa
-  return { filtro, setor, marcador, busca: String(req.query.q || '').trim().slice(0, 60) };
+  return { filtro, setor, marcador, numero, busca: String(req.query.q || '').trim().slice(0, 60) };
 }
 
 // Uma lista só (opção "A ajustada" aprovada pelo Paulo): quem está esperando resposta há mais
 // tempo em cima; `esperandoResposta` = a vez é do atendente (conversa ainda na fila, ou o
 // cliente escreveu depois da última resposta) — é quem ganha a bolinha amarela/vermelha.
-function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
+function montarListaFila(atendente, fluxo, { filtro, setor, marcador, numero = '', busca }) {
   const naFila = listarFila()
     .filter((c) => podeVerConversa(atendente, c))
     .map((c) => ({
@@ -118,7 +124,7 @@ function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
       tipo: c.status === 'aguardando' ? 'fila' : 'atendendo',
       esperandoResposta: c.status === 'aguardando' || c.ultima_mensagem_remetente === 'cliente',
     }));
-  const noBot = listarParadasNoFluxo(atendente, fluxo).map((c) => ({ ...c, tipo: 'bot', esperandoResposta: false }));
+  const noBot = listarParadasNoFluxo(atendente).map((c) => ({ ...c, tipo: 'bot', esperandoResposta: false }));
 
   const doSetor = (c) => !setor || (setor === 'sem' ? !c.setor_id : String(c.setor_id) === setor);
   const porFiltro = {
@@ -135,9 +141,12 @@ function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
   const todasAsVisiveis = [...porFiltro.todas, ...porFiltro.finalizadas];
   const marcadoresDe = marcadores.marcadoresPorConversa([...new Set(todasAsVisiveis.map((c) => c.id))]);
   const doMarcador = (c) => !marcador || (marcadoresDe[c.id] || []).some((m) => String(m.id) === marcador);
-  const passa = (c) => doSetor(c) && doMarcador(c);
+  const doNumero = (c) => !numero || String(c.canal_id || 1) === numero;
+  const passa = (c) => doSetor(c) && doMarcador(c) && doNumero(c);
   const contagens = Object.fromEntries(['minhas', 'fila', 'bot', 'todas'].map((f) => [f, porFiltro[f].filter(passa).length]));
   const fixadas = marcadores.idsFixados(atendente.id);
+  // com mais de um número ligado, cada conversa mostra por qual chegou
+  const nomesDosNumeros = canais.temVariosNumeros() ? new Map(canais.listarCanais().map((k) => [k.id, k.nome])) : new Map();
 
   const desde = (c) => (c.esperandoResposta ? c.esperando_desde || c.ultima_mensagem_em : c.ultima_mensagem_em) || c.atualizado_em;
   const itens = porFiltro[filtro].filter(passa).filter((c) => conversaCasaComBusca(c, busca)).sort((a, b) => {
@@ -148,7 +157,7 @@ function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
     return a.esperandoResposta ? desde(a).localeCompare(desde(b)) : desde(b).localeCompare(desde(a));
   });
   return {
-    itens: itens.map((c) => ({ ...c, desde: desde(c), marcadores: marcadoresDe[c.id] || [], fixada: fixadas.has(c.id) })),
+    itens: itens.map((c) => ({ ...c, desde: desde(c), marcadores: marcadoresDe[c.id] || [], fixada: fixadas.has(c.id), numeroNome: nomesDosNumeros.get(c.canal_id || 1) || null })),
     contagens,
   };
 }
@@ -192,6 +201,9 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     filtro: filtros.filtro,
     setorFiltro: filtros.setor,
     marcadorFiltro: filtros.marcador,
+    numeroFiltro: filtros.numero,
+    numerosLigados: canais.temVariosNumeros() ? canais.listarCanais({ soAtivos: true }) : [],
+    numeroDaConversa: conversaSelecionada && canais.temVariosNumeros() ? canais.obterCanal(conversaSelecionada.canal_id || 1) : null,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }),
     marcadoresDaConversa: conversaSelecionada ? marcadores.marcadoresPorConversa([conversaSelecionada.id])[conversaSelecionada.id] || [] : [],
     conversaFixada: conversaSelecionada ? marcadores.idsFixados(req.atendente.id).has(conversaSelecionada.id) : false,
@@ -234,7 +246,9 @@ router.post('/nova', async (req, res) => {
 
   const numeroDigitado = (req.body.numero || '').replace(/\D/g, '');
   const texto = (req.body.texto || '').trim();
-  const sock = obterSocket();
+  // por qual número começar (com mais de um ligado; E4, 3a parte)
+  const canalEscolhido = canais.listarCanais({ soAtivos: true }).find((k) => String(k.id) === String(req.body.canal_id)) || null;
+  const sock = canalEscolhido && modoAtual() === 'celular' ? socketDoCanal(canalEscolhido.id) : obterSocket();
 
   if (!numeroDigitado) {
     return renderizarFila(req, res, { erroNovaConversa: 'Informe um número de telefone (com DDD e DDI).' });
@@ -251,10 +265,11 @@ router.post('/nova', async (req, res) => {
       return renderizarFila(req, res, { erroNovaConversa: 'Esse número não tem WhatsApp, ou está digitado errado.' });
     }
     const conversa = obterOuCriarConversa(numero);
+    if (canalEscolhido) require('../db').db.prepare('UPDATE conversas SET canal_id = ? WHERE id = ?').run(canalEscolhido.id, conversa.id);
     assumirConversa(conversa.id, req.atendente.id);
     // Sem isso, o motor de fluxo (memória separada do banco) não sabe que essa conversa já está
     // com um atendente, e o bot mostra o menu automático assim que o cliente responder.
-    transferirParaHumano(numero, carregarFluxo());
+    transferirParaHumano(numero, carregarFluxoDaConversa(numero));
 
     if (texto && (await enviarComSeguranca(sock, numero, texto))) {
       registrarMensagem(numero, 'atendente', texto, null, req.atendente.id);
@@ -365,7 +380,7 @@ router.post('/:id/puxar', (req, res) => {
   if (!conversa) return res.redirect('/painel/fila');
   const impedimento = impedimentoParaPegar(req.atendente, conversa);
   if (impedimento) return renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro: impedimento });
-  transferirParaHumano(conversa.numero, carregarFluxo());
+  transferirParaHumano(conversa.numero, carregarFluxoDaConversa(conversa.numero));
   assumirConversa(conversa.id, req.atendente.id);
   res.redirect(`/painel/fila/${conversa.id}`);
 });
@@ -453,7 +468,7 @@ router.post('/:id/devolver-bot', async (req, res) => {
       erro: 'O bot não está conectado ao WhatsApp agora — não dá pra devolver a conversa pra ele.',
     });
   }
-  const fluxo = carregarFluxo();
+  const fluxo = carregarFluxoDaConversa(conversa.numero);
   registrarNotaInterna(conversa.id, `Devolvida ao bot (menu inicial) por ${req.atendente.nome}.`);
   finalizarConversa(conversa.id, 'outro');
   const texto = await iniciarFluxo({ numero: conversa.numero, negocio: carregarNegocio(), fluxo });
@@ -478,7 +493,7 @@ router.post('/:id/finalizar', async (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
 
-  const fluxo = carregarFluxo();
+  const fluxo = carregarFluxoDaConversa(conversa.numero);
   const negocio = carregarNegocio();
   const motivo = req.body.motivo_id ? motivosEncerramento.resolverMotivo(Number(req.body.motivo_id)) : null;
   const temMotivos = motivosEncerramento.listarArvore({ soAtivos: true }).some((g) => g.motivos.length);

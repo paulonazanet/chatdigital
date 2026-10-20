@@ -126,11 +126,12 @@ after(async () => {
   fs.rmSync(diretorioTeste, { recursive: true, force: true });
 });
 
-test('central de envio: celular por padrão; com a oficial em uso, tudo sai pela Meta', () => {
+test('central de envio: celular por padrão; com a oficial em uso, tudo sai pela Meta', async () => {
   const celular = { sendMessage: async () => ({ key: { id: 'baileys' } }) };
   definirSocket(celular);
   assert.strictEqual(modoAtual(), 'celular');
-  assert.strictEqual(obterSocket(), celular);
+  assert.strictEqual(obterSocket().tipo, 'celular', 'pelo celular, a central escolhe o número');
+  assert.deepStrictEqual(await obterSocket().sendMessage('5581@s.whatsapp.net', { text: 'oi' }), { key: { id: 'baileys' } });
   const adaptador = oficial.criarAdaptador();
   definirCanalOficial(adaptador);
   definirModo('oficial');

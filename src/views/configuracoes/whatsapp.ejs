@@ -3,6 +3,9 @@
 <%
   const AVISOS = {
     conexao: 'Escolha salva. Ela vale depois de reiniciar o sistema (no servidor: systemctl restart).',
+    numero: 'Número adicionado. Leia o QR Code dele com o WhatsApp do celular desse número.',
+    'numero-reiniciar': 'Número adicionado. Ele liga quando o sistema for reiniciado (aqui é um painel de teste).',
+    salvo: 'Número salvo.',
     testado: 'Dados da Meta salvos e conferidos: a conexão com a API oficial funcionou.',
     falhou: 'Dados salvos, mas a conferência com a Meta falhou. Veja o erro abaixo.',
     codigo: 'Código de verificação trocado. Atualize na Meta (Webhook > Verify token).',
@@ -31,20 +34,42 @@
   </fieldset>
 
   <% if (emUso === 'celular') { %>
-    <% if (conectado) { %>
-      <p class="sucesso">✅ WhatsApp conectado. O bot está recebendo e enviando mensagens normalmente.</p>
-    <% } else if (temQr) { %>
-      <p class="dica">Abra o WhatsApp do número RESERVA no celular → <strong>Aparelhos conectados</strong> →
-        <strong>Conectar um aparelho</strong> → aponte a câmera pra este QR Code.</p>
-      <p class="qr-codigo">
-        <img src="/painel/configuracoes/whatsapp/qr.png" alt="QR Code para conectar o WhatsApp" width="320" height="320">
-      </p>
-      <p class="dica">O código expira sozinho e é substituído por um novo em alguns segundos — esta
-        página atualiza a imagem automaticamente, não precisa recarregar.</p>
-    <% } else { %>
-      <p class="erro">⚠️ WhatsApp desconectado e nenhum QR Code disponível ainda. Se o servidor
-        acabou de iniciar, aguarde alguns segundos e esta página atualiza sozinha.</p>
-    <% } %>
+    <h2>Números</h2>
+    <p class="dica">Cada número é um WhatsApp ligado pelo QR Code. Todas as conversas caem na mesma Fila, mostrando por qual número
+      chegaram, e a resposta sai pelo mesmo número. Cada número usa o <strong>fluxo do bot</strong> escolhido (pode ser o mesmo para todos).</p>
+    <% numeros.forEach((n) => { %>
+      <fieldset class="cartao-numero<%= n.ativo ? '' : ' cartao-numero-desligado' %>" id="numero-<%= n.id %>">
+        <legend><%= n.nome %></legend>
+        <% if (!n.ativo) { %>
+          <p class="dica">Desligado. As conversas que vieram por ele continuam no histórico.</p>
+        <% } else if (n.estado.conectado) { %>
+          <p class="sucesso">✅ WhatsApp conectado: recebendo e enviando mensagens.</p>
+        <% } else if (n.estado.qr) { %>
+          <p class="dica">Abra o WhatsApp <strong>deste número</strong> no celular → <strong>Aparelhos conectados</strong> →
+            <strong>Conectar um aparelho</strong> → aponte a câmera para este QR Code. Ele troca sozinho a cada poucos segundos.</p>
+          <p class="qr-codigo"><img src="/painel/configuracoes/whatsapp/qr.png?numero=<%= n.id %>" alt="QR Code para conectar <%= n.nome %>" width="280" height="280"></p>
+        <% } else { %>
+          <p class="erro">⚠️ WhatsApp desconectado e nenhum QR Code disponível ainda. Se o sistema acabou de ligar, espere alguns segundos (a página atualiza sozinha).</p>
+        <% } %>
+        <form method="post" action="/painel/configuracoes/whatsapp/numeros/<%= n.id %>" class="linha-form linha-form-inline form-numero">
+          <label>Nome<input type="text" name="nome" value="<%= n.nome %>" maxlength="40" required></label>
+          <label>Fluxo do bot
+            <select name="fluxo_id">
+              <% fluxos.forEach((f) => { %><option value="<%= f.id %>" <%= (n.fluxo_id || 1) === f.id ? 'selected' : '' %>><%= f.nome %></option><% }) %>
+            </select>
+          </label>
+          <button type="submit" class="botao-pequeno">Salvar</button>
+        </form>
+        <form method="post" action="/painel/configuracoes/whatsapp/numeros/<%= n.id %>/ativo" onsubmit="return confirm('<%= n.ativo ? 'Desligar este número? Ele para de receber e de mandar mensagens (o celular continua com o WhatsApp normal).' : 'Ligar este número de novo?' %>')">
+          <button type="submit" class="botao-link <%= n.ativo ? 'botao-link-perigo' : '' %>"><%= n.ativo ? 'Desligar este número' : 'Ligar este número' %></button>
+        </form>
+      </fieldset>
+    <% }) %>
+    <form method="post" action="/painel/configuracoes/whatsapp/numeros" class="linha-form">
+      <input type="text" name="nome" maxlength="40" placeholder="Nome do número novo. Ex.: Suporte 2" required aria-label="Nome do número novo">
+      <button type="submit">+ Adicionar número</button>
+    </form>
+    <p class="dica">Os fluxos são criados no menu <a href="/painel/fluxo">Fluxo</a> (Mais ▾ › Fluxos).</p>
   <% } %>
 
   <% if (escolhida === 'oficial' || emUso === 'oficial') { %>
@@ -98,7 +123,7 @@
   <% } %>
 </main>
 <%- include('../partials/fim-painel') %>
-<% if (emUso === 'celular' && !conectado) { %>
+<% if (emUso === 'celular' && numeros.some((n) => n.ativo && !n.estado.conectado)) { %>
 <script>
   (function () {
     if (!('EventSource' in window)) return;

@@ -4,7 +4,7 @@ const router = express.Router();
 const oficial = require('../whatsapp-oficial');
 const { modoAtual, obterSocket } = require('../socket-atual');
 const { carregarNegocio } = require('../negocio');
-const { carregarFluxo } = require('../fluxo');
+const { carregarFluxoDoCanal } = require('../fluxo');
 const { atualizarRecibos } = require('../envios');
 const { db } = require('../db');
 
@@ -25,7 +25,7 @@ async function tratarWebhook(corpo) {
   const { tratarMensagemRecebida } = require('../bot'); // aqui: bot.js usa módulos que usam este
   const canal = obterSocket();
   const negocio = carregarNegocio();
-  const fluxo = carregarFluxo();
+  const fluxo = carregarFluxoDoCanal(1); // a API oficial é o número Principal
   for (const item of oficial.lerWebhook(corpo)) {
     try {
       if (item.mensagem) await tratarMensagemRecebida(canal, item.mensagem, negocio, fluxo);

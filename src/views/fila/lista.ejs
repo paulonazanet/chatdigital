@@ -76,6 +76,11 @@
         <label>Mensagem inicial (opcional)
           <textarea name="texto" rows="2" placeholder="Escreva a primeira mensagem..."></textarea>
         </label>
+        <% if (numerosLigados.length) { %>
+          <label>Mandar pelo número
+            <select name="canal_id"><% numerosLigados.forEach((k) => { %><option value="<%= k.id %>"><%= k.nome %></option><% }) %></select>
+          </label>
+        <% } %>
         <button type="submit">Iniciar conversa</button>
       </form>
     </details>
@@ -126,6 +131,20 @@
               <a class="<%= setorFiltro === 'sem' ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&setor=sem">Sem setor</a>
             </div>
           </details>
+          <% if (numerosLigados.length) { const numeroEscolhido = numerosLigados.find((k) => String(k.id) === numeroFiltro); %>
+            <details class="filtro-setor filtro-numero">
+              <summary class="<%= numeroEscolhido ? 'ativo' : '' %>" title="Filtrar por número de WhatsApp">
+                <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/></svg>
+                <span><%= numeroEscolhido ? numeroEscolhido.nome : 'Número' %></span>
+              </summary>
+              <div class="filtro-setor-menu">
+                <a class="<%= !numeroFiltro ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&numero=">Todos os números</a>
+                <% numerosLigados.forEach((k) => { %>
+                  <a class="<%= numeroFiltro === String(k.id) ? 'selecionado' : '' %>" href="<%= baseFiltro %>?filtro=<%= filtro %>&numero=<%= k.id %>"><%= k.nome %></a>
+                <% }) %>
+              </div>
+            </details>
+          <% } %>
           <% if (marcadoresAtivos.length) { const marcadorEscolhido = marcadoresAtivos.find((m) => String(m.id) === marcadorFiltro); %>
             <details class="filtro-setor filtro-marcador">
               <summary class="<%= marcadorEscolhido ? 'ativo' : '' %>" title="Filtrar por marcador">
@@ -152,6 +171,7 @@
             <span class="item-ultima"><%= c.ultima_mensagem_remetente === 'atendente' ? 'Você: ' : c.tipo === 'bot' ? 'Bot: ' : '' %><%= c.ultima_mensagem || '' %></span>
             <span class="item-lado">
               <% if (c.esperandoResposta) { %><span class="bolinha bolinha-<%= corDaBolinha(c.desde) %>" data-desde="<%= c.desde %>" title="Cliente esperando sua resposta"></span><% } %>
+              <% if (c.numeroNome) { %><span class="selo selo-numero" title="Chegou por este número"><%= c.numeroNome %></span><% } %>
               <%= c.tipo === 'bot' ? '' : (c.setor_nome || 'Sem setor') %>
             </span>
           </a>
@@ -208,6 +228,7 @@
                 bot: 'Com o bot',
                 finalizado: 'Finalizada',
               }[conversaSelecionada.status] %> · <%= conversaSelecionada.setor_nome || 'Sem setor' %>
+              <% if (numeroDaConversa) { %> · Pelo número <strong><%= numeroDaConversa.nome %></strong><% } %>
               <% if (protocoloAtual) { %> · Protocolo <span class="protocolo"><%= protocoloAtual %></span><% } %>
               <% if (conversaSelecionada.situacao_contato && conversaSelecionada.situacao_contato !== 'normal') { %> · <span class="selo selo-situacao-<%= conversaSelecionada.situacao_contato %>"><%= conversaSelecionada.situacao_contato === 'ignorado' ? 'Contato ignorado: o bot não atende' : 'Contato bloqueado' %></span><% } %>
             </p>

@@ -58,12 +58,14 @@ function registrarMensagem(numero, remetente, texto, midia = null, atendenteId =
   const conversa = obterOuCriarConversa(numero);
   const agora = new Date().toISOString();
   const info = db.prepare(
-    `INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id, wa_id, wa_de_mim, citada_id, falha)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO mensagens (conversa_id, remetente, texto, criado_em, midia_tipo, midia_url, atendente_id, wa_id, wa_de_mim, citada_id, falha, canal_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     conversa.id, remetente, texto, agora, midia?.tipo || null, midia?.url || null, atendenteId,
-    extra.waId || null, extra.deMim ? 1 : 0, extra.citadaId || null, extra.falha ? 1 : 0,
+    extra.waId || null, extra.deMim ? 1 : 0, extra.citadaId || null, extra.falha ? 1 : 0, extra.canalId || null,
   );
+  // E4, 3a parte: a conversa passa a responder pelo número por onde o cliente escreveu
+  if (remetente === 'cliente' && extra.canalId) db.prepare('UPDATE conversas SET canal_id = ? WHERE id = ?').run(extra.canalId, conversa.id);
   const mensagemId = Number(info.lastInsertRowid);
   if (extra.falha) return mensagemId; // não saiu: não mexe em atendimento, fila nem lembrete
   db.prepare('UPDATE conversas SET atualizado_em = ? WHERE id = ?').run(agora, conversa.id);

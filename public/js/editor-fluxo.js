@@ -6,6 +6,9 @@
   var conectando = null; // { noOrigemId, saidaId, origem: {x,y}, atual: {x,y} }
   var contadorNovoId = 1;
 
+  // qual fluxo está aberto (E4, 3a parte: um por número); vai em todas as chamadas
+  var fluxoId = (document.querySelector('main[data-fluxo]') || {}).getAttribute ? document.querySelector('main[data-fluxo]').getAttribute('data-fluxo') : '1';
+  var sufixoFluxo = 'fluxo=' + encodeURIComponent(fluxoId || '1');
   var quadro = document.getElementById('quadro-fluxo');
   var svg = document.getElementById('camada-conexoes');
   var painel = document.getElementById('painel-edicao');
@@ -720,7 +723,7 @@
       .then(function (dados) { opcoes = dados; })
       .catch(function () {}); // sem a lista, o editor funciona; só o campo Atendente fica vazio
     return buscarOpcoes
-      .then(function () { return fetch('/painel/fluxo/dados'); })
+      .then(function () { return fetch('/painel/fluxo/dados?' + sufixoFluxo); })
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         fluxo = dados;
@@ -734,8 +737,8 @@
   var origemPendente = null; // { tipo: 'modelo' | 'importado', detalhe }
 
   function salvar() {
-    var url = '/painel/fluxo/salvar';
-    if (origemPendente) url += '?origem=' + encodeURIComponent(origemPendente.tipo) + '&detalhe=' + encodeURIComponent(origemPendente.detalhe || '');
+    var url = '/painel/fluxo/salvar?' + sufixoFluxo;
+    if (origemPendente) url += '&origem=' + encodeURIComponent(origemPendente.tipo) + '&detalhe=' + encodeURIComponent(origemPendente.detalhe || '');
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -862,6 +865,17 @@
 
   document.getElementById('link-exportar-fluxo').addEventListener('click', function (ev) {
     if (sujo && !confirm('O arquivo baixado é o fluxo SALVO. As alterações não salvas da tela não vão nele. Baixar mesmo assim?')) ev.preventDefault();
+  });
+
+  // ---- Fluxos (um por número) ----
+  var dialogoFluxos = document.getElementById('dialogo-fluxos');
+  document.getElementById('botao-fluxos').addEventListener('click', function () {
+    document.querySelector('.menu-fluxo').open = false;
+    if (dialogoFluxos.showModal) dialogoFluxos.showModal();
+    else dialogoFluxos.setAttribute('open', '');
+  });
+  document.getElementById('fechar-fluxos').addEventListener('click', function () {
+    dialogoFluxos.close ? dialogoFluxos.close() : dialogoFluxos.removeAttribute('open');
   });
 
   // ---- Simulador (Testar) ----

@@ -460,6 +460,37 @@ if (!colunaExiste('campanhas', 'modelo_nome')) {
 }
 
 
+// E4, 3a parte: vários números de WhatsApp (pelo celular) na mesma instalação, com o mesmo bot.
+// Cada número tem a pasta de login dele (o 1o usa a pasta "auth" de sempre). A conversa guarda por
+// qual número o cliente escreveu por último (canal_id), e a resposta sai por ele; a mensagem do
+// cliente guarda por qual número chegou.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS canais (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    pasta TEXT NOT NULL UNIQUE,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL
+  );
+`);
+db.prepare("INSERT OR IGNORE INTO canais (id, nome, pasta, criado_em) VALUES (1, 'Principal', 'auth', ?)").run(new Date().toISOString());
+if (!colunaExiste('conversas', 'canal_id')) db.exec('ALTER TABLE conversas ADD COLUMN canal_id INTEGER');
+// fluxos: cada número pode ter o seu bot. O 1 é o "Principal" (o arquivo config/fluxo.json, sem
+// conteúdo aqui); os outros guardam o fluxo inteiro em JSON. fluxo_versoes passa a ser por fluxo.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS fluxos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    conteudo TEXT,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT
+  );
+`);
+db.prepare("INSERT OR IGNORE INTO fluxos (id, nome, criado_em) VALUES (1, 'Principal', ?)").run(new Date().toISOString());
+if (!colunaExiste('canais', 'fluxo_id')) db.exec('ALTER TABLE canais ADD COLUMN fluxo_id INTEGER');
+if (!colunaExiste('fluxo_versoes', 'fluxo_id')) db.exec('ALTER TABLE fluxo_versoes ADD COLUMN fluxo_id INTEGER NOT NULL DEFAULT 1');
+if (!colunaExiste('mensagens', 'canal_id')) db.exec('ALTER TABLE mensagens ADD COLUMN canal_id INTEGER');
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');

@@ -1,5 +1,5 @@
 const { db } = require('./db');
-const { carregarFluxo } = require('./fluxo');
+const { carregarFluxo, leitorDeFluxos } = require('./fluxo');
 const { carregarNegocio } = require('./negocio');
 const { obterSocket } = require('./socket-atual');
 const { encerrarAtendimento, transferirParaHumano } = require('./flow-engine');
@@ -30,13 +30,15 @@ async function enviar(sock, numero, texto) {
   }
 }
 
-async function enviarLembretes(sock, negocio, fluxo) {
+// cada conversa segue o fluxo do número dela (E4, 3a parte): "parada" = fora do início DESSE fluxo
+async function enviarLembretes(sock, negocio, fluxoDe) {
   const parados = db
     .prepare(
-      `SELECT * FROM conversas WHERE status = 'bot' AND no_fluxo_atual IS NOT NULL AND no_fluxo_atual != ?
+      `SELECT * FROM conversas WHERE status = 'bot' AND no_fluxo_atual IS NOT NULL
        AND lembrete_inatividade_em IS NULL AND atualizado_em <= ?`,
     )
-    .all(fluxo.inicio, isoMinutosAtras(negocio.inatividade_minutos_lembrete));
+    .all(isoMinutosAtras(negocio.inatividade_minutos_lembrete))
+    .filter((c) => c.no_fluxo_atual !== fluxoDe(c).inicio);
 
   for (const conversa of parados) {
     await enviar(sock, conversa.numero, negocio.mensagem_inatividade);
@@ -54,13 +56,14 @@ function nomeDoSetorDaTransferencia(negocio) {
   return 'Geral';
 }
 
-async function desistirDasAbandonadas(sock, negocio, fluxo) {
+async function desistirDasAbandonadas(sock, negocio, fluxoDe) {
   const minutosDepoisDoLembrete = negocio.inatividade_minutos_limite - negocio.inatividade_minutos_lembrete;
   const abandonadas = db
     .prepare(`SELECT * FROM conversas WHERE status = 'bot' AND lembrete_inatividade_em IS NOT NULL AND lembrete_inatividade_em <= ?`)
     .all(isoMinutosAtras(minutosDepoisDoLembrete));
 
   for (const conversa of abandonadas) {
+    const fluxo = fluxoDe(conversa);
     db.prepare('UPDATE conversas SET lembrete_inatividade_em = NULL WHERE id = ?').run(conversa.id);
 
     if (negocio.inatividade_acao === 'transferir') {
@@ -81,12 +84,12 @@ async function desistirDasAbandonadas(sock, negocio, fluxo) {
 }
 
 async function verificarInatividade() {
-  const fluxo = carregarFluxo();
+  const fluxoDe = leitorDeFluxos();
   const negocio = carregarNegocio();
   const sock = obterSocket();
 
-  await enviarLembretes(sock, negocio, fluxo);
-  await desistirDasAbandonadas(sock, negocio, fluxo);
+  await enviarLembretes(sock, negocio, fluxoDe);
+  await desistirDasAbandonadas(sock, negocio, fluxoDe);
 }
 
 function iniciarChecagemInatividade() {

@@ -1,5 +1,5 @@
 const { db } = require('./db');
-const { carregarFluxo } = require('./fluxo');
+const { leitorDeFluxos } = require('./fluxo');
 const { carregarNegocio } = require('./negocio');
 const { obterSocket } = require('./socket-atual');
 const { encerrarAtendimento } = require('./flow-engine');
@@ -17,14 +17,16 @@ async function fecharAtendimentosVencidos() {
   const horas = Number(negocio.fechamento_automatico_horas);
   if (!horas) return;
 
-  const fluxo = carregarFluxo();
+  // cada conversa segue o fluxo do número dela (E4, 3a parte)
+  const fluxoDe = leitorDeFluxos();
   const limite = new Date(Date.now() - horas * 3600000).toISOString();
   const vencidas = db
     .prepare(
       `SELECT * FROM conversas WHERE aberta_em IS NOT NULL AND aberta_em <= ?
-       AND (status IN ('aguardando', 'atendendo') OR (status = 'bot' AND no_fluxo_atual IS NOT NULL AND no_fluxo_atual != ?))`,
+       AND (status IN ('aguardando', 'atendendo') OR (status = 'bot' AND no_fluxo_atual IS NOT NULL))`,
     )
-    .all(limite, fluxo.inicio);
+    .all(limite)
+    .filter((c) => c.status !== 'bot' || c.no_fluxo_atual !== fluxoDe(c).inicio);
 
   const sock = obterSocket();
   for (const conversa of vencidas) {
@@ -38,7 +40,7 @@ async function fecharAtendimentosVencidos() {
       }
     }
     finalizarConversa(conversa.id, 'automatico');
-    encerrarAtendimento(conversa.numero, fluxo); // bot volta a atender normalmente na próxima mensagem
+    encerrarAtendimento(conversa.numero, fluxoDe(conversa)); // bot volta a atender normalmente na próxima mensagem
   }
 }
 

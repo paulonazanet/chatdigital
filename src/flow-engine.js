@@ -13,12 +13,18 @@ const MINUTOS_LIMITE_AVALIACAO = 30;
 const conversas = new Map();
 
 function estadoInicial(fluxo, numero) {
-  return { numero, no: fluxo.inicio, vars: {}, aguardando: false, humano: false, atendenteId: null, aguardandoAvaliacao: false, aguardandoAvaliacaoDesde: null };
+  return { numero, fluxoId: fluxo._id || 1, no: fluxo.inicio, vars: {}, aguardando: false, humano: false, atendenteId: null, aguardandoAvaliacao: false, aguardandoAvaliacaoDesde: null };
 }
 
 function obterEstado(numero, fluxo) {
   if (!conversas.has(numero)) conversas.set(numero, estadoInicial(fluxo, numero));
-  return conversas.get(numero);
+  const estado = conversas.get(numero);
+  // o cliente passou a falar por um número com outro bot (E4, 3a parte): recomeça no fluxo novo,
+  // a não ser que esteja com atendente ou esperando a nota da pesquisa
+  if ((estado.fluxoId || 1) !== (fluxo._id || 1) && !estado.humano && !estado.aguardandoAvaliacao) {
+    Object.assign(estado, estadoInicial(fluxo, numero));
+  }
+  return estado;
 }
 
 function resolverCaminho(caminho, contexto) {

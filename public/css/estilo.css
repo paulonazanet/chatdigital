@@ -1536,3 +1536,17 @@ fieldset[disabled] { opacity: 0.85; }
 .texto-modelo { font-size: 0.82rem; white-space: pre-wrap; max-width: 360px; }
 .parametros-escolher-modelo { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .parametros-escolher-modelo label { flex: 1; min-width: 200px; }
+
+/* E4, 3a parte: vários números e vários fluxos */
+.cartao-numero { background: var(--branco); }
+.cartao-numero-desligado { opacity: 0.7; }
+.form-numero { align-items: flex-end; flex-wrap: wrap; }
+.form-numero label { font-size: 0.8rem; font-weight: 600; color: var(--azul-marinho); }
+.form-numero input, .form-numero select { margin-top: 0.25rem; }
+.selo-numero { background: #eaf1f6; color: var(--azul-destaque); }
+.editor-titulo { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.seletor-fluxo select { margin: 0; padding: 0.35rem 0.5rem; font-size: 0.9rem; }
+.acoes-fluxo { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.campo-renomear-fluxo { width: 9rem; margin: 0; padding: 0.3rem 0.4rem; font-size: 0.8rem; }
+.form-novo-fluxo { display: flex; flex-direction: column; gap: 0.5rem; }
+.form-novo-fluxo select, .form-novo-fluxo input { margin-top: 0.25rem; }

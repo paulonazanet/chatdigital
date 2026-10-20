@@ -1,8 +1,17 @@
 <%- include('../partials/inicio', { titulo: 'Editor de fluxo' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<main class="conteudo-fluxo">
+<main class="conteudo-fluxo" data-fluxo="<%= fluxoId %>">
   <div class="editor-cabecalho">
-    <h1>Editor de fluxo</h1>
+    <div class="editor-titulo">
+      <h1>Editor de fluxo</h1>
+      <% if (fluxos.length > 1) { %>
+        <form method="get" action="/painel/fluxo" class="seletor-fluxo">
+          <select name="fluxo" onchange="this.form.submit()" aria-label="Qual fluxo editar">
+            <% fluxos.forEach((f) => { %><option value="<%= f.id %>" <%= f.id === fluxoId ? 'selected' : '' %>><%= f.nome %> (<%= f.numeros %> número<%= f.numeros === 1 ? '' : 's' %>)</option><% }) %>
+          </select>
+        </form>
+      <% } %>
+    </div>
     <div class="editor-acoes">
       <span id="mensagem-editor" class="mensagem-editor"></span>
       <button type="button" id="botao-testar-fluxo" class="botao-secundario">▶ Testar</button>
@@ -11,14 +20,17 @@
         <div class="menu-fluxo-itens">
           <button type="button" id="botao-modelos-fluxo" class="botao-link">Fluxos prontos…</button>
           <button type="button" id="botao-importar-fluxo" class="botao-link">Importar de arquivo…</button>
-          <a href="/painel/fluxo/exportar" download id="link-exportar-fluxo">Exportar (baixar arquivo)</a>
-          <a href="/painel/fluxo/versoes">Versões salvas</a>
+          <a href="/painel/fluxo/exportar?fluxo=<%= fluxoId %>" download id="link-exportar-fluxo">Exportar (baixar arquivo)</a>
+          <a href="/painel/fluxo/versoes?fluxo=<%= fluxoId %>">Versões salvas</a>
+          <button type="button" id="botao-fluxos" class="botao-link">Fluxos (um por número)…</button>
         </div>
       </details>
       <input type="file" id="arquivo-importar-fluxo" accept="application/json,.json" hidden>
       <button type="button" id="botao-salvar-fluxo" class="botao">Salvar</button>
     </div>
   </div>
+  <% if (aviso) { %><p class="faixa-editor faixa-editor-info"><%= { criado: 'Fluxo criado. Ajuste, teste e salve. Para usar, escolha ele no número em Configurações › WhatsApp.', renomeado: 'Fluxo renomeado.', excluido: 'Fluxo excluído.' }[aviso] || '' %></p><% } %>
+  <% if (erro) { %><p class="faixa-editor faixa-editor-erro"><%= erro %></p><% } %>
   <p class="faixa-editor" id="faixa-editor" hidden></p>
 
   <div class="editor-corpo">
@@ -75,6 +87,44 @@
       </form>
     </aside>
   </div>
+
+  <dialog class="dialogo-modelos" id="dialogo-fluxos">
+    <div class="dialogo-topo">
+      <h2>Fluxos</h2>
+      <button type="button" class="botao-link" id="fechar-fluxos" aria-label="Fechar">✕</button>
+    </div>
+    <p class="dica">Cada número de WhatsApp usa um fluxo (escolha em <a href="/painel/configuracoes/whatsapp">Configurações › WhatsApp</a>). Vários números podem usar o mesmo.</p>
+    <ul class="lista-modelos">
+      <% fluxos.forEach((f) => { %>
+        <li>
+          <div><strong><%= f.nome %></strong><span class="dica">Usado por <%= f.numeros %> número<%= f.numeros === 1 ? '' : 's' %></span></div>
+          <span class="acoes-fluxo">
+            <a href="/painel/fluxo?fluxo=<%= f.id %>">Editar</a>
+            <% if (f.id !== 1) { %>
+              <form method="post" action="/painel/fluxo/fluxos/<%= f.id %>/renomear" class="form-inline"><input type="text" name="nome" value="<%= f.nome %>" maxlength="60" aria-label="Novo nome" class="campo-renomear-fluxo"><button type="submit" class="botao-link">Renomear</button></form>
+              <form method="post" action="/painel/fluxo/fluxos/<%= f.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir o fluxo <%= f.nome.replace(/[\'\\]/g, '') %>?')"><button type="submit" class="botao-link botao-link-perigo">Excluir</button></form>
+            <% } %>
+          </span>
+        </li>
+      <% }) %>
+    </ul>
+    <h3>Novo fluxo</h3>
+    <form method="post" action="/painel/fluxo/fluxos" class="form-novo-fluxo">
+      <label>Nome<input type="text" name="nome" maxlength="60" required placeholder="Ex.: Suporte técnico"></label>
+      <label>Começar de
+        <select name="base">
+          <% fluxos.forEach((f) => { %><option value="copia:<%= f.id %>">Cópia do fluxo "<%= f.nome %>"</option><% }) %>
+          <option value="modelo:gas">Fluxo pronto: Revenda de gás</option>
+          <option value="modelo:loja">Fluxo pronto: Loja</option>
+          <option value="modelo:clinica">Fluxo pronto: Clínica</option>
+          <option value="modelo:provedor">Fluxo pronto: Provedor de internet</option>
+          <option value="modelo:delivery">Fluxo pronto: Delivery</option>
+          <option value="vazio">Em branco</option>
+        </select>
+      </label>
+      <button type="submit">Criar fluxo</button>
+    </form>
+  </dialog>
 
   <dialog class="dialogo-modelos" id="dialogo-modelos">
     <div class="dialogo-topo">

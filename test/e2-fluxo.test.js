@@ -153,11 +153,11 @@ test('versões: cada Salvar guarda uma versão com quem e de onde veio; voltar a
 
   const anterior = lista[1];
   resp = await post(`/painel/fluxo/versoes/${anterior.id}/restaurar`);
-  assert.strictEqual(resp.headers.get('location'), '/painel/fluxo/versoes?restaurada=1');
+  assert.strictEqual(resp.headers.get('location'), '/painel/fluxo/versoes?fluxo=1&restaurada=1');
   assert.deepStrictEqual(Object.keys(carregarFluxo().nos).sort(), Object.keys(fluxoOriginal.nos).sort());
   assert.match(versoes.listarVersoes()[0].origem, /^Voltou para a versão de \d{2}\/\d{2}\/\d{4}/);
   resp = await post('/painel/fluxo/versoes/99999/restaurar');
-  assert.strictEqual(resp.headers.get('location'), '/painel/fluxo/versoes?erro=1');
+  assert.strictEqual(resp.headers.get('location'), '/painel/fluxo/versoes?fluxo=1&erro=1');
 
   const baixado = await fetch(`${baseUrl}/painel/fluxo/versoes/${lista[0].id}/baixar`, { headers: { cookie } });
   assert.match(baixado.headers.get('content-disposition'), /fluxo_versao_\d+\.json/);

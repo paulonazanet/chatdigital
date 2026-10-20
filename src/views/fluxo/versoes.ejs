@@ -1,13 +1,13 @@
 <%- include('../partials/inicio', { titulo: 'Versões do fluxo' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
 <main class="conteudo pagina-config">
-  <p class="trilha-config"><a href="/painel/fluxo">Fluxo</a> › Versões</p>
-  <h1>Versões do fluxo</h1>
+  <p class="trilha-config"><a href="/painel/fluxo?fluxo=<%= fluxoId %>">Fluxo</a> › Versões</p>
+  <h1>Versões do fluxo <%= nomeFluxo %></h1>
   <p class="dica">Cada vez que o fluxo é salvo, a versão fica guardada aqui (as últimas 100). Se uma mudança deu errado, clique em
     <strong>Voltar para esta versão</strong>: ela passa a valer na hora para o bot, e o fluxo de agora também fica guardado, então dá para desfazer.</p>
   <% if (restaurada) { %><p class="sucesso">Pronto: o bot já está usando a versão escolhida.</p><% } %>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
-  <p class="acoes-topo"><a class="botao-secundario botao" href="/painel/fluxo/exportar" download>Baixar o fluxo de agora (arquivo)</a></p>
+  <p class="acoes-topo"><a class="botao-secundario botao" href="/painel/fluxo/exportar?fluxo=<%= fluxoId %>" download>Baixar o fluxo de agora (arquivo)</a></p>
 
   <div class="tabela-rolagem">
     <table class="tabela">

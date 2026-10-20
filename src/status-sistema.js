@@ -143,8 +143,21 @@ function itemSistema() {
   };
 }
 
+// pelo celular com mais de um número: um item por número ligado
+function itensWhatsapp() {
+  if (require('./socket-atual').modoAtual() === 'oficial') return [itemWhatsapp()];
+  const ligados = require('./canais').listarCanais({ soAtivos: true });
+  if (ligados.length <= 1) return [itemWhatsapp()];
+  return ligados.map((c) => {
+    const { conectado, qr } = whatsappStatus.obterEstado(c.id);
+    return conectado
+      ? { nome: `WhatsApp: ${c.nome}`, nivel: 'ok', texto: 'Conectado', detalhe: 'Recebendo e mandando mensagens.' }
+      : { nome: `WhatsApp: ${c.nome}`, nivel: 'problema', texto: qr ? 'Esperando ler o QR Code' : 'Desconectado', detalhe: 'Veja em Configurações > WhatsApp.', link: '/painel/configuracoes/whatsapp' };
+  });
+}
+
 function montarStatus(agoraMs = Date.now()) {
-  const itens = [itemWhatsapp(), itemBanco(), itemDisco(), itemBackup(agoraMs), itemSistema()];
+  const itens = [...itensWhatsapp(), itemBanco(), itemDisco(), itemBackup(agoraMs), itemSistema()];
   const problemas = itens.filter((i) => i.nivel === 'problema').length;
   const atencao = itens.filter((i) => i.nivel === 'atencao').length;
   return {

@@ -2,7 +2,7 @@ const { db } = require('./db');
 const { barramento } = require('./eventos');
 const { obterSocket } = require('./socket-atual');
 const { podeEnviarAutomatico } = require('./modo-teste');
-const { carregarFluxo } = require('./fluxo');
+const { carregarFluxoDaConversa } = require('./fluxo');
 const { transferirParaHumano } = require('./flow-engine');
 
 // Retorno agendado (E3, 1a parte): o atendente marca "chamar este cliente dia 25 às 10h". Na hora,
@@ -53,7 +53,7 @@ async function processarRetornos(agora = new Date()) {
     const atendente = r.atendente_id ? db.prepare('SELECT id, nome, ativo FROM atendentes WHERE id = ?').get(r.atendente_id) : null;
     // vai pra pessoa marcada, a não ser que outra pessoa já esteja atendendo agora
     if (atendente && atendente.ativo && !(conversa.status === 'atendendo' && conversa.atendente_id && conversa.atendente_id !== atendente.id)) {
-      transferirParaHumano(conversa.numero, carregarFluxo());
+      transferirParaHumano(conversa.numero, carregarFluxoDaConversa(conversa.numero));
       assumirConversa(conversa.id, atendente.id);
     }
     registrarNotaInterna(conversa.id, `📅 Retorno agendado${atendente ? ` para ${atendente.nome}` : ''}${r.nota ? `: ${r.nota}` : '.'}`);

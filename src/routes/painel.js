@@ -5,7 +5,7 @@ const { listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
 const { listarFila, listarConversasComBot } = require('../conversas');
 const { contarRegistrosHoje } = require('../registros');
-const { carregarFluxo } = require('../fluxo');
+const { leitorDeFluxos } = require('../fluxo');
 const whatsappStatus = require('../whatsapp-status');
 const { listarOnline } = require('../presenca');
 const { temPermissao } = require('../permissoes');
@@ -16,8 +16,8 @@ router.get('/', (req, res) => {
   if (!temPermissao(req.atendente, 'ver_painel')) return res.redirect('/painel/fila');
 
   const fila = listarFila();
-  const fluxo = carregarFluxo();
-  const paradas = listarConversasComBot().filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxo.inicio);
+  const fluxoDe = leitorDeFluxos(); // cada conversa segue o fluxo do número dela
+  const paradas = listarConversasComBot().filter((c) => c.no_fluxo_atual && c.no_fluxo_atual !== fluxoDe(c).inicio);
   const atendentes = listarAtendentes();
   const idsOnline = new Set(listarOnline());
 

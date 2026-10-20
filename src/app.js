@@ -54,7 +54,12 @@ async function iniciar() {
     else whatsappStatus.definirDesconectado();
     console.log(teste.ok ? `API oficial do WhatsApp ligada (${teste.numero}).` : `API oficial do WhatsApp com problema: ${teste.erro}`);
   } else {
-    await iniciarBot(negocio, fluxo);
+    // todos os números ligados (Configurações > WhatsApp; E4, 3a parte), e o jeito de ligar um novo
+    // sem reiniciar
+    const { listarCanais } = require('./canais');
+    const { definirIniciadorDeCanal } = require('./socket-atual');
+    definirIniciadorDeCanal((canal) => iniciarBot(negocio, fluxo, canal));
+    for (const canal of listarCanais({ soAtivos: true })) await iniciarBot(negocio, fluxo, canal);
   }
   iniciarChecagemInatividade();
   iniciarBackupDiario();
