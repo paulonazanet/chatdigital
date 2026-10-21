@@ -428,8 +428,16 @@ desconectado, fora do horário, feriado ou limite do dia).
 - **Gerar novo link** troca o código (o antigo para de funcionar na hora). **Desligar** apaga.
 
 ### Configurações > WhatsApp
-- **Como o WhatsApp está ligado**: **WhatsApp do celular (QR Code)** ou **API oficial da Meta**. A
-  escolha vale depois de reiniciar o sistema (a tela mostra a em uso e avisa quando falta reiniciar).
+- **Como o WhatsApp está ligado**: **WhatsApp do celular (QR Code)**, **API oficial da Meta** ou **Os
+  dois** (números pelo celular e um número pela API oficial na mesma Fila; o número oficial aparece
+  como "Número oficial na Fila", com nome e fluxo próprios, e as regras da Meta valem só nas conversas
+  dele). A escolha vale depois de reiniciar o sistema (a tela mostra a em uso e avisa quando falta
+  reiniciar).
+- **Opções do bot como botões**: liga/desliga. Na API oficial, a pergunta do bot com opções numeradas
+  ("1. Fazer um pedido") vai como **botões** (até 3 opções curtas) ou **lista** (até 10); no Instagram,
+  como **respostas rápidas**. As opções são lidas do próprio texto da pergunta (nada muda no fluxo);
+  o cliente toca e o bot recebe o número da opção, e o histórico mostra o que ele tocou. Pergunta que
+  não dá para virar botão (opção no meio da frase, mais de 10) vai como texto. Pelo celular, sempre texto.
 - **Números** (pelo celular): cada número é um WhatsApp ligado pelo QR Code, com o estado e o QR
   dele, **nome** (ex.: Suporte 1, Suporte 2) e o **fluxo do bot** que usa (pode ser o mesmo para
   todos). **+ Adicionar número** (liga na hora e mostra o QR para ler no celular desse número),
@@ -441,6 +449,11 @@ desconectado, fora do horário, feriado ou limite do dia).
   qualidade (ou o erro em português). **Webhook**: a URL de retorno e o token de verificação para
   colar na Meta (dá para trocar o token). **Modelos aprovados**: **Atualizar modelos da Meta** puxa
   os modelos (nome, idioma, tipo, situação e texto).
+- **Custos da Meta** (botão na parte da API oficial): modelos mandados no mês (este e o anterior) por
+  tipo (marketing, utilidade, autenticação), quantos foram grátis (utilidade dentro das 24 h), quantos
+  são cobrados, de onde saíram (Fila, lembretes, campanhas) e a **estimativa em reais**, com o **preço
+  por mensagem** que a empresa preenche (a tabela da Meta muda). A tela da campanha mostra o custo
+  estimado quando ela usa modelo.
 - Passo a passo da Meta: `passo_a_passo_meta_E4.md` (pasta do ChatDigital no OneDrive).
 
 ### Configurações > Instagram

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const oficial = require('../whatsapp-oficial');
-const { modoAtual, obterSocket } = require('../socket-atual');
+const { modoAtual, obterSocket, temOficial } = require('../socket-atual');
 const { carregarNegocio } = require('../negocio');
 const { carregarFluxoDoCanal } = require('../fluxo');
 const { atualizarRecibos } = require('../envios');
@@ -25,10 +25,13 @@ async function tratarWebhook(corpo) {
   const { tratarMensagemRecebida } = require('../bot'); // aqui: bot.js usa módulos que usam este
   const canal = obterSocket();
   const negocio = carregarNegocio();
-  const fluxo = carregarFluxoDoCanal(1); // a API oficial é o número Principal
+  // só a API oficial: ela é o número Principal; nos dois jeitos (misto), é o canal "oficial", com o
+  // nome e o fluxo dele, e a conversa passa a responder por ele
+  const canalOficial = modoAtual() === 'misto' ? require('../canais').canalOficial({ criar: true }) : null;
+  const fluxo = carregarFluxoDoCanal(canalOficial ? canalOficial.id : 1);
   for (const item of oficial.lerWebhook(corpo)) {
     try {
-      if (item.mensagem) await tratarMensagemRecebida(canal, item.mensagem, negocio, fluxo);
+      if (item.mensagem) await tratarMensagemRecebida(canal, item.mensagem, negocio, fluxo, canalOficial ? { canalId: canalOficial.id } : {});
       else if (item.recibo) atualizarRecibos([item.recibo]);
       else if (item.falha) {
         // mensagem que a Meta não entregou: fica com o aviso e o botão Reenviar no histórico
@@ -45,7 +48,7 @@ router.post('/', express.raw({ type: 'application/json', limit: '2mb' }), (req, 
   const bruto = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
   if (!oficial.conferirAssinatura(bruto, req.get('x-hub-signature-256'))) return res.sendStatus(401);
   res.sendStatus(200);
-  if (modoAtual() !== 'oficial') return; // configurado mas o sistema está ligado pelo celular
+  if (!temOficial()) return; // configurado mas o sistema está ligado só pelo celular
   let corpo;
   try {
     corpo = JSON.parse(bruto.toString('utf8'));

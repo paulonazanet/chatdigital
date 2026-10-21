@@ -50,9 +50,19 @@ function canalInstagram({ criar = false } = {}) {
   return obterCanal(id);
 }
 
-/** Tem mais de um número (ou o Instagram) ligado? (só então a Fila mostra de qual número veio cada conversa) */
-function temVariosNumeros() {
-  return listarCanais({ soAtivos: true }).length > 1;
+/** O número da API oficial no modo misto (cria na 1a vez que o sistema liga assim) */
+function canalOficial({ criar = false } = {}) {
+  const existente = db.prepare("SELECT * FROM canais WHERE tipo = 'oficial' ORDER BY id LIMIT 1").get();
+  if (existente || !criar) return existente || null;
+  const id = Number(db.prepare("INSERT INTO canais (nome, pasta, tipo, criado_em) VALUES ('API oficial', 'oficial', 'oficial', ?)").run(new Date().toISOString()).lastInsertRowid);
+  return obterCanal(id);
 }
 
-module.exports = { listarCanais, obterCanal, criarCanal, renomearCanal, definirAtivo, temVariosNumeros, canalInstagram };
+/** Tem mais de um número (ou o Instagram) ligado? (só então a Fila mostra de qual número veio cada conversa) */
+function temVariosNumeros() {
+  // o número oficial só conta quando o sistema está ligado nos dois jeitos (modo misto)
+  const misto = require('./socket-atual').modoAtual() === 'misto';
+  return listarCanais({ soAtivos: true }).filter((c) => c.tipo !== 'oficial' || misto).length > 1;
+}
+
+module.exports = { listarCanais, obterCanal, criarCanal, renomearCanal, definirAtivo, temVariosNumeros, canalInstagram, canalOficial };

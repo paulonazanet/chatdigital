@@ -28,10 +28,13 @@
         <span><strong>WhatsApp do celular (QR Code)</strong><br><span class="dica-inline">Lê o QR Code com o WhatsApp do número. Sem custo por mensagem, mas não é oficial: mandar muito pode bloquear o número.</span></span></label>
       <label class="linha"><input type="radio" name="whatsapp_conexao" value="oficial" <%= escolhida === 'oficial' ? 'checked' : '' %>>
         <span><strong>API oficial da Meta</strong><br><span class="dica-inline">O jeito oficial para empresas. A Meta cobra por mensagem nas conversas que a empresa começa (lembretes, campanhas). Depois de 24 h sem o cliente escrever, só vai modelo aprovado.</span></span></label>
+      <label class="linha"><input type="radio" name="whatsapp_conexao" value="misto" <%= escolhida === 'misto' ? 'checked' : '' %>>
+        <span><strong>Os dois</strong><br><span class="dica-inline">Números pelo celular e um número pela API oficial, na mesma Fila. As regras da Meta (24 h, modelos, botões) valem só nas conversas do número oficial. Bom para passar para a API oficial um número de cada vez.</span></span></label>
       <p><button type="submit" class="botao-pequeno">Salvar escolha</button></p>
     </form>
-    <p class="dica">Em uso agora: <strong><%= emUso === 'oficial' ? 'API oficial da Meta' : 'WhatsApp do celular' %></strong>.
-      <% if (escolhida !== emUso) { %><span class="selo selo-situacao-ignorado">Reinicie o sistema para passar a usar <%= escolhida === 'oficial' ? 'a API oficial' : 'o celular' %>.</span><% } %></p>
+    <% const NOME_MODO = { oficial: 'API oficial da Meta', misto: 'os dois (celular e API oficial)', celular: 'WhatsApp do celular' }; %>
+    <p class="dica">Em uso agora: <strong><%= NOME_MODO[emUso] %></strong>.
+      <% if (escolhida !== emUso) { %><span class="selo selo-situacao-ignorado">Reinicie o sistema para passar a usar <%= NOME_MODO[escolhida] %>.</span><% } %></p>
   </fieldset>
 
   <fieldset>
@@ -45,7 +48,7 @@
     </form>
   </fieldset>
 
-  <% if (emUso === 'celular') { %>
+  <% if (emUso !== 'oficial') { %>
     <h2>Números</h2>
     <p class="dica">Cada número é um WhatsApp ligado pelo QR Code. Todas as conversas caem na mesma Fila, mostrando por qual número
       chegaram, e a resposta sai pelo mesmo número. Cada número usa o <strong>fluxo do bot</strong> escolhido (pode ser o mesmo para todos).</p>
@@ -84,8 +87,22 @@
     <p class="dica">Os fluxos são criados no menu <a href="/painel/fluxo">Fluxo</a> (Mais ▾ › Fluxos).</p>
   <% } %>
 
-  <% if (escolhida === 'oficial' || emUso === 'oficial') { %>
+  <% if (escolhida !== 'celular' || emUso !== 'celular') { %>
     <h2>API oficial da Meta</h2>
+    <% if (emUso === 'misto' && numeroOficial) { %>
+      <fieldset class="cartao-numero" id="numero-<%= numeroOficial.id %>">
+        <legend>Número oficial na Fila</legend>
+        <form method="post" action="/painel/configuracoes/whatsapp/numeros/<%= numeroOficial.id %>" class="linha-form linha-form-inline form-numero">
+          <label>Nome<input type="text" name="nome" value="<%= numeroOficial.nome %>" maxlength="40" required></label>
+          <label>Fluxo do bot
+            <select name="fluxo_id">
+              <% fluxos.forEach((f) => { %><option value="<%= f.id %>" <%= (numeroOficial.fluxo_id || 1) === f.id ? 'selected' : '' %>><%= f.nome %></option><% }) %>
+            </select>
+          </label>
+          <button type="submit" class="botao-pequeno">Salvar</button>
+        </form>
+      </fieldset>
+    <% } %>
     <% if (c.testado_em) { %>
       <% if (c.erro) { %><p class="erro">Última conferência falhou: <%= c.erro %></p>
       <% } else { %><p class="sucesso">✅ Conectado à Meta: <strong><%= c.numero_exibicao %></strong> · <%= c.nome_verificado %><% if (c.qualidade) { %> · qualidade <%= c.qualidade === 'GREEN' ? 'boa' : c.qualidade === 'YELLOW' ? 'média' : c.qualidade === 'RED' ? 'baixa' : c.qualidade %><% } %></p><% } %>

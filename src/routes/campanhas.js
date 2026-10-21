@@ -23,7 +23,7 @@ const ROTULO_TIPO = { lembrete: 'Lembrete de recompra', campanha: 'Campanha', re
 const nomeDoCliente = (linha) => linha.nome_contato || formatarTelefone(linha.numero_exibicao || linha.numero);
 
 function base(req, ativa, extra = {}) {
-  const viaOficial = modoAtual() === 'oficial' || carregarNegocio().whatsapp_conexao === 'oficial';
+  const viaOficial = require('../socket-atual').temOficial() || ['oficial', 'misto'].includes(carregarNegocio().whatsapp_conexao);
   return {
     atendenteLogado: req.atendente,
     ativa,
@@ -75,7 +75,7 @@ function renderizarCampanha(req, res, campanha, extra = {}) {
     totalPublico: calculado.lista.length,
     // API oficial com modelo: quanto a Meta deve cobrar, pela tabela de Custos da Meta
     custoEstimado: (() => {
-      if (!campanha?.modelo_nome || require('../socket-atual').modoAtual() !== 'oficial') return null;
+      if (!campanha?.modelo_nome || !require('../socket-atual').temOficial()) return null;
       const modelo = oficial.obterModelo(campanha.modelo_nome, campanha.modelo_idioma);
       const custos = require('../custos-meta');
       const estimativa = modelo ? custos.estimarEnvio(modelo.categoria, calculado.lista.length) : null;

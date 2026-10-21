@@ -371,7 +371,8 @@ function renderizarWhatsapp(req, res, extra = {}) {
     atendenteLogado: req.atendente,
     conectado,
     temQr: !!qr,
-    escolhida: carregarNegocio().whatsapp_conexao === 'oficial' ? 'oficial' : 'celular',
+    escolhida: ['oficial', 'misto'].includes(carregarNegocio().whatsapp_conexao) ? carregarNegocio().whatsapp_conexao : 'celular',
+    numeroOficial: canais.canalOficial(),
     emUso: modoAtual(),
     config: oficial.configParaTela(),
     enderecoWebhook: `${req.protocol}://${req.get('host')}/webhook/whatsapp`,
@@ -391,7 +392,7 @@ router.get('/whatsapp', (req, res) => renderizarWhatsapp(req, res));
 router.post('/whatsapp/numeros', async (req, res) => {
   const canal = canais.criarCanal(req.body.nome);
   if (canal.erro) return renderizarWhatsapp(req, res, { erro: canal.erro });
-  const ligou = modoAtual() === 'celular' && (await ligarCanal(canal));
+  const ligou = modoAtual() !== 'oficial' && (await ligarCanal(canal));
   res.redirect(`/painel/configuracoes/whatsapp?aviso=${ligou ? 'numero' : 'numero-reiniciar'}#numero-${canal.id}`);
 });
 router.post('/whatsapp/numeros/:id', (req, res) => {
@@ -409,7 +410,7 @@ router.post('/whatsapp/numeros/:id/ativo', async (req, res) => {
   const resultado = canais.definirAtivo(canal.id, !canal.ativo);
   if (resultado.erro) return renderizarWhatsapp(req, res, { erro: resultado.erro });
   if (canal.ativo) require('../bot').pararBot(canal.id);
-  else if (modoAtual() === 'celular') await ligarCanal(resultado);
+  else if (modoAtual() !== 'oficial') await ligarCanal(resultado);
   res.redirect('/painel/configuracoes/whatsapp');
 });
 
@@ -442,7 +443,7 @@ router.post('/whatsapp/custos', (req, res) => {
   res.redirect('/painel/configuracoes/whatsapp/custos?aviso=precos');
 });
 router.post('/whatsapp/conexao', (req, res) => {
-  salvarConfiguracoes({ whatsapp_conexao: req.body.whatsapp_conexao === 'oficial' ? 'oficial' : 'celular' });
+  salvarConfiguracoes({ whatsapp_conexao: ['oficial', 'misto'].includes(req.body.whatsapp_conexao) ? req.body.whatsapp_conexao : 'celular' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');
 });
 router.post('/whatsapp/oficial', async (req, res) => {
@@ -450,11 +451,13 @@ router.post('/whatsapp/oficial', async (req, res) => {
   if (resultado.erro) return renderizarWhatsapp(req, res, { erro: resultado.erro });
   const teste = oficial.configurado() ? await oficial.testarConexao() : { ok: false, erro: 'Falta o código do número ou a chave de acesso.' };
   if (teste.ok && modoAtual() === 'oficial') whatsappStatus.definirConectado();
+  if (teste.ok && modoAtual() === 'misto') whatsappStatus.definirConectado(canais.canalOficial({ criar: true }).id);
   res.redirect(`/painel/configuracoes/whatsapp?aviso=${teste.ok ? 'testado' : 'falhou'}`);
 });
 router.post('/whatsapp/oficial/testar', async (req, res) => {
   const teste = await oficial.testarConexao();
   if (modoAtual() === 'oficial') (teste.ok ? whatsappStatus.definirConectado : whatsappStatus.definirDesconectado)();
+  if (modoAtual() === 'misto') (teste.ok ? whatsappStatus.definirConectado : whatsappStatus.definirDesconectado)(canais.canalOficial({ criar: true }).id);
   res.redirect(`/painel/configuracoes/whatsapp?aviso=${teste.ok ? 'testado' : 'falhou'}`);
 });
 router.post('/whatsapp/oficial/codigo', (req, res) => {

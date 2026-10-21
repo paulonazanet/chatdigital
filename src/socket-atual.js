@@ -7,7 +7,10 @@
 // O tipo da conexão é decidido quando o sistema liga (app.js lê Configurações > WhatsApp); trocar na
 // tela só vale depois de reiniciar, pra nunca ficar recebendo por uma e mandando por outra.
 
-const MODOS = ['celular', 'oficial'];
+// 'misto' (E4, 4a parte): números pelo celular e um número pela API oficial na mesma instalação. O
+// número oficial é um canal (canais.tipo = 'oficial'); a conversa sai pelo canal por onde o cliente
+// escreveu por último, e as regras da Meta (24 h, modelos, botões) valem só nas conversas dele.
+const MODOS = ['celular', 'oficial', 'misto'];
 
 const socketsCelular = new Map(); // canalId -> socket do Baileys (1 = o número "Principal")
 let canalOficial = null; // adaptador da API oficial
@@ -41,6 +44,26 @@ function canalDaConversa(numero) {
   return db.prepare('SELECT canal_id FROM conversas WHERE numero = ?').get(numero)?.canal_id || null;
 }
 
+function conversaNoCanalOficial(numero) {
+  const { db } = require('./db');
+  return db.prepare("SELECT 1 FROM conversas c JOIN canais k ON k.id = c.canal_id WHERE c.numero = ? AND k.tipo = 'oficial'").get(numero) != null;
+}
+
+/** A instalação tem API oficial ligada (sozinha ou junto com o celular)? */
+function temOficial() {
+  return modoEmUso === 'oficial' || modoEmUso === 'misto';
+}
+
+/**
+ * Esta conversa é pela API oficial? (regra das 24 h, modelos, botões). No modo misto, só a conversa
+ * cujo cliente escreveu por último no número oficial. Instagram nunca.
+ */
+function usaOficial(numero) {
+  if (String(numero || '').endsWith('@instagram')) return false;
+  if (modoEmUso === 'oficial') return true;
+  return modoEmUso === 'misto' && !!numero && conversaNoCanalOficial(numero);
+}
+
 function socketPrincipal() {
   return socketsCelular.get(1) || socketsCelular.values().next().value || null;
 }
@@ -56,12 +79,17 @@ function socketParaNumero(numero) {
 const roteador = {
   tipo: 'celular',
   sendMessage(numero, conteudo, opcoes) {
+    if (modoEmUso === 'misto' && canalOficial && conversaNoCanalOficial(numero)) return canalOficial.sendMessage(numero, conteudo, opcoes);
     const sock = socketParaNumero(numero);
     if (!sock) throw new Error('Nenhum número de WhatsApp conectado.');
     return sock.sendMessage(numero, conteudo, opcoes);
   },
+  // modelo aprovado: só existe no número oficial (modo misto)
+  get enviarModelo() {
+    return modoEmUso === 'misto' && canalOficial ? canalOficial.enviarModelo : undefined;
+  },
   onWhatsApp(...args) {
-    return socketPrincipal().onWhatsApp(...args);
+    return (socketPrincipal() || canalOficial).onWhatsApp(...args);
   },
   get signalRepository() {
     return socketPrincipal()?.signalRepository;
@@ -77,6 +105,7 @@ const roteador = {
  */
 function obterSocketWhatsapp() {
   if (modoEmUso === 'oficial') return canalOficial;
+  if (modoEmUso === 'misto') return socketsCelular.size || canalOficial ? roteador : null;
   return socketsCelular.size ? roteador : null;
 }
 
@@ -130,6 +159,8 @@ function desligarCanal(canalId) {
 
 module.exports = {
   obterSocketWhatsapp,
+  temOficial,
+  usaOficial,
   definirSocket,
   definirCanalOficial,
   definirModo,

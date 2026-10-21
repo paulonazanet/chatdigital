@@ -476,6 +476,28 @@ precisa de uma API do lado dela.
 - **Não testado com a Meta de verdade** (depende do Paulo: linha, conta, app, token). Passo a passo:
   `passo_a_passo_meta_E4.md` no OneDrive.
 
+## E4, 4ª parte (20/10/2026, branch `e4`): botões e listas, Custos da Meta, celular + oficial
+- **Botões/lista** (`src/opcoes-interativas.js`): `extrairOpcoes(texto, ids)` lê as linhas "1. …" do
+  texto do bot (ids = `flow-engine.opcoesEsperadas(numero, fluxo, negocio)`: opções, dinâmicas e
+  `opcao_extra`; tira a linha "Responda só com o número"); `paraWhatsapp` (≤3 e títulos ≤20 = botões;
+  ≤10 = lista com título ≤24 e descrição; senão null) e `paraInstagram` (≤13 respostas rápidas, ≤20).
+  `bot.js` manda `{ text, interativo }` só se `usaOficial(numero)` ou Instagram e `negocio.botoes_interativos
+  !== false`; os adaptadores montam `interactive` / `quick_replies`. Chegando: `button_reply`/`list_reply`
+  (oficial) e `quick_reply.payload` (Instagram) viram o id; `msg.textoParaHistorico` = título.
+- **Custos** (`src/custos-meta.js`, tabela `modelos_enviados`): `enviarModelo(numero, modelo, { origem })`
+  anota categoria (de `modelos_oficiais`), origem e `gratis` (UTILITY dentro das 24 h). Tela
+  `/painel/configuracoes/whatsapp/custos?mes=AAAA-MM`; preços em `negocio.precos_meta` (reais).
+  `estimarEnvio` na tela da campanha (`custoEstimado`).
+- **Misto** (`whatsapp_conexao = 'misto'`, `modoAtual() === 'misto'`): app.js liga os celulares e o
+  adaptador oficial; o número oficial é `canais.tipo = 'oficial'` (`canais.canalOficial({ criar })`);
+  o webhook oficial passa `canalId` dele. `socket-atual`: `temOficial()`, `usaOficial(numero)` (conversa
+  com `canal_id` do canal oficial, ou modo oficial; Instagram nunca); o roteador manda pelo oficial
+  quando a conversa é dele e expõe `enviarModelo`. Fila (24 h, modelos), envios, campanhas, bot e
+  Status usam `usaOficial`/`temOficial` em vez de `modoAtual() === 'oficial'`.
+- Textos para a Meta (Instagram): `instagram_textos_meta.md` no OneDrive (privacidade, uso em inglês,
+  roteiro do vídeo).
+- Testes: `e4-botoes` (5), `e4-custos` (3), `e4-misto` (3). Total: 140 passam, zero falhas.
+
 ## Painel no celular (20/10/2026, branch `e4`)
 Feito no `e4` porque ele tem todas as telas (E1 a E4). Só CSS + 3 parciais, nada de rota.
 - `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e

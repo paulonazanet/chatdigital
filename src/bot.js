@@ -99,8 +99,7 @@ async function avisarSeSemAtendente(sock, numero, negocio, sincronizacao) {
 // Configurações > WhatsApp. O texto do histórico continua o numerado.
 function opcoesParaBotoes(numero, texto, negocio, fluxo) {
   if (negocio.botoes_interativos === false) return null;
-  const { modoAtual } = require('./socket-atual');
-  if (!String(numero).endsWith('@instagram') && modoAtual() !== 'oficial') return null;
+  if (!String(numero).endsWith('@instagram') && !require('./socket-atual').usaOficial(numero)) return null;
   const ids = require('./flow-engine').opcoesEsperadas(numero, fluxo, negocio);
   return ids ? require('./opcoes-interativas').extrairOpcoes(texto, ids) : null;
 }

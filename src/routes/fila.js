@@ -28,7 +28,7 @@ const motivosEncerramento = require('../motivos-encerramento');
 const marcadores = require('../marcadores');
 const { listarSetoresDoAtendente, listarAtendentes } = require('../atendentes');
 const { listarSetores } = require('../setores');
-const { obterSocket, modoAtual } = require('../socket-atual');
+const { obterSocket, modoAtual, usaOficial } = require('../socket-atual');
 const oficial = require('../whatsapp-oficial');
 const instagram = require('../instagram');
 const canais = require('../canais');
@@ -230,11 +230,11 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     alertas: calcularAlertas({ negocio }).filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
     retornosDaConversa: conversaSelecionada ? retornos.retornosDaConversa(conversaSelecionada.id) : [],
     // API oficial (E4): depois de 24 h sem o cliente escrever, só vai modelo aprovado
-    viaOficial: modoAtual() === 'oficial' && !(conversaSelecionada && instagram.ehInstagram(conversaSelecionada.numero)),
-    foraDaJanela: modoAtual() === 'oficial' && !!conversaSelecionada && !instagram.ehInstagram(conversaSelecionada.numero) && !oficial.dentroDaJanela(conversaSelecionada.id),
+    viaOficial: !!conversaSelecionada && usaOficial(conversaSelecionada.numero),
+    foraDaJanela: !!conversaSelecionada && usaOficial(conversaSelecionada.numero) && !oficial.dentroDaJanela(conversaSelecionada.id),
     // Instagram (E4): só dá para responder até 24 h depois da última mensagem do cliente
     instagramForaDaJanela: !!conversaSelecionada && instagram.ehInstagram(conversaSelecionada.numero) && !oficial.dentroDaJanela(conversaSelecionada.id),
-    modelosAprovados: modoAtual() === 'oficial' ? oficial.listarModelos({ soAprovados: true }) : [],
+    modelosAprovados: conversaSelecionada && usaOficial(conversaSelecionada.numero) ? oficial.listarModelos({ soAprovados: true }) : [],
     erroRetorno: res.locals.erroRetorno || null,
   });
 }
@@ -253,7 +253,7 @@ router.post('/nova', async (req, res) => {
   const texto = (req.body.texto || '').trim();
   // por qual número começar (com mais de um ligado; E4, 3a parte)
   const canalEscolhido = canais.listarCanais({ soAtivos: true, tipo: 'celular' }).find((k) => String(k.id) === String(req.body.canal_id)) || null;
-  const sock = canalEscolhido && modoAtual() === 'celular' ? socketDoCanal(canalEscolhido.id) : obterSocket();
+  const sock = canalEscolhido && modoAtual() !== 'oficial' ? socketDoCanal(canalEscolhido.id) : obterSocket();
 
   if (!numeroDigitado) {
     return renderizarFila(req, res, { erroNovaConversa: 'Informe um número de telefone (com DDD e DDI).' });
@@ -294,7 +294,7 @@ router.post('/:id/modelo', async (req, res) => {
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
   const reexibir = (erro) => renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro });
   const canal = obterSocket();
-  if (modoAtual() !== 'oficial' || !canal?.enviarModelo) return reexibir('Modelo só existe na API oficial.');
+  if (!usaOficial(conversa.numero) || !canal?.enviarModelo) return reexibir('Modelo só existe na API oficial.');
   const [nome, idioma] = String(req.body.modelo || '').split('|');
   const modelo = nome && idioma ? oficial.obterModelo(nome, idioma) : null;
   if (!modelo || modelo.situacao !== 'APPROVED') return reexibir('Escolha um modelo aprovado.');
@@ -595,7 +595,7 @@ router.post('/:id/responder', (req, res) => {
     if (instagram.ehInstagram(conversa.numero) && !oficial.dentroDaJanela(conversa.id)) {
       return reexibirComErro('Passaram 24 horas desde a última mensagem do cliente: pelo Instagram não dá mais para responder. Quando ele escrever de novo, a conversa volta a aceitar resposta.');
     }
-    if (modoAtual() === 'oficial' && !instagram.ehInstagram(conversa.numero) && !oficial.dentroDaJanela(conversa.id)) {
+    if (usaOficial(conversa.numero) && !oficial.dentroDaJanela(conversa.id)) {
       return reexibirComErro('Passaram 24 horas desde a última mensagem do cliente: pela API oficial, só dá para mandar um modelo aprovado (botão "Mandar modelo").');
     }
 

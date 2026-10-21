@@ -145,15 +145,26 @@ function itemSistema() {
 
 // pelo celular com mais de um número: um item por número ligado
 function itensWhatsapp() {
-  if (require('./socket-atual').modoAtual() === 'oficial') return [itemWhatsapp()];
+  const modo = require('./socket-atual').modoAtual();
+  if (modo === 'oficial') return [itemWhatsapp()];
   const ligados = require('./canais').listarCanais({ soAtivos: true, tipo: 'celular' });
-  if (ligados.length <= 1) return [itemWhatsapp()];
-  return ligados.map((c) => {
+  // os dois jeitos (misto): um item por número do celular e um da API oficial
+  const itemOficial = () => {
+    const c = require('./whatsapp-oficial').lerConfig();
+    const numero = require('./canais').canalOficial();
+    const { conectado } = numero ? whatsappStatus.obterEstado(numero.id) : { conectado: false };
+    return conectado && !c.erro
+      ? { nome: `WhatsApp: ${numero.nome}`, nivel: 'ok', texto: `API oficial: ${c.numero_exibicao || 'conectada'}`, detalhe: 'Pela Meta.' }
+      : { nome: `WhatsApp: ${numero?.nome || 'API oficial'}`, nivel: 'problema', texto: 'API oficial com problema', detalhe: c.erro || 'Confira os dados da Meta em Configurações > WhatsApp.', link: '/painel/configuracoes/whatsapp' };
+  };
+  if (ligados.length <= 1 && modo !== 'misto') return [itemWhatsapp()];
+  const itens = ligados.map((c) => {
     const { conectado, qr } = whatsappStatus.obterEstado(c.id);
     return conectado
       ? { nome: `WhatsApp: ${c.nome}`, nivel: 'ok', texto: 'Conectado', detalhe: 'Recebendo e mandando mensagens.' }
       : { nome: `WhatsApp: ${c.nome}`, nivel: 'problema', texto: qr ? 'Esperando ler o QR Code' : 'Desconectado', detalhe: 'Veja em Configurações > WhatsApp.', link: '/painel/configuracoes/whatsapp' };
   });
+  return modo === 'misto' ? [...itens, itemOficial()] : itens;
 }
 
 function montarStatus(agoraMs = Date.now()) {

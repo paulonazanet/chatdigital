@@ -45,8 +45,20 @@ async function iniciar() {
   const restauradas = restaurarAtendimentosEmAndamento(fluxo);
   if (restauradas) console.log(`${restauradas} conversa(s) com atendente restaurada(s) — o bot continua em silêncio com elas.`);
 
-  // conexão escolhida em Configurações > WhatsApp: celular (QR Code) ou API oficial da Meta
-  if (negocio.whatsapp_conexao === 'oficial') {
+  // conexão escolhida em Configurações > WhatsApp: celular (QR Code), API oficial da Meta ou os dois
+  if (negocio.whatsapp_conexao === 'misto') {
+    const { listarCanais, canalOficial } = require('./canais');
+    const { definirIniciadorDeCanal } = require('./socket-atual');
+    definirModo('misto');
+    definirCanalOficial(oficial.criarAdaptador());
+    const numeroOficial = canalOficial({ criar: true });
+    const teste = await oficial.testarConexao();
+    if (teste.ok) whatsappStatus.definirConectado(numeroOficial.id);
+    else whatsappStatus.definirDesconectado(numeroOficial.id);
+    console.log(teste.ok ? `API oficial do WhatsApp ligada (${teste.numero}), junto com o celular.` : `API oficial do WhatsApp com problema: ${teste.erro}`);
+    definirIniciadorDeCanal((canal) => iniciarBot(negocio, fluxo, canal));
+    for (const canal of listarCanais({ soAtivos: true, tipo: 'celular' })) await iniciarBot(negocio, fluxo, canal);
+  } else if (negocio.whatsapp_conexao === 'oficial') {
     definirModo('oficial');
     definirCanalOficial(oficial.criarAdaptador());
     const teste = await oficial.testarConexao();
