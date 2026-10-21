@@ -121,7 +121,12 @@ async function montarMensagem(numero, conteudo, opcoes = {}) {
   if (conteudo.react) {
     return { ...corpo, type: 'reaction', reaction: { message_id: conteudo.react.key?.id, emoji: conteudo.react.text || '' } };
   }
-  if (conteudo.text !== undefined) return { ...corpo, type: 'text', text: { body: String(conteudo.text), preview_url: false } };
+  if (conteudo.text !== undefined) {
+    // opções do bot como botões ou lista (E4, 4a parte); se não couber, vai o texto numerado
+    const interativo = conteudo.interativo && require('./opcoes-interativas').paraWhatsapp(conteudo.interativo);
+    if (interativo) return { ...corpo, type: 'interactive', interactive: interativo };
+    return { ...corpo, type: 'text', text: { body: String(conteudo.text), preview_url: false } };
+  }
   for (const [chave, tipo, mime, nome] of [
     ['image', 'image', 'image/jpeg', 'imagem.jpg'],
     ['video', 'video', 'video/mp4', 'video.mp4'],
@@ -268,7 +273,12 @@ function lerWebhook(corpo) {
         let mime = null;
         if (m.type === 'text') message = contexto.contextInfo ? { extendedTextMessage: { text: m.text?.body || '', ...contexto } } : { conversation: m.text?.body || '' };
         else if (m.type === 'button') message = { conversation: m.button?.text || m.button?.payload || '' };
-        else if (m.type === 'interactive') message = { conversation: m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || '' };
+        // botão ou item de lista (E4, 4a parte): o id é o número da opção; o título vai pro histórico
+        else if (m.type === 'interactive') {
+          const escolha = m.interactive?.button_reply || m.interactive?.list_reply || {};
+          message = { conversation: escolha.id || escolha.title || '' };
+          if (escolha.title && escolha.id) base.textoParaHistorico = escolha.title;
+        }
         else if (m.type === 'reaction') message = { reactionMessage: { key: { id: m.reaction?.message_id }, text: m.reaction?.emoji || '' } };
         else {
           const chave = { image: 'imageMessage', video: 'videoMessage', audio: 'audioMessage', sticker: 'stickerMessage', document: 'documentMessage' }[m.type];

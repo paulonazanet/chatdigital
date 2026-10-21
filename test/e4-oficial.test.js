@@ -189,8 +189,8 @@ test('mensagem que chega pela Meta: o bot responde pela Meta; foto é baixada; r
   const conversa = db.prepare("SELECT * FROM conversas WHERE numero = '5581900000002@s.whatsapp.net'").get();
   assert.strictEqual(conversa.nome_contato, 'Cliente Meta');
   const resposta = recebidas.find((r) => r.to === '5581900000002');
-  assert.strictEqual(resposta.type, 'text');
-  assert.match(resposta.text.body, /Loja Exemplo/, 'o menu do bot saiu pela API oficial');
+  assert.strictEqual(resposta.type, 'interactive', 'o menu vai como lista (E4, 4a parte)');
+  assert.match(resposta.interactive.body.text, /Loja Exemplo/, 'o menu do bot saiu pela API oficial');
 
   // foto do cliente
   await tratarWebhook({ entry: [{ changes: [{ value: { metadata: { phone_number_id: '111222333' }, messages: [{ from: '5581900000002', id: 'wamid.foto', type: 'image', image: { id: 'midia-do-cliente', mime_type: 'image/jpeg', caption: 'olha' } }] } }] }] });

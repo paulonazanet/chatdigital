@@ -10,6 +10,7 @@
     falhou: 'Dados salvos, mas a conferência com a Meta falhou. Veja o erro abaixo.',
     codigo: 'Código de verificação trocado. Atualize na Meta (Webhook > Verify token).',
     modelos: 'Modelos atualizados com os da Meta.',
+    botoes: 'Escolha dos botões salva. Vale já nas próximas mensagens do bot.',
   };
   const c = config;
   const SITUACAO = { APPROVED: 'Aprovado', PENDING: 'Em análise', REJECTED: 'Recusado', PAUSED: 'Pausado', DISABLED: 'Desativado' };
@@ -31,6 +32,17 @@
     </form>
     <p class="dica">Em uso agora: <strong><%= emUso === 'oficial' ? 'API oficial da Meta' : 'WhatsApp do celular' %></strong>.
       <% if (escolhida !== emUso) { %><span class="selo selo-situacao-ignorado">Reinicie o sistema para passar a usar <%= escolhida === 'oficial' ? 'a API oficial' : 'o celular' %>.</span><% } %></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Opções do bot como botões</legend>
+    <form method="post" action="/painel/configuracoes/whatsapp/botoes">
+      <label class="linha"><input type="checkbox" name="botoes_interativos" value="1" <%= botoesInterativos ? 'checked' : '' %>>
+        <span>Mostrar as opções numeradas do bot como <strong>botões</strong> (até 3) ou <strong>lista</strong> (até 10)<br>
+          <span class="dica-inline">Vale na API oficial e no Instagram (lá viram respostas rápidas). Pelo WhatsApp do celular continua o texto
+            numerado. O cliente toca na opção em vez de digitar o número; se a pergunta não der para virar botão, vai o texto.</span></span></label>
+      <p><button type="submit" class="botao-pequeno">Salvar</button></p>
+    </form>
   </fieldset>
 
   <% if (emUso === 'celular') { %>

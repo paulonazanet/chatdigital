@@ -95,9 +95,19 @@ async function avisarSeSemAtendente(sock, numero, negocio, sincronizacao) {
   }
 }
 
-async function enviarComSeguranca(sock, numero, texto) {
+// Botões e lista (E4, 4a parte): só na API oficial e no Instagram, e só se não foi desligado em
+// Configurações > WhatsApp. O texto do histórico continua o numerado.
+function opcoesParaBotoes(numero, texto, negocio, fluxo) {
+  if (negocio.botoes_interativos === false) return null;
+  const { modoAtual } = require('./socket-atual');
+  if (!String(numero).endsWith('@instagram') && modoAtual() !== 'oficial') return null;
+  const ids = require('./flow-engine').opcoesEsperadas(numero, fluxo, negocio);
+  return ids ? require('./opcoes-interativas').extrairOpcoes(texto, ids) : null;
+}
+
+async function enviarComSeguranca(sock, numero, texto, interativo = null) {
   try {
-    await sock.sendMessage(numero, { text: texto });
+    await sock.sendMessage(numero, interativo ? { text: texto, interativo } : { text: texto });
     return true;
   } catch (erro) {
     console.error(`Falha ao enviar mensagem para ${numero}:`, erro);
@@ -132,6 +142,9 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo, { canalId = nul
     msg.message.conversation ||
     msg.message.extendedTextMessage?.text ||
     '';
+  // botão ou item de lista tocado (API oficial / Instagram): o fluxo recebe o número da opção, o
+  // histórico mostra o que o cliente tocou
+  const textoDoHistorico = msg.textoParaHistorico || texto;
   // id no WhatsApp (pra citar/reagir depois) e a mensagem que o cliente citou, se citou
   const extra = { waId: msg.key.id, citadaId: mensagemCitada(numero, msg.message)?.id, canalId };
   // fluxo do número por onde chegou (cada número pode ter o seu bot)
@@ -182,7 +195,7 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo, { canalId = nul
     return;
   }
 
-  registrarMensagem(numero, 'cliente', texto, null, null, extra);
+  registrarMensagem(numero, 'cliente', textoDoHistorico, null, null, extra);
   if (msg.key.remoteJidAlt) definirNumeroExibicao(numero, msg.key.remoteJidAlt.replace('@s.whatsapp.net', ''));
   definirNomeDoPerfil(numero, msg.pushName);
   const vinhaDoBot = !obterEstadoConversa(numero, fluxo).humano;
@@ -198,7 +211,7 @@ async function tratarMensagemRecebida(sock, msg, negocio, fluxo, { canalId = nul
   const sincronizacao = sincronizarConversa(numero, fluxo, { vinhaDoBot });
   if (resposta) {
     registrarMensagem(numero, 'bot', resposta);
-    await enviarComSeguranca(sock, numero, resposta);
+    await enviarComSeguranca(sock, numero, resposta, opcoesParaBotoes(numero, resposta, negocio, fluxo));
   }
   await avisarSeSemAtendente(sock, numero, negocio, sincronizacao);
 }

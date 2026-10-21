@@ -379,6 +379,7 @@ function renderizarWhatsapp(req, res, extra = {}) {
     // números pelo celular (E4, 3a parte): cada um com o estado, o QR Code e o fluxo dele
     numeros: canais.listarCanais({ tipo: 'celular' }).map((c) => ({ ...c, estado: whatsappStatus.obterEstado(c.id) })),
     fluxos: listarFluxos(),
+    botoesInterativos: carregarNegocio().botoes_interativos !== false,
     erro: null,
     aviso: req.query.aviso || null,
     ...extra,
@@ -412,6 +413,11 @@ router.post('/whatsapp/numeros/:id/ativo', async (req, res) => {
   res.redirect('/painel/configuracoes/whatsapp');
 });
 
+// opções do bot como botões/lista (API oficial) e respostas rápidas (Instagram)
+router.post('/whatsapp/botoes', (req, res) => {
+  salvarConfiguracoes({ botoes_interativos: req.body.botoes_interativos === '1' });
+  res.redirect('/painel/configuracoes/whatsapp?aviso=botoes');
+});
 router.post('/whatsapp/conexao', (req, res) => {
   salvarConfiguracoes({ whatsapp_conexao: req.body.whatsapp_conexao === 'oficial' ? 'oficial' : 'celular' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');

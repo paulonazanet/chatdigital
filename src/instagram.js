@@ -174,6 +174,11 @@ function montarMensagem(numero, conteudo, opcoes = {}) {
   }
   const citada = opcoes?.quoted?.key?.id;
   const comCitacao = (corpo) => (citada ? { ...corpo, reply_to: { mid: citada } } : corpo);
+  if (conteudo.text !== undefined && conteudo.interativo) {
+    // opções do bot como respostas rápidas (E4, 4a parte)
+    const rapidas = require('./opcoes-interativas').paraInstagram(conteudo.interativo);
+    if (rapidas && Buffer.from(rapidas.text).length <= 1000) return comCitacao({ recipient, message: rapidas });
+  }
   if (conteudo.text !== undefined) {
     // o Instagram aceita até 1000 bytes por mensagem
     const texto = Buffer.from(String(conteudo.text)).length > 1000 ? `${Buffer.from(String(conteudo.text)).subarray(0, 990).toString().replace(/�+$/, '')}…` : String(conteudo.text);
@@ -249,8 +254,12 @@ function lerWebhook(corpo) {
       const contexto = m.reply_to?.mid ? { contextInfo: { stanzaId: m.reply_to.mid } } : {};
       let message = null;
       let urlMidia = null;
-      if (m.text) message = contexto.contextInfo ? { extendedTextMessage: { text: m.text, ...contexto } } : { conversation: m.text };
-      else if (m.quick_reply?.payload) message = { conversation: m.quick_reply.payload };
+      let textoParaHistorico = null;
+      // resposta rápida tocada (opções do bot): o fluxo recebe o número da opção, o histórico o título
+      if (m.quick_reply?.payload) {
+        message = { conversation: m.quick_reply.payload };
+        if (m.text) textoParaHistorico = m.text;
+      } else if (m.text) message = contexto.contextInfo ? { extendedTextMessage: { text: m.text, ...contexto } } : { conversation: m.text };
       else if (Array.isArray(m.attachments) && m.attachments.length) {
         const anexo = m.attachments[0];
         const tipo = { image: 'imageMessage', video: 'videoMessage', audio: 'audioMessage', file: 'documentMessage' }[anexo.type];
@@ -265,6 +274,7 @@ function lerWebhook(corpo) {
       if (!message) continue;
       const mensagem = { key: { ...chave, id: m.mid }, message, messageTimestamp: Math.floor(Number(evento.timestamp || 0) / 1000) || undefined };
       if (urlMidia) mensagem.baixarMidia = () => baixar(urlMidia);
+      if (textoParaHistorico) mensagem.textoParaHistorico = textoParaHistorico;
       saida.push({ igsid: de, mensagem });
     }
   }

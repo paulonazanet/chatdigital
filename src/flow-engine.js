@@ -361,6 +361,23 @@ async function simularMensagem({ estado, texto, negocio, fluxo }) {
   return { resposta: resposta || null, estado: { no: atual.no, vars: atual.vars, aguardando: atual.aguardando, humano: atual.humano, setor: atual.setor || null }, eventos, no: atual.no };
 }
 
+/**
+ * O que a pergunta em que a conversa parou aceita como resposta ("1", "2", "0"...), ou null se o bot
+ * não está esperando escolha (texto livre, com atendente). Usado para mostrar as opções como botões
+ * ou lista na API oficial e no Instagram (opcoes-interativas.js).
+ */
+function opcoesEsperadas(numero, fluxo, negocio) {
+  const estado = obterEstado(numero, fluxo);
+  if (!estado.aguardando || estado.humano) return null;
+  const no = fluxo.nos[estado.no];
+  if (!no || no.tipo !== 'pergunta') return null;
+  const ids = [];
+  if (no.opcoes_dinamicas) ids.push(...gerarOpcoesDinamicas(no.opcoes_dinamicas, { negocio, vars: estado.vars }).map((o) => o.numero));
+  else if (no.opcoes) ids.push(...no.opcoes.map((o) => String(o.quando)));
+  if (no.opcao_extra) ids.push(String(no.opcao_extra.quando));
+  return ids.length ? ids : null;
+}
+
 function obterEstadoConversa(numero, fluxo) {
   return obterEstado(numero, fluxo);
 }
@@ -441,6 +458,7 @@ module.exports = {
   processarMensagem,
   simularMensagem,
   obterEstadoConversa,
+  opcoesEsperadas,
   encerrarAtendimento,
   iniciarFluxo,
   transferirParaHumano,
