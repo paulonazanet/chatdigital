@@ -450,6 +450,22 @@ db.exec(`
     PRIMARY KEY (nome, idioma)
   );
 `);
+// modelos_enviados (E4, 4a parte): cada modelo que saiu pela API oficial, que é o que a Meta cobra.
+// `gratis` = utilidade dentro das 24 h do cliente (a Meta não cobra). Base da tela Custos da Meta.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS modelos_enviados (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversa_id INTEGER REFERENCES conversas(id) ON DELETE SET NULL,
+    nome TEXT NOT NULL,
+    idioma TEXT NOT NULL,
+    categoria TEXT,
+    origem TEXT NOT NULL,
+    gratis INTEGER NOT NULL DEFAULT 0,
+    wa_id TEXT,
+    enviado_em TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_modelos_enviados_em ON modelos_enviados (enviado_em);
+`);
 db.prepare('INSERT OR IGNORE INTO whatsapp_oficial (id, codigo_verificacao, versao) VALUES (1, ?, ?)').run(require('crypto').randomBytes(16).toString('hex'), 'v23.0');
 if (!colunaExiste('envios', 'modelo')) db.exec('ALTER TABLE envios ADD COLUMN modelo TEXT');
 // modelo da campanha pela API oficial: nome, idioma e o que vai em {{1}}, {{2}}... (JSON, com variáveis)

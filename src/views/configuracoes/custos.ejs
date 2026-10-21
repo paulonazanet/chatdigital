@@ -1,0 +1,68 @@
+<%- include('../partials/inicio', { titulo: 'Configurações · Custos da Meta' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const nomeDoMes = (mes) => { const [a, m] = mes.split('-').map(Number); return `${MESES[m - 1]} de ${a}`; };
+  const precoNoCampo = (v) => (v == null ? '' : String(v).replace('.', ','));
+%>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › <a href="/painel/configuracoes/whatsapp">WhatsApp</a> › Custos da Meta</p>
+  <h1>Custos da Meta</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (aviso === 'precos') { %><p class="sucesso">Preços salvos.</p><% } %>
+
+  <p class="dica">Pela API oficial, a Meta cobra pelos <strong>modelos</strong> (templates) que a empresa manda: lembretes, campanhas e
+    modelos mandados pela Fila fora das 24 h. Responder o cliente dentro das 24 h é de graça, e modelo de <strong>utilidade</strong>
+    dentro das 24 h também. A conta abaixo usa os modelos enviados; a Meta cobra os entregues, então a fatura pode vir um pouco menor.</p>
+
+  <div class="abas-relatorio">
+    <a href="?mes=<%= mesAtual %>" class="<%= resumo.mes === mesAtual ? 'ativa' : '' %>"><%= nomeDoMes(mesAtual) %></a>
+    <a href="?mes=<%= mesAnterior %>" class="<%= resumo.mes === mesAnterior ? 'ativa' : '' %>"><%= nomeDoMes(mesAnterior) %></a>
+  </div>
+
+  <div class="cartoes">
+    <div class="cartao"><span class="numero"><%= resumo.total %></span><span class="rotulo">modelos enviados</span></div>
+    <div class="cartao"><span class="numero"><%= resumo.cobradas %></span><span class="rotulo">cobrados pela Meta</span></div>
+    <div class="cartao"><span class="numero"><%= resumo.semPreco && !resumo.estimativa ? '—' : formatarReais(resumo.estimativa) %></span><span class="rotulo">estimativa do mês<%= resumo.semPreco ? ' (falta preço)' : '' %></span></div>
+  </div>
+
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Tipo</th><th>Enviados</th><th>Grátis (24 h)</th><th>Cobrados</th><th>Preço</th><th>Estimativa</th></tr></thead>
+      <tbody>
+        <% resumo.categorias.forEach((c) => { %>
+          <tr>
+            <td><strong><%= c.rotulo %></strong><br><span class="dica-inline"><%= c.texto %></span></td>
+            <td><%= c.total %></td>
+            <td><%= c.gratis %></td>
+            <td><%= c.cobradas %></td>
+            <td><%= c.preco == null ? '—' : formatarReais(c.preco) %></td>
+            <td><%= c.estimativa == null ? (c.cobradas ? 'falta o preço' : '—') : formatarReais(c.estimativa) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (resumo.porOrigem.length) { %>
+    <h2>De onde saíram</h2>
+    <ul class="lista-online">
+      <% resumo.porOrigem.forEach((o) => { %><li><strong><%= o.n %></strong> <%= o.rotulo.toLowerCase() %></li><% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/painel/configuracoes/whatsapp/custos" autocomplete="off">
+    <fieldset>
+      <legend>Preço por mensagem (em reais)</legend>
+      <p class="dica">Confira na tabela de preços da Meta para o Brasil (developers.facebook.com › WhatsApp › Preços) ou na fatura do
+        WhatsApp Manager, e preencha aqui. A Meta muda esses valores de tempos em tempos.</p>
+      <div class="campos-lado-a-lado">
+        <% categorias.forEach((c) => { %>
+          <label><%= c.rotulo %><input type="text" name="<%= c.campo %>" value="<%= precoNoCampo(precos[c.campo]) %>" inputmode="decimal" placeholder="ex.: 0,35"></label>
+        <% }) %>
+      </div>
+      <p><button type="submit">Salvar preços</button></p>
+    </fieldset>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

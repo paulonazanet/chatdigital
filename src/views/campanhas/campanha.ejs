@@ -63,6 +63,7 @@
         <input type="number" name="excluir_dias" min="0" max="365" value="<%= publico.excluirDias %>" class="campo-curto"></label>
       <p class="contagem-publico"><span><strong><%= totalPublico %></strong> cliente<%= totalPublico === 1 ? '' : 's' %> <%= totalPublico === 1 ? 'vai' : 'vão' %> receber<% if (semConsentimento) { %>; <%= semConsentimento %> ficaram de fora por não terem aceitado receber<% } %>.</span>
         <% if (amostra.length) { %><span class="dica-inline">Ex.: <%= amostra.join(', ') %><%= totalPublico > amostra.length ? '…' : '' %></span><% } %>
+        <% if (custoEstimado) { %><span class="dica-inline">Custo na Meta: uns <strong><%= custoEstimado.texto %></strong> (<%= totalPublico %> × <%= custoEstimado.precoTexto %>, modelo de <%= custoEstimado.rotulo.toLowerCase() %>; <a href="/painel/configuracoes/whatsapp/custos">ver custos</a>)</span><% } %>
         <span class="dica-inline">Nunca recebem: ignorados, bloqueados e quem pediu para sair. Quem estiver em atendimento na hora fica de fora.</span></p>
     </fieldset>
 

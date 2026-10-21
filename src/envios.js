@@ -128,7 +128,7 @@ async function processarFila({ agora = new Date(), forcar = false } = {}) {
   const { registrarMensagem } = require('./conversas'); // aqui: conversas usa módulos que usam este
   try {
     const canal = obterSocket();
-    const resposta = viaOficial && modelo ? await canal.enviarModelo(conversa.numero, modelo) : await canal.sendMessage(conversa.numero, { text: envio.texto });
+    const resposta = viaOficial && modelo ? await canal.enviarModelo(conversa.numero, modelo, { origem: envio.tipo }) : await canal.sendMessage(conversa.numero, { text: envio.texto });
     db.prepare("UPDATE envios SET status = 'enviado', enviado_em = ?, wa_id = ? WHERE id = ?").run(new Date().toISOString(), resposta?.key?.id || null, envio.id);
     registrarMensagem(conversa.numero, 'bot', envio.texto, null, null, { waId: resposta?.key?.id, deMim: true });
     concluirCampanhaSeAcabou(envio);

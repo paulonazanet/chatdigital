@@ -152,8 +152,12 @@ function textoDoModelo(modelo, parametros = []) {
   return corpo.replace(/\{\{(\d+)\}\}/g, (_, n) => parametros[Number(n) - 1] ?? '');
 }
 
-async function enviarModelo(numero, { nome, idioma, parametros = [] }) {
+// `origem`: de onde saiu (fila, lembrete, campanha, retorno), pra tela Custos da Meta
+async function enviarModelo(numero, { nome, idioma, parametros = [] }, { origem = 'fila' } = {}) {
   const config = lerConfig();
+  const conversaId = db.prepare('SELECT id FROM conversas WHERE numero = ?').get(numero)?.id || null;
+  const categoria = db.prepare('SELECT categoria FROM modelos_oficiais WHERE nome = ? AND idioma = ?').get(nome, idioma)?.categoria || null;
+  const gratis = categoria === 'UTILITY' && conversaId && dentroDaJanela(conversaId) ? 1 : 0;
   const corpo = {
     messaging_product: 'whatsapp',
     to: paraNumero(numero),
@@ -161,7 +165,18 @@ async function enviarModelo(numero, { nome, idioma, parametros = [] }) {
     template: { name: nome, language: { code: idioma }, ...(parametros.length ? { components: [{ type: 'body', parameters: parametros.map((p) => ({ type: 'text', text: String(p) })) }] } : {}) },
   };
   const dados = await chamarApi('POST', `${config.numero_id}/messages`, { json: corpo });
-  return { key: { id: dados?.messages?.[0]?.id || null, fromMe: true } };
+  const waId = dados?.messages?.[0]?.id || null;
+  db.prepare('INSERT INTO modelos_enviados (conversa_id, nome, idioma, categoria, origem, gratis, wa_id, enviado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+    conversaId,
+    nome,
+    idioma,
+    categoria,
+    origem,
+    gratis,
+    waId,
+    new Date().toISOString(),
+  );
+  return { key: { id: waId, fromMe: true } };
 }
 
 /** O adaptador: igual ao socket do Baileys pra quem manda mensagem */

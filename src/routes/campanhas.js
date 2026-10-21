@@ -73,6 +73,14 @@ function renderizarCampanha(req, res, campanha, extra = {}) {
     rotulo: campanha && campanha.status ? ROTULO_CAMPANHA[campanha.status] : 'Nova',
     publico,
     totalPublico: calculado.lista.length,
+    // API oficial com modelo: quanto a Meta deve cobrar, pela tabela de Custos da Meta
+    custoEstimado: (() => {
+      if (!campanha?.modelo_nome || require('../socket-atual').modoAtual() !== 'oficial') return null;
+      const modelo = oficial.obterModelo(campanha.modelo_nome, campanha.modelo_idioma);
+      const custos = require('../custos-meta');
+      const estimativa = modelo ? custos.estimarEnvio(modelo.categoria, calculado.lista.length) : null;
+      return estimativa ? { ...estimativa, texto: custos.formatarReais(estimativa.total), precoTexto: custos.formatarReais(estimativa.preco) } : null;
+    })(),
     semConsentimento: calculado.semConsentimento,
     amostra: calculado.lista.slice(0, 8).map(nomeDoCliente),
     exemplo: campanha && campanha.texto ? campanhas.textoParaCliente(campanha, { nome_contato: 'Maria' }, negocio) : '',

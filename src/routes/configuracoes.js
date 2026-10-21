@@ -418,6 +418,29 @@ router.post('/whatsapp/botoes', (req, res) => {
   salvarConfiguracoes({ botoes_interativos: req.body.botoes_interativos === '1' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=botoes');
 });
+// Custos da Meta (API oficial): modelos mandados no mês, por tipo, e a estimativa em reais
+function renderizarCustos(req, res, extra = {}) {
+  const custos = require('../custos-meta');
+  const mes = /^\d{4}-\d{2}$/.test(String(req.query.mes || '')) ? String(req.query.mes) : custos.mesAtual();
+  res.render('configuracoes/custos', {
+    atendenteLogado: req.atendente,
+    resumo: custos.resumoDoMes(mes),
+    precos: custos.lerPrecos(),
+    categorias: custos.CATEGORIAS,
+    mesAtual: custos.mesAtual(),
+    mesAnterior: custos.mesAnterior(custos.mesAtual()),
+    formatarReais: custos.formatarReais,
+    erro: null,
+    aviso: req.query.aviso || null,
+    ...extra,
+  });
+}
+router.get('/whatsapp/custos', (req, res) => renderizarCustos(req, res));
+router.post('/whatsapp/custos', (req, res) => {
+  const resultado = require('../custos-meta').salvarPrecos(req.body);
+  if (resultado.erro) return renderizarCustos(req, res, { erro: resultado.erro });
+  res.redirect('/painel/configuracoes/whatsapp/custos?aviso=precos');
+});
 router.post('/whatsapp/conexao', (req, res) => {
   salvarConfiguracoes({ whatsapp_conexao: req.body.whatsapp_conexao === 'oficial' ? 'oficial' : 'celular' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');
