@@ -1,6 +1,6 @@
 <%- include('../partials/inicio', { titulo: 'Feriados' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
-<% const dataBr = (f) => (f.repete_ano ? f.data.slice(5).split('-').reverse().join('/') : f.data.split('-').reverse().join('/')); %>
+<% const dataBr = (f) => (f.movel ? (f.proxima || f.data).split('-').reverse().join('/') : f.repete_ano ? f.data.slice(5).split('-').reverse().join('/') : f.data.split('-').reverse().join('/')); %>
 <main class="conteudo pagina-config">
   <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Feriados</p>
   <h1>Feriados</h1>
@@ -22,7 +22,7 @@
     <tbody>
       <% feriados.forEach((f) => { %>
         <tr>
-          <td class="sem-quebra"><%= dataBr(f) %><% if (f.repete_ano) { %> <span class="selo" title="Vale todo ano nesse dia">todo ano</span><% } else if (!f.proxima) { %> <span class="selo">já passou</span><% } %></td>
+          <td class="sem-quebra"><%= dataBr(f) %><% if (f.movel) { %> <span class="selo" title="Vale todo ano; a data muda e é calculada pela Páscoa">todo ano (muda a data)</span><% } else if (f.repete_ano) { %> <span class="selo" title="Vale todo ano nesse dia">todo ano</span><% } else if (!f.proxima) { %> <span class="selo">já passou</span><% } %></td>
           <td><a href="/painel/configuracoes/feriados/<%= f.id %>"><strong><%= f.nome %></strong></a><% if (!f.ativo) { %> <span class="selo selo-inativo">inativo</span><% } %></td>
           <td><%= f.dia_inteiro ? 'Dia inteiro' : `${f.hora_inicio} às ${f.hora_fim}` %></td>
           <td><%= f.tem_expediente ? 'Abre normal' : 'Fechado' %></td>

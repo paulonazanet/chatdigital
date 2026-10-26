@@ -261,6 +261,17 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Feriados móveis todo ano (26/10/2026, no main)
+Pedido do Paulo: não ter que mexer nos feriados todo ano.
+- `feriados.movel` (coluna nova): 'carnaval_segunda', 'carnaval_terca', 'sexta_santa', 'corpus_christi'.
+  `dataDoMovel(chave, ano)` (dias a partir da Páscoa) e `dataNoAno(f, ano)`; `listarFeriados` e
+  `feriadoAgora` usam a data do ano em curso. `importarNacionais` cria um registro por feriado móvel
+  (repete_ano = 1), sem ano no nome. `atualizarFeriado` não muda a data de um móvel.
+- Migração em `db.js` (1a vez): junta os antigos "Carnaval (segunda) 2026/2027…" num só, ficando com o
+  mais novo (mantém o abre/fecha e a mensagem que a empresa escolheu) e apaga os outros.
+- Telas: lista com "todo ano (muda a data)" e a próxima data; edição mostra "Próxima data" só leitura.
+- Testes: `test/feriados-moveis.test.js` (3, inclusive a migração) e o de importação do `e1-final`.
+
 ## Painel no celular (20/10/2026, no main, copiado do `e4`)
 Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já usar. Só CSS + 3 parciais, nada de rota.
 - `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e

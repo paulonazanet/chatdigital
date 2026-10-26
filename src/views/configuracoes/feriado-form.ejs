@@ -9,9 +9,19 @@
       <legend>Quando</legend>
       <div class="campos-lado-a-lado">
         <label>Nome<input type="text" name="nome" maxlength="80" value="<%= feriado.nome %>" placeholder="Ex.: São João" required></label>
-        <label>Data<input type="date" name="data" value="<%= feriado.data %>" required></label>
+        <% if (feriado.movel) { %>
+          <label>Próxima data<input type="text" value="<%= (feriado.proxima || feriado.data).split('-').reverse().join('/') %>" readonly></label>
+          <input type="hidden" name="data" value="<%= feriado.data %>">
+        <% } else { %>
+          <label>Data<input type="date" name="data" value="<%= feriado.data %>" required></label>
+        <% } %>
       </div>
-      <label class="linha"><input type="checkbox" name="repete_ano" value="1" <%= feriado.repete_ano ? 'checked' : '' %>> Repete todo ano neste dia</label>
+      <% if (feriado.movel) { %>
+        <p class="dica">Este feriado muda de data todo ano (é calculado pela Páscoa) e vale todos os anos sozinho. Aqui você só escolhe se abre ou fecha e a mensagem.</p>
+        <input type="hidden" name="repete_ano" value="1">
+      <% } else { %>
+        <label class="linha"><input type="checkbox" name="repete_ano" value="1" <%= feriado.repete_ano ? 'checked' : '' %>> Repete todo ano neste dia</label>
+      <% } %>
       <label class="linha"><input type="checkbox" name="dia_inteiro" value="1" id="dia-inteiro" <%= feriado.dia_inteiro ? 'checked' : '' %>> Dia inteiro</label>
       <div class="campos-lado-a-lado" id="periodo-feriado">
         <label>Das<input type="time" name="hora_inicio" value="<%= feriado.hora_inicio || '' %>"></label>

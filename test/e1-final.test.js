@@ -298,7 +298,7 @@ test('feriados: importar nacionais (com Páscoa certa), não repetir, e valer no
 
   let resp = await post('/painel/configuracoes/feriados/importar');
   const primeira = Number(new URL(resp.headers.get('location'), baseUrl).searchParams.get('importados'));
-  assert.strictEqual(primeira, 9 + 4 + 4, '9 fixos + 4 móveis deste ano + 4 do próximo');
+  assert.strictEqual(primeira, 9 + 4, '9 fixos + 4 móveis (que valem todo ano, pela Páscoa)');
   resp = await post('/painel/configuracoes/feriados/importar');
   assert.strictEqual(new URL(resp.headers.get('location'), baseUrl).searchParams.get('importados'), '0', 'importar de novo não duplica');
   assert.match(await pagina('/painel/configuracoes/feriados'), /Tiradentes[\s\S]*todo ano|todo ano[\s\S]*Tiradentes/);

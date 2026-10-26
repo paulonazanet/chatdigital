@@ -14,6 +14,25 @@ function horaLocal(agora) {
   return `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
 }
 
+// Feriados que mudam de data todo ano: dias a partir do domingo de Páscoa
+const MOVEIS = {
+  carnaval_segunda: -48,
+  carnaval_terca: -47,
+  sexta_santa: -2,
+  corpus_christi: 60,
+};
+/** Data (AAAA-MM-DD) de um feriado móvel no ano */
+function dataDoMovel(chave, ano) {
+  return maisDias(pascoa(ano), MOVEIS[chave]);
+}
+
+/** Data do feriado num ano: móvel (pela Páscoa), todo ano (mesmo dia/mês) ou a data única */
+function dataNoAno(f, ano) {
+  if (f.movel && MOVEIS[f.movel] !== undefined) return dataDoMovel(f.movel, ano);
+  if (f.repete_ano) return `${ano}-${f.data.slice(5)}`;
+  return f.data;
+}
+
 /**
  * Feriados na ordem em que vão acontecer (os que repetem contam a próxima vez); os de data única
  * que já passaram vão para o fim. `proxima` = a próxima data (AAAA-MM-DD) ou null se já passou.
@@ -26,9 +45,9 @@ function listarFeriados(agora = new Date()) {
     .all()
     .map((f) => {
       let proxima = f.data >= hoje ? f.data : null;
-      if (f.repete_ano) {
-        const desteAno = `${ano}-${f.data.slice(5)}`;
-        proxima = desteAno >= hoje ? desteAno : `${ano + 1}-${f.data.slice(5)}`;
+      if (f.repete_ano || f.movel) {
+        const desteAno = dataNoAno(f, ano);
+        proxima = desteAno >= hoje ? desteAno : dataNoAno(f, ano + 1);
       }
       return { ...f, proxima };
     })
@@ -71,14 +90,16 @@ function criarFeriado(campos) {
   return Number(
     db
       .prepare(
-        'INSERT INTO feriados (nome, data, repete_ano, dia_inteiro, hora_inicio, hora_fim, tem_expediente, mensagem, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO feriados (nome, data, repete_ano, dia_inteiro, hora_inicio, hora_fim, tem_expediente, mensagem, ativo, movel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
-      .run(c.nome, c.data, c.repete_ano, c.dia_inteiro, c.hora_inicio, c.hora_fim, c.tem_expediente, c.mensagem, c.ativo).lastInsertRowid,
+      .run(c.nome, c.data, c.repete_ano, c.dia_inteiro, c.hora_inicio, c.hora_fim, c.tem_expediente, c.mensagem, c.ativo, c.movel || null).lastInsertRowid,
   );
 }
 
+// num feriado móvel a data e o "todo ano" não mudam pela tela (são calculados pela Páscoa)
 function atualizarFeriado(id, campos) {
-  const c = campos;
+  const atual = obterFeriado(id);
+  const c = atual?.movel ? { ...campos, data: atual.data, repete_ano: 1 } : campos;
   db.prepare(
     'UPDATE feriados SET nome = ?, data = ?, repete_ano = ?, dia_inteiro = ?, hora_inicio = ?, hora_fim = ?, tem_expediente = ?, mensagem = ?, ativo = ? WHERE id = ?',
   ).run(c.nome, c.data, c.repete_ano, c.dia_inteiro, c.hora_inicio, c.hora_fim, c.tem_expediente, c.mensagem, c.ativo, id);
@@ -94,8 +115,9 @@ function feriadoAgora(agora = new Date()) {
   const hora = horaLocal(agora);
   return (
     db
-      .prepare('SELECT * FROM feriados WHERE ativo = 1 AND tem_expediente = 0 AND (data = ? OR (repete_ano = 1 AND substr(data, 6) = ?)) ORDER BY id')
-      .all(hoje, hoje.slice(5))
+      .prepare('SELECT * FROM feriados WHERE ativo = 1 AND tem_expediente = 0 ORDER BY id')
+      .all()
+      .filter((f) => dataNoAno(f, agora.getFullYear()) === hoje)
       .find((f) => f.dia_inteiro || (hora >= f.hora_inicio && hora < f.hora_fim)) || null
   );
 }
@@ -126,8 +148,9 @@ function maisDias(data, dias) {
 
 /**
  * Feriados nacionais: os de data fixa repetem todo ano; os que mudam (Carnaval, Sexta-feira Santa,
- * Corpus Christi) entram para o ano pedido. Carnaval e Corpus Christi são ponto facultativo: entram
- * com "tem expediente" marcado (só ficam registrados) — quem fecha nesses dias desmarca.
+ * Corpus Christi) também valem todo ano, com a data calculada pela Páscoa (`movel`); `data` = a do
+ * ano pedido. Carnaval e Corpus Christi são ponto facultativo: entram com "tem expediente" marcado
+ * (só ficam registrados) — quem fecha nesses dias desmarca.
  */
 function feriadosNacionais(ano) {
   const fixos = [
@@ -141,26 +164,24 @@ function feriadosNacionais(ano) {
     ['11-20', 'Dia Nacional de Zumbi e da Consciência Negra'],
     ['12-25', 'Natal'],
   ].map(([mesDia, nome]) => ({ nome, data: `${ano}-${mesDia}`, repete_ano: 1, tem_expediente: 0 }));
-  const p = pascoa(ano);
   const moveis = [
-    { nome: `Carnaval (segunda) ${ano}, ponto facultativo`, data: maisDias(p, -48), repete_ano: 0, tem_expediente: 1 },
-    { nome: `Carnaval (terça) ${ano}, ponto facultativo`, data: maisDias(p, -47), repete_ano: 0, tem_expediente: 1 },
-    { nome: `Sexta-feira Santa ${ano}`, data: maisDias(p, -2), repete_ano: 0, tem_expediente: 0 },
-    { nome: `Corpus Christi ${ano}, ponto facultativo`, data: maisDias(p, 60), repete_ano: 0, tem_expediente: 1 },
-  ];
+    ['carnaval_segunda', 'Carnaval (segunda), ponto facultativo', 1],
+    ['carnaval_terca', 'Carnaval (terça), ponto facultativo', 1],
+    ['sexta_santa', 'Sexta-feira Santa', 0],
+    ['corpus_christi', 'Corpus Christi, ponto facultativo', 1],
+  ].map(([movel, nome, temExpediente]) => ({ nome, data: dataDoMovel(movel, ano), repete_ano: 1, movel, tem_expediente: temExpediente }));
   return [...fixos, ...moveis];
 }
 
-/** Importa os nacionais deste ano e do próximo sem repetir os que já existem. Devolve quantos entraram. */
+/** Importa os nacionais (todos valem todo ano) sem repetir os que já existem. Devolve quantos entraram. */
 function importarNacionais(agora = new Date()) {
   const existentes = listarFeriados();
   const jaTem = (f) =>
-    existentes.some((e) => (f.repete_ano ? e.repete_ano && e.data.slice(5) === f.data.slice(5) : e.data === f.data && e.nome === f.nome));
+    existentes.some((e) => (f.movel ? e.movel === f.movel : !e.movel && e.repete_ano && e.data.slice(5) === f.data.slice(5)));
   let novos = 0;
-  const ano = agora.getFullYear();
-  for (const f of [...feriadosNacionais(ano), ...feriadosNacionais(ano + 1).filter((x) => !x.repete_ano)]) {
+  for (const f of feriadosNacionais(agora.getFullYear())) {
     if (jaTem(f)) continue;
-    criarFeriado({ dia_inteiro: 1, hora_inicio: null, hora_fim: null, mensagem: null, ativo: 1, ...f });
+    criarFeriado({ dia_inteiro: 1, hora_inicio: null, hora_fim: null, mensagem: null, ativo: 1, movel: null, ...f });
     existentes.push(f);
     novos += 1;
   }
@@ -178,4 +199,6 @@ module.exports = {
   feriadosNacionais,
   importarNacionais,
   pascoa,
+  dataDoMovel,
+  dataNoAno,
 };

@@ -220,7 +220,8 @@ router.post('/feriados/novo', (req, res) => {
   res.redirect('/painel/configuracoes/feriados');
 });
 router.get('/feriados/:id', (req, res) => {
-  const feriado = feriados.obterFeriado(Number(req.params.id));
+  // pela lista, que traz a próxima data (a de um feriado móvel muda todo ano)
+  const feriado = feriados.listarFeriados().find((f) => f.id === Number(req.params.id));
   if (!feriado) return res.redirect('/painel/configuracoes/feriados');
   renderizarFormFeriado(req, res, feriado);
 });

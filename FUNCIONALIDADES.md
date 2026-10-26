@@ -209,8 +209,10 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 
 ### Configurações > Feriados
 - **Importar feriados nacionais**: os de data fixa (todo ano) e Carnaval, Sexta-feira Santa e
-  Corpus Christi deste ano e do próximo (Carnaval e Corpus Christi entram como "abre normal", ponto
-  facultativo). Não repete os que já existem.
+  Corpus Christi, que também valem **todo ano**: a data muda e é calculada sozinha pela Páscoa (na
+  lista aparecem com "todo ano (muda a data)" e a próxima data; na edição só se escolhe abre/fecha e a
+  mensagem). Carnaval e Corpus Christi entram como "abre normal", ponto facultativo. Não repete os
+  que já existem.
 - Cada feriado: nome, data, repete todo ano, dia inteiro ou período, **tem expediente** (só
   registra), mensagem do feriado, ativo. Lista na ordem do próximo a acontecer.
 - Num feriado sem expediente: o bloco Horário do fluxo vai pelo "fora" e os setores ficam fechados.
