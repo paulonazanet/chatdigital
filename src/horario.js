@@ -16,4 +16,24 @@ function dentroDasJanelas(janelas, agora = new Date()) {
   });
 }
 
-module.exports = { dentroDasJanelas };
+// Formulário de horário (dias × 2 períodos), usado pelo setor e pelo horário de acesso do atendente:
+// o formulário manda inicio_<dia>_<periodo> e fim_<dia>_<periodo> (dia 0 a 6, período 1 ou 2).
+function horarioDoCorpo(corpo) {
+  const porDia = {};
+  for (let dia = 0; dia <= 6; dia += 1) {
+    porDia[dia] = [1, 2].map((p) => [String(corpo[`inicio_${dia}_${p}`] || ''), String(corpo[`fim_${dia}_${p}`] || '')]);
+  }
+  return porDia;
+}
+function horarioDasJanelas(janelas) {
+  const porDia = {};
+  for (let dia = 0; dia <= 6; dia += 1) porDia[dia] = [];
+  for (const janela of janelas || []) {
+    const [diasStr, horas] = String(janela).split(' ');
+    const [inicio, fim] = String(horas || '').split('-');
+    for (const dia of String(diasStr).split(',').map(Number)) if (porDia[dia]) porDia[dia].push([inicio, fim]);
+  }
+  return porDia;
+}
+
+module.exports = { dentroDasJanelas, horarioDoCorpo, horarioDasJanelas };

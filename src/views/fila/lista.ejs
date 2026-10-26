@@ -51,6 +51,22 @@
 <main class="conteudo-fila" <% if (conversaSelecionada) { %>data-conversa-numero="<%= conversaSelecionada.numero %>"<% } %>>
   <div class="fila-cabecalho">
     <h1>Fila de atendimento</h1>
+    <div class="fila-cabecalho-acoes">
+    <% if (meuLimite.limite) { %>
+      <span class="contador-limite<%= meuLimite.atendendo >= meuLimite.limite ? ' contador-limite-cheio' : '' %>" title="Conversas com você agora / seu limite">Suas conversas: <strong><%= meuLimite.atendendo %> de <%= meuLimite.limite %></strong></span>
+    <% } %>
+    <% if (!minhaPausa && motivosPausa.length) { %>
+      <details class="nova-conversa-popover pausa-popover">
+        <summary class="botao-como-summary">Pausar</summary>
+        <form method="post" action="/painel/fila/pausa" class="form-transferir form-pausa">
+          <input type="hidden" name="voltar" value="<%= baseFiltro %>">
+          <p class="dica">Em pausa você não recebe conversa nova. Escolha o motivo:</p>
+          <% motivosPausa.forEach((m) => { %>
+            <button type="submit" name="motivo_id" value="<%= m.id %>" class="botao-secundario botao-motivo-pausa"><%= m.nome %><% if (m.limite_minutos) { %> <span class="dica-inline">até <%= m.limite_minutos %> min</span><% } %></button>
+          <% }) %>
+        </form>
+      </details>
+    <% } %>
     <details class="nova-conversa-popover">
       <summary class="botao-como-summary">+ Nova conversa</summary>
       <form method="post" action="/painel/fila/nova" class="form-transferir">
@@ -63,8 +79,22 @@
         <button type="submit">Iniciar conversa</button>
       </form>
     </details>
+    </div>
     <% if (erroNovaConversa) { %><p class="erro"><%= erroNovaConversa %></p><% } %>
   </div>
+  <% if (minhaPausa) { %>
+    <form method="post" action="/painel/fila/pausa/voltar" class="faixa-pausa<%= minhaPausa.passou ? ' faixa-pausa-passou' : '' %>">
+      <input type="hidden" name="voltar" value="<%= baseFiltro %>">
+      <span>⏸ Você está em pausa: <strong><%= minhaPausa.motivo %></strong>, <%= minhaPausa.minutos < 1 ? "há menos de 1 min" : `há ${minhaPausa.minutos} min` %><% if (minhaPausa.limite) { %> (limite <%= minhaPausa.limite %> min)<% } %>.
+        Não chega conversa nova pra você. Assumir uma conversa também encerra a pausa.</span>
+      <button type="submit">Voltar ao atendimento</button>
+    </form>
+  <% } %>
+  <% if (alertas.length) { %>
+    <ul class="faixa-alertas" aria-label="Alertas">
+      <% alertas.forEach((a) => { %><li class="alerta-<%= a.gravidade %>">⚠️ <%= a.texto %></li><% }) %>
+    </ul>
+  <% } %>
 
   <div class="fila-corpo">
     <aside class="fila-lista" data-minutos-amarelo="<%= minutosAmarelo %>" data-minutos-vermelho="<%= minutosVermelho %>">

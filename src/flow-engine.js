@@ -126,7 +126,9 @@ function tratarResposta(no, msg, contexto) {
   return { ok: true, proximo: no.proximo };
 }
 
-async function executar(estado, contexto, fluxo) {
+// `simulacao`: lista de eventos do simulador do editor (Testar). Com ela, nada é gravado nem chamado
+// de verdade: "salvar", "nota" e "api" só contam o que fariam (a API segue pelo caminho de sucesso).
+async function executar(estado, contexto, fluxo, simulacao = null) {
   const textos = [];
   let passos = 0;
 
@@ -167,12 +169,19 @@ async function executar(estado, contexto, fluxo) {
       for (const [campo, caminho] of Object.entries(no.campos || {})) {
         registro[campo] = resolverCaminho(caminho, contexto);
       }
-      salvarRegistro(no.colecao, registro);
+      if (simulacao) simulacao.push({ tipo: 'salvar', texto: `Salvaria um registro em "${no.colecao}": ${JSON.stringify(registro)}` });
+      else salvarRegistro(no.colecao, registro);
       estado.no = no.proximo;
       continue;
     }
 
     if (no.tipo === 'api') {
+      if (simulacao) {
+        simulacao.push({ tipo: 'api', texto: `Chamaria a API ${no.metodo || 'GET'} ${substituir(no.url, contexto)} (no teste não chama; segue como se desse certo)` });
+        if (no.guardar_em) contexto.vars[no.guardar_em] = null;
+        estado.no = no.proximo;
+        continue;
+      }
       try {
         const corpo = no.corpo ? substituirObjeto(no.corpo, contexto) : undefined;
         const resposta = await fetch(substituir(no.url, contexto), {
@@ -194,7 +203,9 @@ async function executar(estado, contexto, fluxo) {
       // feriado sem expediente (Configurações > Feriados) = fora do horário, com a mensagem dele antes
       const feriado = feriadoAgora();
       if (feriado && feriado.mensagem) textos.push(substituirTextoDeMensagem(feriado.mensagem, contexto));
-      estado.no = !feriado && estaDentroDoHorario(no) ? no.dentro : no.fora;
+      const dentro = !feriado && estaDentroDoHorario(no);
+      if (simulacao) simulacao.push({ tipo: 'horario', texto: feriado ? `Hoje é feriado (${feriado.nome}): seguiu por "fora do horário"` : dentro ? 'Agora está dentro do horário' : 'Agora está fora do horário' });
+      estado.no = dentro ? no.dentro : no.fora;
       continue;
     }
 
@@ -208,6 +219,7 @@ async function executar(estado, contexto, fluxo) {
       textos.push(montarTexto(no, contexto));
       estado.humano = true;
       estado.setor = no.setor || null;
+      if (simulacao) simulacao.push({ tipo: 'transferir', texto: `A conversa iria para a fila do setor "${no.setor || 'sem setor'}". Daqui em diante o bot não responde mais.` });
       break;
     }
 
@@ -218,6 +230,7 @@ async function executar(estado, contexto, fluxo) {
       estado.humano = true;
       estado.setor = no.setor || null;
       estado.atendenteId = no.atendente_id ? Number(no.atendente_id) : null;
+      if (simulacao) simulacao.push({ tipo: 'transferir', texto: `A conversa iria direto para um atendente${no.setor ? ` (setor "${no.setor}")` : ''}. Daqui em diante o bot não responde mais.` });
       break;
     }
 
@@ -229,14 +242,19 @@ async function executar(estado, contexto, fluxo) {
 
     // Nota interna no histórico da conversa (o cliente não recebe), ex.: "Cliente pediu boleto"
     if (no.tipo === 'nota') {
-      const { obterOuCriarConversa, registrarNotaInterna } = require('./conversas'); // aqui: conversas também usa este arquivo
-      registrarNotaInterna(obterOuCriarConversa(estado.numero).id, substituir(no.texto, contexto));
+      if (simulacao) {
+        simulacao.push({ tipo: 'nota', texto: `Nota interna (o cliente não vê): ${substituir(no.texto, contexto)}` });
+      } else {
+        const { obterOuCriarConversa, registrarNotaInterna } = require('./conversas'); // aqui: conversas também usa este arquivo
+        registrarNotaInterna(obterOuCriarConversa(estado.numero).id, substituir(no.texto, contexto));
+      }
       estado.no = no.proximo;
       continue;
     }
 
     if (no.tipo === 'fim') {
       if (no.texto) textos.push(substituirTextoDeMensagem(no.texto, contexto));
+      if (simulacao) simulacao.push({ tipo: 'fim', texto: 'Fim do fluxo: a próxima mensagem começa do início.' });
       Object.assign(estado, estadoInicial(fluxo, estado.numero));
       break;
     }
@@ -281,6 +299,12 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
     }
   }
 
+  return continuarFluxo(estado, msg, negocio, fluxo);
+}
+
+// O que vem depois do reinício e da pesquisa: com atendente fica em silêncio; esperando resposta,
+// trata a resposta; senão começa do início. Usado pelo bot de verdade e pelo simulador.
+async function continuarFluxo(estado, msg, negocio, fluxo, simulacao = null) {
   if (estado.humano) return null;
 
   const contexto = { negocio, vars: estado.vars };
@@ -289,15 +313,46 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
     const no = fluxo.nos[estado.no];
     const resultado = tratarResposta(no, msg, contexto);
     if (!resultado.ok) {
+      if (simulacao) simulacao.push({ tipo: 'invalido', texto: 'Resposta não reconhecida: o bot pergunta de novo.' });
       return montarTexto(no, contexto, { invalido: true });
     }
     estado.no = resultado.proximo;
     estado.aguardando = false;
-    return executar(estado, contexto, fluxo);
+    return executar(estado, contexto, fluxo, simulacao);
   }
 
   estado.no = fluxo.inicio;
-  return executar(estado, contexto, fluxo);
+  return executar(estado, contexto, fluxo, simulacao);
+}
+
+/**
+ * Simulador do editor (botão Testar): roda uma mensagem num estado que fica com o navegador (não
+ * mexe no estado das conversas de verdade, não grava nada, não chama API, não manda WhatsApp).
+ * Devolve { resposta, estado, eventos, no } — `no` é o bloco onde o fluxo parou.
+ */
+async function simularMensagem({ estado, texto, negocio, fluxo }) {
+  const base = estadoInicial(fluxo, 'simulador');
+  const atual = { ...base };
+  if (estado && typeof estado === 'object') {
+    if (typeof estado.no === 'string' && fluxo.nos[estado.no]) atual.no = estado.no;
+    if (estado.vars && typeof estado.vars === 'object' && !Array.isArray(estado.vars)) atual.vars = estado.vars;
+    atual.aguardando = !!estado.aguardando;
+    atual.humano = !!estado.humano;
+    atual.setor = typeof estado.setor === 'string' ? estado.setor : null;
+  }
+  const eventos = [];
+  const msg = String(texto || '').trim();
+  const palavras = fluxo.reinicio_palavras || [];
+  let resposta;
+  if (palavras.some((p) => p.toLowerCase() === msg.toLowerCase()) && !atual.humano) {
+    Object.assign(atual, estadoInicial(fluxo, 'simulador'));
+    eventos.push({ tipo: 'reinicio', texto: `"${msg}" é palavra de reinício: começou do início.` });
+    resposta = await executar(atual, { negocio, vars: atual.vars }, fluxo, eventos);
+  } else {
+    if (atual.humano) eventos.push({ tipo: 'transferir', texto: 'A conversa está com atendente: o bot não responde. Clique em Recomeçar.' });
+    resposta = await continuarFluxo(atual, msg, negocio, fluxo, eventos);
+  }
+  return { resposta: resposta || null, estado: { no: atual.no, vars: atual.vars, aguardando: atual.aguardando, humano: atual.humano, setor: atual.setor || null }, eventos, no: atual.no };
 }
 
 function obterEstadoConversa(numero, fluxo) {
@@ -376,6 +431,7 @@ function desligarAguardandoAvaliacao(numero) {
 
 module.exports = {
   processarMensagem,
+  simularMensagem,
   obterEstadoConversa,
   encerrarAtendimento,
   iniciarFluxo,

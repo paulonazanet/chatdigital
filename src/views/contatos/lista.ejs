@@ -7,7 +7,9 @@
 <main class="conteudo pagina-config pagina-contatos">
   <div class="cabecalho-lista">
     <h1>Contatos</h1>
-    <p><a class="botao" href="/painel/contatos/novo">+ Novo contato</a> <a class="botao-secundario botao" href="/painel/contatos/tags">Tags</a></p>
+    <p><a class="botao" href="/painel/contatos/novo">+ Novo contato</a> <a class="botao-secundario botao" href="/painel/contatos/tags">Tags</a>
+      <a class="botao-secundario botao" href="/painel/contatos/importar">Importar planilha</a>
+      <a class="botao-secundario botao" href="<%= linkCom({ pagina: '' }).replace('/painel/contatos?', '/painel/contatos/exportar.csv?') %>" download title="Baixa os contatos da lista (com os filtros e a busca de agora)">Exportar (Excel)</a></p>
   </div>
   <p class="dica">Todo número que já falou com a gente. Clique no nome para ver e completar a ficha.</p>
 

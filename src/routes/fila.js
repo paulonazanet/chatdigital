@@ -36,6 +36,8 @@ const { encerrarAtendimento, iniciarFluxo, transferirParaHumano, aguardarAvaliac
 const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, lerArquivoDeMidia } = require('../midia');
+const equipe = require('../equipe');
+const { calcularAlertas, alertaParaAtendente } = require('../alertas');
 
 const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
@@ -62,6 +64,19 @@ function podeVerConversa(atendente, conversa) {
   if (!conversa.setor_id) return true;
   const meusSetores = listarSetoresDoAtendente(atendente.id).map((s) => s.id);
   return meusSetores.includes(conversa.setor_id);
+}
+
+// Antes de assumir/puxar/iniciar: quem está em pausa volta da pausa sozinho (pegar conversa é voltar
+// ao atendimento), e quem está no limite de conversas não pega mais uma. Reassumir uma conversa que já
+// é dele não conta. Devolve o texto do erro, ou null quando pode.
+function impedimentoParaPegar(atendente, conversa = null) {
+  if (conversa && conversa.status === 'atendendo' && conversa.atendente_id === atendente.id) return null;
+  let situacao = equipe.podeReceberConversa(atendente.id);
+  if (situacao.emPausa) {
+    equipe.encerrarPausa(atendente.id);
+    situacao = equipe.podeReceberConversa(atendente.id);
+  }
+  return situacao.ok ? null : situacao.motivo;
 }
 
 const FILTROS = ['minhas', 'fila', 'bot', 'finalizadas', 'todas'];
@@ -152,33 +167,6 @@ function contextoDaConversa(conversa, atendente, negocio) {
   };
 }
 
-// Marca a 1a mensagem de cada atendimento com a faixa dele ("Atendimento 202610180012 · ..."),
-// pra separar no histórico os atendimentos anteriores do atual. Cada mensagem é do último
-// atendimento aberto até a hora dela (a mensagem de encerramento fica no que acabou de fechar).
-// O atendimento só é aberto DEPOIS da mensagem que o causou (o cliente escreve, o bot transfere),
-// então a mensagem do cliente que chega com o anterior já finalizado já é do próximo — menos a
-// nota da pesquisa, que ainda é do anterior.
-function marcarFaixasDeAtendimento(mensagens, lista) {
-  let indice = -1;
-  let ultimaFaixa = null;
-  return mensagens.map((m) => {
-    while (indice + 1 < lista.length && lista[indice + 1].aberto_em <= m.criado_em) indice += 1;
-    const anterior = lista[indice];
-    const proximo = lista[indice + 1];
-    const fechouAntes = !anterior || (anterior.finalizado_em && anterior.finalizado_em <= m.criado_em);
-    const ehNotaDaPesquisa =
-      anterior && m.texto.trim().length <= 20 && atendimentos.lerNota(m.texto) !== null &&
-      Date.parse(m.criado_em) - Date.parse(anterior.finalizado_em) <= 30 * 60000;
-    // (até 6 h antes de abrir: conversa só com o bot dias antes não entra no atendimento seguinte)
-    const pertoDoProximo = proximo && Date.parse(proximo.aberto_em) - Date.parse(m.criado_em) <= 6 * 3600000;
-    if (pertoDoProximo && fechouAntes && m.remetente === 'cliente' && !m.interna && !ehNotaDaPesquisa) indice += 1;
-    const atendimento = indice >= 0 ? lista[indice] : null;
-    const faixa = atendimento && atendimento.id !== ultimaFaixa ? atendimento : null;
-    if (atendimento) ultimaFaixa = atendimento.id;
-    return { ...m, faixa };
-  });
-}
-
 function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], erro = null, erroNovaConversa = null } = {}) {
   const fluxo = carregarFluxo();
   const negocio = carregarNegocio();
@@ -186,7 +174,7 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
   let protocoloAtual = null;
   if (conversaSelecionada) {
     const lista = atendimentos.listarAtendimentosDaConversa(conversaSelecionada.id);
-    mensagens = marcarFaixasDeAtendimento(mensagens, lista);
+    mensagens = atendimentos.marcarFaixasDeAtendimento(mensagens, lista);
     protocoloAtual = lista.length ? lista[lista.length - 1].protocolo : null;
     const contexto = contextoDaConversa(conversaSelecionada, req.atendente, negocio);
     respostas = respostasRapidas
@@ -219,6 +207,10 @@ function renderizarFila(req, res, { conversaSelecionada = null, mensagens = [], 
     motivos: motivosEncerramento.listarArvore({ soAtivos: true }).filter((g) => g.motivos.length),
     exigirMotivo: !!negocio.exigir_motivo_encerramento,
     podeVerContatos: temPermissao(req.atendente, 'gerenciar_contatos'),
+    minhaPausa: equipe.descreverPausa(equipe.pausaAtual(req.atendente.id)),
+    motivosPausa: equipe.listarMotivosPausa({ soAtivos: true }),
+    meuLimite: { atendendo: equipe.contarConversasAtendendo(req.atendente.id), limite: req.atendente.limite_conversas || 0 },
+    alertas: calcularAlertas({ negocio }).filter((a) => alertaParaAtendente(a, req.atendente, temPermissao)),
   });
 }
 
@@ -242,6 +234,8 @@ router.post('/nova', async (req, res) => {
   if (!sock) {
     return renderizarFila(req, res, { erroNovaConversa: 'O bot não está conectado ao WhatsApp agora — não dá pra iniciar conversa.' });
   }
+  const impedimentoNova = impedimentoParaPegar(req.atendente);
+  if (impedimentoNova) return renderizarFila(req, res, { erroNovaConversa: impedimentoNova });
 
   try {
     const numero = await resolverNumeroNoWhatsApp(sock, numeroDigitado);
@@ -264,6 +258,20 @@ router.post('/nova', async (req, res) => {
   }
 });
 
+// Pausa do atendente (botão no topo da Fila). `voltar`: a tela da Fila onde ele estava.
+function voltarParaFila(req, res) {
+  const voltar = String(req.body.voltar || '');
+  res.redirect(/^\/painel\/fila(\/\d+)?(\?[\w=&%.-]*)?$/.test(voltar) ? voltar : '/painel/fila');
+}
+router.post('/pausa', (req, res) => {
+  equipe.iniciarPausa(req.atendente.id, Number(req.body.motivo_id));
+  voltarParaFila(req, res);
+});
+router.post('/pausa/voltar', (req, res) => {
+  equipe.encerrarPausa(req.atendente.id);
+  voltarParaFila(req, res);
+});
+
 router.get('/:id', (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
@@ -273,6 +281,8 @@ router.get('/:id', (req, res) => {
 router.post('/:id/assumir', async (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa || !podeVerConversa(req.atendente, conversa)) return res.redirect('/painel/fila');
+  const impedimento = impedimentoParaPegar(req.atendente, conversa);
+  if (impedimento) return renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro: impedimento });
   assumirConversa(conversa.id, req.atendente.id);
 
   const negocio = carregarNegocio();
@@ -293,6 +303,8 @@ router.post('/:id/assumir', async (req, res) => {
 router.post('/:id/puxar', (req, res) => {
   const conversa = obterConversaPorId(Number(req.params.id));
   if (!conversa) return res.redirect('/painel/fila');
+  const impedimento = impedimentoParaPegar(req.atendente, conversa);
+  if (impedimento) return renderizarFila(req, res, { conversaSelecionada: conversa, mensagens: listarMensagens(conversa.id), erro: impedimento });
   transferirParaHumano(conversa.numero, carregarFluxo());
   assumirConversa(conversa.id, req.atendente.id);
   res.redirect(`/painel/fila/${conversa.id}`);
@@ -310,6 +322,18 @@ router.post('/:id/transferir', (req, res) => {
       mensagens: listarMensagens(conversa.id),
       erro: 'Escolha um setor para transferir.',
     });
+  }
+
+  // pra um atendente: ele não pode estar em pausa nem no limite (menos se já é dele)
+  if (atendenteId && !(conversa.status === 'atendendo' && conversa.atendente_id === atendenteId)) {
+    const situacao = equipe.podeReceberConversa(atendenteId, atendenteId === req.atendente.id ? 'voce' : 'outro');
+    if (!situacao.ok) {
+      return renderizarFila(req, res, {
+        conversaSelecionada: conversa,
+        mensagens: listarMensagens(conversa.id),
+        erro: `${situacao.motivo} Transfira só para o setor, ou para outra pessoa.`,
+      });
+    }
   }
 
   transferirConversa(conversa.id, { setorId, atendenteId });

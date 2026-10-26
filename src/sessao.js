@@ -1,5 +1,6 @@
 const { obterAtendentePorId } = require('./atendentes');
 const { temPermissao } = require('./permissoes');
+const { verificarAcesso, registrarAcesso } = require('./acesso');
 
 const DURACAO_COOKIE_MS = 1000 * 60 * 60 * 24 * 7; // 7 dias
 
@@ -22,13 +23,23 @@ function carregarAtendenteLogado(req, res, next) {
   const id = req.signedCookies.sessao;
   if (id) {
     const atendente = obterAtendentePorId(Number(id));
-    if (atendente && atendente.ativo) req.atendente = atendente;
+    if (atendente && atendente.ativo) {
+      // horário de acesso acabou (ou mudou de IP não liberado): desconecta e volta pro login
+      const acesso = verificarAcesso(atendente, { ip: req.ip });
+      if (acesso.ok) {
+        req.atendente = atendente;
+      } else {
+        limparSessao(res);
+        registrarAcesso({ atendenteId: atendente.id, email: atendente.email, evento: 'desconectado', detalhe: acesso.motivo, req });
+        req.acessoNegado = acesso.motivo;
+      }
+    }
   }
   next();
 }
 
 function exigirLogin(req, res, next) {
-  if (!req.atendente) return res.redirect('/login');
+  if (!req.atendente) return res.redirect(req.acessoNegado ? '/login?fora=1' : '/login');
   next();
 }
 

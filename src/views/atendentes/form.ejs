@@ -1,5 +1,6 @@
 <%- include('../partials/inicio', { titulo: alvo ? 'Editar atendente' : 'Novo atendente' }) %>
 <%- include('../partials/nav', { atendenteLogado }) %>
+<% const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']; %>
 <main class="conteudo conteudo-estreita">
   <h1><%= alvo ? 'Editar atendente' : 'Novo atendente' %></h1>
   <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
@@ -25,6 +26,10 @@
     <% if (alvo) { %>
       <label class="linha"><input type="checkbox" name="ativo" <%= alvo.ativo ? 'checked' : '' %>> Ativo</label>
     <% } %>
+    <label>Limite de conversas ao mesmo tempo
+      <input type="number" name="limite_conversas" min="0" max="50" step="1" value="<%= alvo ? alvo.limite_conversas || 0 : (typeof limiteDigitado !== 'undefined' ? limiteDigitado : 0) %>" class="campo-curto">
+      <span class="ajuda">Com esse número de conversas, a pessoa não assume nem recebe outra até finalizar ou transferir uma. 0 = sem limite.</span>
+    </label>
     <fieldset>
       <legend>Setores</legend>
       <label class="linha"><input type="checkbox" id="marcar-todos-setores"> <strong>Marcar todos</strong></label>
@@ -39,13 +44,48 @@
     <% if (atendenteLogado.papel === 'admin') { %>
       <fieldset id="fieldset-permissoes">
         <legend>Permissões</legend>
-        <p class="dica">O que esse atendente pode acessar no painel.</p>
+        <label>Grupo de permissões
+          <select name="grupo_id" id="campo-grupo">
+            <option value="">Nenhum (marcar uma a uma)</option>
+            <% grupos.forEach((g) => { %><option value="<%= g.id %>" data-permissoes="<%= JSON.stringify(g.permissoes) %>" <%= grupoDoAlvo === g.id ? 'selected' : '' %>><%= g.nome %></option><% }) %>
+          </select>
+          <span class="ajuda">Com um grupo, a pessoa tem as permissões dele, e mudar o grupo muda todos que estão nele.
+            <a href="/painel/atendentes/grupos">Ver e editar os grupos</a></span>
+        </label>
+        <p class="dica" id="dica-permissoes">O que esse atendente pode acessar no painel.</p>
         <% chavesPermissao.forEach((chave) => { %>
           <label class="linha">
-            <input type="checkbox" name="permissoes" value="<%= chave %>" <%= permissoesDoAlvo.includes(chave) ? 'checked' : '' %>>
+            <input type="checkbox" name="permissoes" value="<%= chave %>" class="caixa-permissao" <%= permissoesDoAlvo.includes(chave) ? 'checked' : '' %>>
             <%= rotulosPermissao[chave] %>
           </label>
         <% }) %>
+      </fieldset>
+      <fieldset id="fieldset-acesso">
+        <legend>Quando e de onde pode entrar</legend>
+        <p class="dica">Deixe tudo em branco para poder entrar a qualquer hora e de qualquer lugar. Fora do horário, a pessoa não
+          consegue entrar e, se estiver no painel, é desconectada. Não vale para administrador.</p>
+        <table class="tabela tabela-horario">
+          <thead><tr><th>Dia</th><th>1º período</th><th>2º período</th></tr></thead>
+          <tbody>
+            <% DIAS.forEach((nomeDia, dia) => { const periodos = acessoPorDia[dia] || []; %>
+              <tr>
+                <td><%= nomeDia %></td>
+                <% [1, 2].forEach((p) => { const [ini, fim] = periodos[p - 1] || ['', '']; %>
+                  <td class="periodo">
+                    <input type="time" name="inicio_<%= dia %>_<%= p %>" value="<%= ini %>" aria-label="<%= nomeDia %>, início do <%= p %>º período">
+                    <span>às</span>
+                    <input type="time" name="fim_<%= dia %>_<%= p %>" value="<%= fim %>" aria-label="<%= nomeDia %>, fim do <%= p %>º período">
+                  </td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <p><button type="button" class="botao-link" id="copiar-segunda">Copiar o horário de segunda para terça a sexta</button></p>
+        <label>IPs liberados (opcional)
+          <textarea name="acesso_ips" rows="2" placeholder="Ex.: 200.150.10.20 (um por linha; termine com ponto para uma faixa, ex.: 192.168.0.)"><%= acessoIps %></textarea>
+          <span class="ajuda">Só deixa entrar destes endereços de internet (ex.: o da loja). Em branco = de qualquer lugar.</span>
+        </label>
       </fieldset>
     <% } %>
     <button type="submit"><%= alvo ? 'Salvar' : 'Criar atendente' %></button>
@@ -63,10 +103,39 @@
 
       var campoPapel = document.getElementById('campo-papel');
       var fieldsetPermissoes = document.getElementById('fieldset-permissoes');
+      var fieldsetAcesso = document.getElementById('fieldset-acesso');
       function atualizarVisibilidadePermissoes() {
         if (!campoPapel || !fieldsetPermissoes) return;
         fieldsetPermissoes.style.display = campoPapel.value === 'admin' ? 'none' : '';
+        if (fieldsetAcesso) fieldsetAcesso.style.display = campoPapel.value === 'admin' ? 'none' : '';
       }
+
+      // com grupo, as caixas mostram as permissões do grupo e ficam travadas
+      var campoGrupo = document.getElementById('campo-grupo');
+      var dicaPermissoes = document.getElementById('dica-permissoes');
+      function aplicarGrupo() {
+        if (!campoGrupo) return;
+        var opcao = campoGrupo.options[campoGrupo.selectedIndex];
+        var lista = opcao && opcao.getAttribute('data-permissoes') ? JSON.parse(opcao.getAttribute('data-permissoes')) : null;
+        document.querySelectorAll('.caixa-permissao').forEach(function (caixa) {
+          if (lista) caixa.checked = lista.indexOf(caixa.value) !== -1;
+          caixa.disabled = !!lista;
+        });
+        dicaPermissoes.textContent = lista ? 'Permissões do grupo "' + opcao.textContent.trim() + '" (para mudar, edite o grupo ou escolha "Nenhum").' : 'O que esse atendente pode acessar no painel.';
+      }
+      if (campoGrupo) {
+        campoGrupo.addEventListener('change', aplicarGrupo);
+        aplicarGrupo();
+      }
+      var copiar = document.getElementById('copiar-segunda');
+      if (copiar) copiar.addEventListener('click', function () {
+        ['inicio', 'fim'].forEach(function (lado) {
+          [1, 2].forEach(function (p) {
+            var origem = document.querySelector('input[name="' + lado + '_1_' + p + '"]');
+            for (var dia = 2; dia <= 5; dia++) document.querySelector('input[name="' + lado + '_' + dia + '_' + p + '"]').value = origem.value;
+          });
+        });
+      });
       if (campoPapel) {
         campoPapel.addEventListener('change', atualizarVisibilidadePermissoes);
         atualizarVisibilidadePermissoes();

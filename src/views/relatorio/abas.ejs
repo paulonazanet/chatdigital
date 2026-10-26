@@ -1,0 +1,5 @@
+<nav class="abas-relatorio" aria-label="Partes do Relatório">
+  <a href="/painel/relatorio" class="<%= ativa === 'resumo' ? 'ativa' : '' %>"<%- ativa === 'resumo' ? ' aria-current="page"' : '' %>>Resumo</a>
+  <a href="/painel/relatorio/auditoria" class="<%= ativa === 'auditoria' ? 'ativa' : '' %>"<%- ativa === 'auditoria' ? ' aria-current="page"' : '' %>>Auditoria</a>
+  <a href="/painel/relatorio/reincidencias" class="<%= ativa === 'reincidencias' ? 'ativa' : '' %>"<%- ativa === 'reincidencias' ? ' aria-current="page"' : '' %>>Reincidências</a>
+</nav>

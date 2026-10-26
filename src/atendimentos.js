@@ -242,10 +242,39 @@ function livroDeAtendimentosVazio() {
   return !db.prepare('SELECT 1 FROM atendimentos LIMIT 1').get();
 }
 
+// Marca a 1a mensagem de cada atendimento com a faixa dele ("Atendimento 202610180012 · ..."),
+// pra separar no histórico os atendimentos anteriores do atual. Cada mensagem é do último
+// atendimento aberto até a hora dela (a mensagem de encerramento fica no que acabou de fechar).
+// O atendimento só é aberto DEPOIS da mensagem que o causou (o cliente escreve, o bot transfere),
+// então a mensagem do cliente que chega com o anterior já finalizado já é do próximo — menos a
+// nota da pesquisa, que ainda é do anterior. `atendimentoId` diz de qual atendimento é cada mensagem
+// (a Auditoria usa pra mostrar só as mensagens de um atendimento).
+function marcarFaixasDeAtendimento(mensagens, lista) {
+  let indice = -1;
+  let ultimaFaixa = null;
+  return mensagens.map((m) => {
+    while (indice + 1 < lista.length && lista[indice + 1].aberto_em <= m.criado_em) indice += 1;
+    const anterior = lista[indice];
+    const proximo = lista[indice + 1];
+    const fechouAntes = !anterior || (anterior.finalizado_em && anterior.finalizado_em <= m.criado_em);
+    const ehNotaDaPesquisa =
+      anterior && m.texto.trim().length <= 20 && lerNota(m.texto) !== null &&
+      Date.parse(m.criado_em) - Date.parse(anterior.finalizado_em) <= 30 * 60000;
+    // (até 6 h antes de abrir: conversa só com o bot dias antes não entra no atendimento seguinte)
+    const pertoDoProximo = proximo && Date.parse(proximo.aberto_em) - Date.parse(m.criado_em) <= 6 * 3600000;
+    if (pertoDoProximo && fechouAntes && m.remetente === 'cliente' && !m.interna && !ehNotaDaPesquisa) indice += 1;
+    const atendimento = indice >= 0 ? lista[indice] : null;
+    const faixa = atendimento && atendimento.id !== ultimaFaixa ? atendimento : null;
+    if (atendimento) ultimaFaixa = atendimento.id;
+    return { ...m, faixa, atendimentoId: atendimento ? atendimento.id : null };
+  });
+}
+
 module.exports = {
   livroDeAtendimentosVazio,
   atendimentoAberto,
   listarAtendimentosDaConversa,
+  marcarFaixasDeAtendimento,
   gerarProtocolo,
   abrirAtendimentoDoCliente,
   registrarAssumido,

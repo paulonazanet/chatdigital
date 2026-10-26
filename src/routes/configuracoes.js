@@ -8,6 +8,10 @@ const { listarSetores } = require('../setores');
 const motivos = require('../motivos-encerramento');
 const marcadores = require('../marcadores');
 const feriados = require('../feriados');
+const { lerMetas } = require('../relatorio');
+const equipe = require('../equipe');
+const crypto = require('crypto');
+const { montarStatus } = require('../status-sistema');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -48,6 +52,11 @@ function resumoDasSubtelas() {
     motivosAtivos,
     marcadoresAtivos: marcadores.listarMarcadores({ soAtivos: true }).length,
     feriadosAtivos: feriados.listarFeriados().filter((f) => f.ativo).length,
+    metasDefinidas: Object.entries(lerMetas()).filter(([chave, valor]) => chave !== 'reincidenciaDias' && valor).length,
+    motivosPausaAtivos: equipe.listarMotivosPausa({ soAtivos: true }).length,
+    alertasLigados: ['alerta_fila_minutos', 'alerta_fila_quantidade', 'alerta_sem_resposta_minutos'].filter((c) => Number(carregarNegocio()[c]) > 0).length,
+    painelTvLigado: !!carregarNegocio().painel_tv_token,
+    status: montarStatus(),
   };
 }
 
@@ -236,6 +245,111 @@ router.post('/feriados/:id', (req, res) => {
 router.post('/feriados/:id/excluir', (req, res) => {
   feriados.excluirFeriado(Number(req.params.id));
   res.redirect('/painel/configuracoes/feriados');
+});
+
+// Metas do Relatório (verde dentro, vermelho fora) e o prazo das reincidências. 0 = sem meta.
+const CAMPOS_METAS = [
+  ['meta_espera_minutos', 0, 1440, true],
+  ['meta_primeira_resposta_minutos', 0, 1440, true],
+  ['meta_duracao_minutos', 0, 1440, true],
+  ['meta_nota', 0, 10, false],
+  ['reincidencia_dias', 1, 90, true],
+];
+function renderizarMetas(req, res, extra = {}) {
+  res.render('configuracoes/metas', { atendenteLogado: req.atendente, negocio: carregarNegocio(), erro: null, salvo: !!req.query.salvo, ...extra });
+}
+router.get('/metas', (req, res) => renderizarMetas(req, res));
+router.post('/metas', (req, res) => {
+  const campos = {};
+  for (const [campo, minimo, maximo, inteiro] of CAMPOS_METAS) {
+    const texto = String(req.body[campo] ?? '').trim().replace(',', '.');
+    const valor = texto === '' ? (campo === 'reincidencia_dias' ? 7 : 0) : Number(texto);
+    if (!Number.isFinite(valor) || valor < minimo || valor > maximo || (inteiro && !Number.isInteger(valor))) {
+      const erro =
+        campo === 'meta_nota'
+          ? 'A nota mínima tem que ser de 0 a 10 (pode ter uma casa decimal, ex.: 8,5).'
+          : campo === 'reincidencia_dias'
+            ? 'Os dias da reincidência têm que ser um número inteiro de 1 a 90.'
+            : 'Os tempos das metas têm que ser minutos inteiros, de 0 a 1440.';
+      return renderizarMetas(req, res, { negocio: { ...carregarNegocio(), ...req.body }, erro });
+    }
+    campos[campo] = campo === 'meta_nota' ? Math.round(valor * 10) / 10 : valor;
+  }
+  salvarConfiguracoes(campos);
+  res.redirect('/painel/configuracoes/metas?salvo=1');
+});
+
+// Pausas e alertas: motivos de pausa (com limite de minutos) e os números dos alertas de fila.
+const CAMPOS_ALERTAS = [
+  ['alerta_fila_minutos', 'O tempo de espera na fila'],
+  ['alerta_fila_quantidade', 'A quantidade da fila cheia'],
+  ['alerta_sem_resposta_minutos', 'O tempo sem resposta'],
+];
+function renderizarPausas(req, res, extra = {}) {
+  res.render('configuracoes/pausas', {
+    atendenteLogado: req.atendente,
+    motivos: equipe.listarMotivosPausa(),
+    negocio: carregarNegocio(),
+    erro: null,
+    salvo: !!req.query.salvo,
+    ...extra,
+  });
+}
+router.get('/pausas', (req, res) => renderizarPausas(req, res));
+router.post('/pausas/alertas', (req, res) => {
+  const campos = {};
+  for (const [campo, rotulo] of CAMPOS_ALERTAS) {
+    const texto = String(req.body[campo] ?? '').trim();
+    const valor = texto === '' ? 0 : Number(texto);
+    if (!Number.isInteger(valor) || valor < 0 || valor > 1440) {
+      return renderizarPausas(req, res, { erro: `${rotulo} tem que ser um número inteiro de 0 a 1440 (0 desliga).`, negocio: { ...carregarNegocio(), ...req.body } });
+    }
+    campos[campo] = valor;
+  }
+  salvarConfiguracoes(campos);
+  res.redirect('/painel/configuracoes/pausas?salvo=1');
+});
+router.post('/pausas', (req, res) => {
+  const motivo = equipe.validarMotivoPausa(req.body.nome, req.body.limite_minutos);
+  if (motivo.erro) return renderizarPausas(req, res, { erro: motivo.erro });
+  equipe.criarMotivoPausa(motivo.nome, motivo.limite);
+  res.redirect('/painel/configuracoes/pausas?salvo=1');
+});
+router.post('/pausas/salvar', (req, res) => {
+  const atualizacoes = [];
+  for (const m of equipe.listarMotivosPausa()) {
+    if (req.body[`nome_${m.id}`] === undefined) continue;
+    const motivo = equipe.validarMotivoPausa(req.body[`nome_${m.id}`], req.body[`limite_${m.id}`]);
+    if (motivo.erro) return renderizarPausas(req, res, { erro: motivo.erro });
+    atualizacoes.push([m.id, { nome: motivo.nome, limite: motivo.limite, ativo: !!req.body[`ativo_${m.id}`] }]);
+  }
+  for (const [id, dados] of atualizacoes) equipe.atualizarMotivoPausa(id, dados);
+  res.redirect('/painel/configuracoes/pausas?salvo=1');
+});
+router.post('/pausas/:id/excluir', (req, res) => {
+  equipe.excluirMotivoPausa(Number(req.params.id));
+  res.redirect('/painel/configuracoes/pausas');
+});
+
+// Painel ao vivo para TV: um link secreto (/tv/<código>) que abre sem login, pra deixar numa TV.
+// Gerar de novo troca o código (o link antigo para de funcionar); desligar apaga.
+router.get('/painel-tv', (req, res) => {
+  const token = carregarNegocio().painel_tv_token;
+  const link = token ? `${req.protocol}://${req.get('host')}/tv/${token}` : null;
+  res.render('configuracoes/painel-tv', { atendenteLogado: req.atendente, link, gerado: !!req.query.gerado });
+});
+router.post('/painel-tv/gerar', (req, res) => {
+  salvarConfiguracoes({ painel_tv_token: crypto.randomBytes(18).toString('base64url') });
+  res.redirect('/painel/configuracoes/painel-tv?gerado=1');
+});
+router.post('/painel-tv/desligar', (req, res) => {
+  salvarConfiguracoes({ painel_tv_token: null });
+  res.redirect('/painel/configuracoes/painel-tv');
+});
+
+// Status do sistema: WhatsApp, banco, disco, backup e versão (só leitura)
+router.get('/status', (req, res) => {
+  res.render('configuracoes/status', { atendenteLogado: req.atendente, status: montarStatus() });
 });
 
 router.get('/whatsapp', (req, res) => {

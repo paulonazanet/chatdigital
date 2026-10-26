@@ -23,6 +23,9 @@ const negocio = {
 const fluxo = carregarFluxo();
 
 after(() => {
+  // fecha o banco antes de apagar a pasta: aberto, o Windows não deixa apagar (EPERM)
+  const banco = require.cache[require.resolve('../src/db')];
+  if (banco) banco.exports.db.close();
   fs.rmSync(diretorioTeste, { recursive: true, force: true });
 });
 

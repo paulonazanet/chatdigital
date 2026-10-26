@@ -7,6 +7,11 @@
   <% if (salvo) { %><p class="sucesso">Configurações salvas.</p><% } %>
 
   <nav class="cartoes-config" aria-label="Outras configurações">
+    <a class="cartao-config" href="/painel/configuracoes/status">
+      <span class="cartao-config-nome">Status do sistema</span>
+      <span class="cartao-config-info"><span class="ponto-status <%= resumo.status.nivel === 'ok' ? 'ponto-status-ok' : resumo.status.nivel === 'atencao' ? 'ponto-status-atencao' : 'ponto-status-falha' %>"></span><%= resumo.status.resumo %></span>
+      <span class="cartao-config-texto">WhatsApp, banco, disco e backup</span>
+    </a>
     <a class="cartao-config" href="/painel/configuracoes/whatsapp">
       <span class="cartao-config-nome">WhatsApp</span>
       <% if (resumo.whatsappConectado) { %>
@@ -30,6 +35,21 @@
       <span class="cartao-config-nome">Feriados</span>
       <span class="cartao-config-info"><%= resumo.feriadosAtivos %> feriado<%= resumo.feriadosAtivos === 1 ? '' : 's' %> ativo<%= resumo.feriadosAtivos === 1 ? '' : 's' %></span>
       <span class="cartao-config-texto">Dias em que o atendimento fecha</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/metas">
+      <span class="cartao-config-nome">Metas</span>
+      <span class="cartao-config-info"><%= resumo.metasDefinidas ? `${resumo.metasDefinidas} meta${resumo.metasDefinidas === 1 ? '' : 's'} definida${resumo.metasDefinidas === 1 ? '' : 's'}` : 'Nenhuma meta' %></span>
+      <span class="cartao-config-texto">Tempos e nota que o Relatório compara</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/pausas">
+      <span class="cartao-config-nome">Pausas e alertas</span>
+      <span class="cartao-config-info"><%= resumo.motivosPausaAtivos %> motivo<%= resumo.motivosPausaAtivos === 1 ? '' : 's' %> de pausa · <%= resumo.alertasLigados ? `${resumo.alertasLigados} alerta${resumo.alertasLigados === 1 ? '' : 's'}` : 'alertas desligados' %></span>
+      <span class="cartao-config-texto">Pausa do atendente e avisos de fila parada</span>
+    </a>
+    <a class="cartao-config" href="/painel/configuracoes/painel-tv">
+      <span class="cartao-config-nome">Painel da TV</span>
+      <span class="cartao-config-info"><% if (resumo.painelTvLigado) { %><span class="ponto-status ponto-status-ok"></span>Ligado<% } else { %>Desligado<% } %></span>
+      <span class="cartao-config-texto">Tela ao vivo do atendimento para deixar numa TV</span>
     </a>
   </nav>
 

@@ -1,0 +1,76 @@
+<%- include('../partials/inicio', { titulo: 'Pausas e alertas' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const valor = (campo) => (negocio[campo] === undefined || negocio[campo] === null ? 0 : negocio[campo]); %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/configuracoes">Configurações</a> › Pausas e alertas</p>
+  <h1>Pausas e alertas</h1>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <% if (salvo) { %><p class="sucesso">Salvo.</p><% } %>
+
+  <h2>Motivos de pausa</h2>
+  <p class="dica">O atendente clica em <strong>Pausar</strong> no alto da Fila e escolhe o motivo. Em pausa ele não recebe conversa
+    nova (não dá pra transferir pra ele, e o bot avisa "sem atendente" se ninguém mais estiver livre). Com <strong>limite</strong>,
+    a pausa que passa do tempo vira alerta pra gestão e pro próprio atendente. 0 = sem limite. Desativar esconde sem apagar.</p>
+
+  <form method="post" action="/painel/configuracoes/pausas/salvar" id="form-pausas"></form>
+  <table class="tabela">
+    <thead><tr><th>Motivo</th><th>Limite (min)</th><th></th></tr></thead>
+    <tbody>
+      <% motivos.forEach((m) => { %>
+        <tr>
+          <td>
+            <div class="linha-form linha-form-inline">
+              <input type="text" form="form-pausas" name="nome_<%= m.id %>" value="<%= m.nome %>" maxlength="40" aria-label="Nome do motivo">
+              <label class="linha-check"><input type="checkbox" form="form-pausas" name="ativo_<%= m.id %>" value="1" <%= m.ativo ? 'checked' : '' %>> Ativo</label>
+            </div>
+          </td>
+          <td><input type="number" form="form-pausas" name="limite_<%= m.id %>" value="<%= m.limite_minutos %>" min="0" max="600" class="campo-curto campo-tabela" aria-label="Limite em minutos"></td>
+          <td>
+            <form method="post" action="/painel/configuracoes/pausas/<%= m.id %>/excluir" class="form-inline" onsubmit="return confirm('Excluir este motivo de pausa? As pausas já feitas continuam no Relatório.')">
+              <button type="submit" class="botao-link botao-link-perigo">Excluir</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!motivos.length) { %><tr><td colspan="3" class="dica">Nenhum motivo. Sem motivo ativo, o botão Pausar não aparece.</td></tr><% } %>
+    </tbody>
+  </table>
+  <% if (motivos.length) { %>
+    <p class="acoes-topo"><button type="submit" form="form-pausas">Salvar motivos</button></p>
+  <% } %>
+
+  <form method="post" action="/painel/configuracoes/pausas" class="linha-form">
+    <input type="text" name="nome" maxlength="40" placeholder="Novo motivo. Ex.: Entrega no balcão" required aria-label="Nome do novo motivo">
+    <input type="number" name="limite_minutos" min="0" max="600" placeholder="Limite (min)" class="campo-curto" aria-label="Limite em minutos">
+    <button type="submit">Adicionar</button>
+  </form>
+
+  <h2>Alertas de fila</h2>
+  <p class="dica">Quando acontece, aparece uma faixa amarela no alto da Fila, do Painel e do painel da TV, e quem está com o
+    painel aberto ouve um bipe e recebe o aviso do Windows (de novo a cada 15 min, ou quando piora). <strong>0 desliga.</strong></p>
+  <form method="post" action="/painel/configuracoes/pausas/alertas" id="form-alertas">
+    <fieldset>
+      <legend>Avisar quando</legend>
+      <label>Um cliente estiver esperando na fila há mais de (minutos)
+        <input type="number" name="alerta_fila_minutos" min="0" max="1440" value="<%= valor('alerta_fila_minutos') %>" class="campo-curto">
+        <span class="ajuda">Ninguém assumiu ainda. Ex.: 15.</span>
+      </label>
+      <label>A fila tiver (clientes esperando) ou mais
+        <input type="number" name="alerta_fila_quantidade" min="0" max="1440" value="<%= valor('alerta_fila_quantidade') %>" class="campo-curto">
+        <span class="ajuda">Fila cheia. Ex.: 5.</span>
+      </label>
+      <label>Um atendente tiver cliente sem resposta há mais de (minutos)
+        <input type="number" name="alerta_sem_resposta_minutos" min="0" max="1440" value="<%= valor('alerta_sem_resposta_minutos') %>" class="campo-curto">
+        <span class="ajuda">A conversa está com alguém, mas o cliente escreveu e ninguém respondeu. Ex.: 10.</span>
+      </label>
+    </fieldset>
+    <div class="barra-salvar">
+      <span class="barra-salvar-aviso" id="aviso-nao-salvo" hidden>Você tem alterações não salvas.</span>
+      <button type="submit">Salvar alertas</button>
+    </div>
+  </form>
+  <p class="dica">O <strong>limite de conversas ao mesmo tempo</strong> de cada atendente fica no cadastro dele, em
+    <a href="/painel/atendentes">Atendentes</a>.</p>
+</main>
+<%- include('../partials/fim-painel') %>
+<%- include('aviso-nao-salvo', { formId: 'form-alertas' }) %>

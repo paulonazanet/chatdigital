@@ -35,8 +35,8 @@ function tagsPorContato(ids) {
   return resultado;
 }
 
-/** { itens, total, contagens, pagina, paginas } — filtros: busca, situacao, tag (id), pagina (1...) */
-function listarContatos({ busca = '', situacao = '', tag = '', pagina = 1 } = {}) {
+/** { itens, total, contagens, pagina, paginas } — filtros: busca, situacao, tag (id), pagina (1...); porPagina (exportar usa tudo) */
+function listarContatos({ busca = '', situacao = '', tag = '', pagina = 1, porPagina = POR_PAGINA } = {}) {
   const todos = db
     .prepare(
       `SELECT c.*, (SELECT MAX(m.criado_em) FROM mensagens m WHERE m.conversa_id = c.id AND m.interna = 0) AS ultima_mensagem_em
@@ -50,9 +50,9 @@ function listarContatos({ busca = '', situacao = '', tag = '', pagina = 1 } = {}
   const filtrados = todos.filter(
     (c) => (!situacao || c.situacao_contato === situacao) && (!comTag || comTag.has(c.id)) && casaComBusca(c, busca),
   );
-  const paginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const atual = Math.min(Math.max(1, Number(pagina) || 1), paginas);
-  const itens = filtrados.slice((atual - 1) * POR_PAGINA, atual * POR_PAGINA);
+  const itens = filtrados.slice((atual - 1) * porPagina, atual * porPagina);
   const tags = tagsPorContato(itens.map((c) => c.id));
   return {
     itens: itens.map((c) => ({ ...c, telefone: telefoneDe(c), tags: tags[c.id] || [] })),

@@ -1,0 +1,47 @@
+<%- include('../partials/inicio', { titulo: 'Reincidências' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<% const link = (p, a) => `/painel/relatorio/reincidencias?periodo=${p}${a ? `&atendente=${a}` : ''}`; %>
+<main class="conteudo pagina-relatorio">
+  <div class="relatorio-topo">
+    <h1>Relatório</h1>
+    <form method="get" action="/painel/relatorio/reincidencias" class="relatorio-filtros">
+      <% periodos.forEach(([valor, rotulo]) => { %>
+        <a href="<%= link(valor, atendenteId) %>" class="filtro-periodo<%= periodo === valor ? ' ativo' : '' %>"><%= rotulo %></a>
+      <% }) %>
+      <input type="hidden" name="periodo" value="<%= periodo %>" />
+      <select name="atendente" onchange="this.form.submit()" aria-label="Atendente do atendimento anterior">
+        <option value="">Todos os atendentes</option>
+        <% atendentes.forEach((a) => { %>
+          <option value="<%= a.id %>" <%= atendenteId === a.id ? 'selected' : '' %>><%= a.nome %></option>
+        <% }) %>
+      </select>
+    </form>
+  </div>
+  <%- include('abas', { ativa: 'reincidencias' }) %>
+  <p class="dica">Clientes que voltaram a chamar até <strong><%= dias %> dia<%= dias === 1 ? '' : 's' %></strong> depois de um atendimento finalizado.
+    Muitas vezes é sinal de que o problema não foi resolvido de primeira. Escolhendo um atendente, aparecem os que voltaram depois de um atendimento dele.
+    <% if (podeEditarMetas) { %><a href="/painel/configuracoes/metas">Mudar os dias</a><% } %></p>
+
+  <div class="cabecalho-resultado"><strong><%= lista.length %> retorno<%= lista.length === 1 ? '' : 's' %></strong></div>
+  <div class="tabela-rolagem">
+    <table class="tabela tabela-notas">
+      <thead><tr><th>Voltou em</th><th>Cliente</th><th>Depois de</th><th>Atendimento anterior</th><th>Atendente anterior</th><th>Motivo anterior</th></tr></thead>
+      <tbody>
+        <% lista.forEach((r) => { %>
+          <tr onclick="location.href='/painel/relatorio/auditoria/<%= r.anteriorId %>'">
+            <td class="sem-quebra"><%= r.voltouEm %></td>
+            <td><a href="/painel/fila/<%= r.conversaId %>" onclick="event.stopPropagation()"><%= r.cliente %></a></td>
+            <td class="sem-quebra"><%= r.intervalo %></td>
+            <td><a href="/painel/relatorio/auditoria/<%= r.anteriorId %>"><%= r.anteriorProtocolo %></a> <span class="dica-inline"><%= r.anteriorFinalizado %></span></td>
+            <td><%= r.anteriorAtendente %></td>
+            <td><%= r.anteriorMotivo %></td>
+          </tr>
+        <% }) %>
+        <% if (!lista.length) { %><tr><td colspan="6" class="dica">Nenhum cliente voltou nesse prazo. 👏</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <% if (lista.length) { %><p class="dica">Clique numa linha para ver o atendimento anterior na Auditoria, ou no nome para abrir a conversa.</p><% } %>
+</main>
+<%- include('../partials/fim-painel') %>
+<script src="/js/notificacoes.js" defer></script>

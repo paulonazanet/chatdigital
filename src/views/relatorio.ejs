@@ -5,8 +5,11 @@
   const link = (periodo, atendente) => `/painel/relatorio?periodo=${periodo}${atendente ? `&atendente=${atendente}` : ''}`;
   const corDaNota = (n) => (n >= 9 ? 'nota-boa' : n >= 7 ? 'nota-media' : 'nota-ruim');
   const tomDoPico = (n) => (!n || !r.pico.maior ? 0 : Math.max(1, Math.ceil((n / r.pico.maior) * 5)));
+  const classeMeta = (ok) => (ok === true ? ' cartao-meta-ok' : ok === false ? ' cartao-meta-fora' : '');
+  const textoMeta = (c) => (c.meta ? `meta ${c.meta} min · ${c.dentro}% dentro` : '');
+  const celulaMeta = (c) => (c.ok === true ? 'celula-meta-ok' : c.ok === false ? 'celula-meta-fora' : '');
 %>
-<main class="conteudo">
+<main class="conteudo pagina-relatorio">
   <div class="relatorio-topo">
     <h1>Relatório</h1>
     <form method="get" action="/painel/relatorio" class="relatorio-filtros">
@@ -22,26 +25,81 @@
       </select>
     </form>
   </div>
+  <%- include('relatorio/abas', { ativa: 'resumo' }) %>
 
   <div class="cartoes">
     <div class="cartao">
       <span class="numero"><%= r.total %></span><span class="rotulo">Atendimentos</span>
       <% if (r.semResposta) { %><span class="rotulo-extra"><%= r.semResposta %> finalizado(s) sem resposta</span><% } %>
     </div>
-    <div class="cartao">
-      <span class="numero"><%= r.esperaFila %></span><span class="rotulo">Espera na fila</span>
-      <span class="rotulo-extra">até alguém assumir</span>
+    <div class="cartao<%= classeMeta(r.esperaFila.ok) %>">
+      <span class="numero"><%= r.esperaFila.texto %></span><span class="rotulo">Espera na fila</span>
+      <span class="rotulo-extra"><%= textoMeta(r.esperaFila) || 'até alguém assumir' %></span>
     </div>
-    <div class="cartao">
-      <span class="numero"><%= r.primeiraResposta %></span><span class="rotulo">1ª resposta</span>
-      <span class="rotulo-extra">desde que o cliente chegou</span>
+    <div class="cartao<%= classeMeta(r.primeiraResposta.ok) %>">
+      <span class="numero"><%= r.primeiraResposta.texto %></span><span class="rotulo">1ª resposta</span>
+      <span class="rotulo-extra"><%= textoMeta(r.primeiraResposta) || 'desde que o cliente chegou' %></span>
     </div>
-    <div class="cartao">
+    <div class="cartao<%= classeMeta(r.duracao.ok) %>">
+      <span class="numero"><%= r.duracao.texto %></span><span class="rotulo">Duração do atendimento</span>
+      <span class="rotulo-extra"><%= textoMeta(r.duracao) || 'de assumir até finalizar' %></span>
+    </div>
+    <div class="cartao<%= classeMeta(r.notaOk) %>">
       <span class="numero"><%= r.notaMedia %></span><span class="rotulo">Nota média</span>
-      <span class="rotulo-extra"><%= r.totalNotas %> resposta(s) da pesquisa</span>
+      <span class="rotulo-extra"><%= r.totalNotas %> resposta(s) da pesquisa<%= r.metas.nota ? ` · meta ${String(r.metas.nota).replace('.', ',')}` : '' %></span>
     </div>
+    <a class="cartao cartao-link" href="/painel/relatorio/reincidencias?periodo=<%= r.periodo %><%= atendenteId ? `&atendente=${atendenteId}` : '' %>">
+      <span class="numero"><%= r.reincidencias %></span><span class="rotulo">Voltaram em até <%= r.metas.reincidenciaDias %> dias</span>
+      <span class="rotulo-extra"><%= r.reincidenciasPct %>% dos clientes · ver quem</span>
+    </a>
   </div>
-  <p class="dica">Os tempos mostram o tempo típico: metade dos clientes esperou menos que isso. Assim um cliente que escreveu de madrugada não distorce o resultado.</p>
+  <p class="dica">Os tempos mostram o tempo típico: metade dos clientes esperou menos que isso. Assim um cliente que escreveu de madrugada não distorce o resultado.
+    <% if (r.metas.espera || r.metas.resposta || r.metas.duracao || r.metas.nota) { %>Verde: dentro da meta. Vermelho: fora.<% } %>
+    <% if (podeEditarMetas) { %><a href="/painel/configuracoes/metas"><%= r.metas.espera || r.metas.resposta || r.metas.duracao || r.metas.nota ? 'Mudar as metas' : 'Definir metas' %></a><% } %></p>
+
+  <% if (r.porAtendente.length) { %>
+    <h2 class="subtitulo-painel">Por atendente</h2>
+    <div class="tabela-rolagem">
+      <table class="tabela tabela-notas tabela-atendentes">
+        <thead><tr><th>Atendente</th><th>Atendimentos</th><th>Espera na fila</th><th>1ª resposta</th><th>Duração</th><th>Nota média</th><th>Sem resposta</th></tr></thead>
+        <tbody>
+          <% r.porAtendente.forEach((a) => { %>
+            <tr<% if (a.atendenteId) { %> onclick="location.href='<%= link(r.periodo, a.atendenteId) %>'"<% } %>>
+              <td><% if (a.atendenteId) { %><a href="<%= link(r.periodo, a.atendenteId) %>"><%= a.nome %></a><% } else { %><%= a.nome %><% } %></td>
+              <td><%= a.total %></td>
+              <td class="<%= celulaMeta(a.espera) %>"><%= a.espera.texto %></td>
+              <td class="<%= celulaMeta(a.resposta) %>"><%= a.resposta.texto %></td>
+              <td class="<%= celulaMeta(a.duracao) %>"><%= a.duracao.texto %></td>
+              <td class="<%= a.notaOk === true ? 'celula-meta-ok' : a.notaOk === false ? 'celula-meta-fora' : '' %>"><%= a.nota %></td>
+              <td><%= a.semResposta || '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="dica">Clique num atendente para ver o Relatório só dele.</p>
+  <% } %>
+
+  <% if (r.pausas.length) { %>
+    <h2 class="subtitulo-painel">Pausas <span class="subtitulo-detalhe">tempo em pausa no período, por atendente</span></h2>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Atendente</th><th>Pausas</th><th>Tempo total</th><th>Maior pausa</th><th>Passaram do limite</th><th>Por motivo</th></tr></thead>
+        <tbody>
+          <% r.pausas.forEach((p) => { %>
+            <tr>
+              <td><%= p.nome %></td>
+              <td><%= p.quantidade %></td>
+              <td><%= p.total %></td>
+              <td><%= p.maior %></td>
+              <td class="<%= p.passaram ? 'celula-meta-fora' : '' %>"><%= p.passaram || '—' %></td>
+              <td><%= p.motivos %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 
   <h2 class="subtitulo-painel">Atendimentos <%= r.porHora ? 'por hora' : 'por dia' %></h2>
   <% if (!r.total) { %>

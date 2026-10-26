@@ -285,6 +285,134 @@ Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já u
   coluna (e o simulador por cima, quando existir). `fila/lista.ejs`: link `.voltar-lista`; `fluxo/editor.ejs`: `.aviso-so-celular`.
 - Conferido em 375 px: nenhuma tela rola para o lado; computador sem mudança (fora o traço laranja da
   página atual).
+## E2, 1ª parte (18/10/2026, branch `e2`): Auditoria, metas e reincidências
+A E2 ("Gestão e confiança") está no branch **`e2`**, separado do `main` enquanto o Carlos testa a
+E1. Ordem aprovada pelo Paulo: 1ª Auditoria e relatórios; 2ª Equipe ao vivo (pausa, limite, alertas,
+painel da TV por link próprio sem senha); 3ª Fluxo com segurança (testar, versões, importar/exportar,
+fluxos prontos de gás, loja, clínica, provedor e delivery); 4ª Acesso e manutenção (papéis,
+restrição de login, status do sistema, importar/exportar contatos).
+- **Relatório com abas** (`views/relatorio/abas.ejs`): Resumo (`/painel/relatorio`), Auditoria
+  (`/painel/relatorio/auditoria`) e Reincidências (`/painel/relatorio/reincidencias`), todas na
+  permissão `ver_relatorio`.
+- **`src/relatorio.js`**: `temposDoAtendimento` (espera, 1ª resposta, duração = assumido →
+  finalizado), `lerMetas` (do `negocio.json`), `compararComMeta` (mediana + % dentro + ok),
+  `tabelaPorAtendente`, `listarReincidencias` (atendimento de origem 'cliente' aberto até N dias
+  depois do último finalizado da mesma conversa), `formatarIntervalo`, `formatarDataHoraCompleta`.
+  `montarRelatorio` devolve `esperaFila`/`primeiraResposta`/`duracao` como objeto
+  `{ texto, meta, dentro, ok }` (antes era só o texto).
+- **`src/auditoria.js`**: `lerFiltros` (datas em dia de Recife; protocolo ignora as datas),
+  `listarAuditoria` (50 por página), `exportarAuditoriaCsv` (";" + BOM; protocolo como `="..."`
+  pro Excel não virar 2,02E+11; célula começando com = + - @ ganha `'` na frente),
+  `detalheDoAtendimento`, `conversaEmTexto`.
+- **`marcarFaixasDeAtendimento` mudou de `routes/fila.js` para `src/atendimentos.js`** e agora
+  devolve também `atendimentoId` em cada mensagem (a Auditoria filtra as mensagens por ele). A Fila
+  continua igual.
+- **Metas**: campos novos no `negocio.json` (`meta_espera_minutos`, `meta_primeira_resposta_minutos`,
+  `meta_duracao_minutos`, `meta_nota`, `reincidencia_dias`; padrões em `PADROES` de `negocio.js`).
+  Tela `GET/POST /painel/configuracoes/metas` (`views/configuracoes/metas.ejs`), cartão novo em
+  Configurações (`.cartoes-config` virou `auto-fit` para caber 5).
+- Rotas da Auditoria: `/auditoria/exportar.csv`, `/auditoria/:id`, `/auditoria/:id/imprimir`
+  (`?imprimir=1` chama a impressão sozinho; página sem menu, CSS próprio de impressão),
+  `/auditoria/:id/conversa.txt`.
+- Testes: `test/e2-gestao.test.js` (7 testes). Total: 70 passam; as 8 "falhas" são o `EPERM`
+  antigo do Windows.
+- Painel de teste da E2: worktree em `.claude/worktrees/e2`, configuração `painel-e2` (porta 3057)
+  no `.claude/launch.json` da pasta principal, com cópia própria do banco de teste.
+
+## E2, 2ª parte (18/10/2026, branch `e2`): equipe ao vivo
+- **Banco** (`db.js`): `atendentes.limite_conversas` (0 = sem limite), `motivos_pausa` (nome,
+  `limite_minutos`, ativo; vem com 5 motivos na 1ª vez) e `pausas` (atendente, motivo_texto e
+  limite copiados do motivo, `inicio`, `fim` NULL = em pausa).
+- **`src/equipe.js`**: motivos de pausa, `iniciarPausa`/`encerrarPausa`/`pausaAtual`,
+  `podeReceberConversa(id)` (em pausa ou no limite → `{ ok: false, motivo }`), `situacaoDaEquipe()`
+  (livre/atendendo/limite/pausa/offline, usa `presenca.js`) e `resumoDePausas` (Relatório). Não
+  pode dar `require` em `atendentes.js` (circular): usa SQL direto.
+- **Onde a regra vale**: `haAtendenteDisponivel` (atendentes.js) ignora quem não pode receber;
+  `sincronizarConversa` só entrega pelo bloco "Transferir para atendente" se `podeReceberConversa`;
+  em `routes/fila.js`, `impedimentoParaPegar` (assumir, puxar, nova conversa; pausa termina sozinha
+  ao pegar; reassumir a própria não conta) e a checagem no transferir para atendente. Logout
+  encerra a pausa (`routes/auth.js`).
+- **Rotas**: `POST /painel/fila/pausa` (`motivo_id`, `voltar` só aceita `/painel/fila...`),
+  `POST /painel/fila/pausa/voltar`.
+- **`src/alertas.js`**: `calcularAlertas()` (fila_espera, fila_cheia, sem_resposta_<id>,
+  pausa_<id>; `para` 'todos' | 'gestao' + `atendenteId`), `inicioDaEspera(c)` (o mais recente entre
+  `esperando_desde` e `aberta_em`: uma mensagem solta de atendimento antigo não conta),
+  `checarAlertas()` emite `alerta` no barramento quando aparece, piora (`nivel` maior) ou a cada
+  15 min; `iniciarChecagemAlertas()` (1 min) no `app.js`. SSE manda `event: alerta` só pra quem
+  é (`alertaParaAtendente`); `public/js/notificacoes.js` toca o bipe e mostra o aviso **sem
+  recarregar**. Campos do `negocio.json`: `alerta_fila_minutos`, `alerta_fila_quantidade`,
+  `alerta_sem_resposta_minutos` (0 = desligado, padrão).
+- **Painel da TV**: `src/routes/tv.js` montado em `/tv` **antes do login** (`server.js`);
+  `negocio.painel_tv_token` (`crypto.randomBytes(18)` base64url; comparação com `timingSafeEqual`;
+  null = desligado). `GET /tv/:codigo` (view `tv.ejs`, página própria, escura, sem menu) e
+  `/tv/:codigo/dados` (JSON, a página busca a cada 15 s). Só números e nomes da equipe.
+  Configurações > Painel da TV gera, troca e desliga.
+- Telas: `configuracoes/pausas.ejs`, `configuracoes/painel-tv.ejs`, cartões novos em
+  Configurações, faixa de pausa/alertas e botão Pausar na Fila, "Equipe agora" no Painel, limite no
+  cadastro de Atendentes, tabela Pausas no Relatório.
+- Testes: `test/e2-equipe.test.js` (8 testes). Total: 78 passam; as 8 "falhas" são o `EPERM` antigo.
+
+## E2, 3ª parte (18/10/2026, branch `e2`): fluxo com segurança
+- **`flow-engine.js`**: `executar(estado, contexto, fluxo, simulacao)` — com a lista `simulacao`,
+  os blocos `salvar`, `nota` e `api` não gravam/chamam nada, só registram um evento (a API segue por
+  `proximo`); `horario`, `transferir`, `transferir_atendente` e `fim` também registram evento. O
+  miolo de `processarMensagem` virou `continuarFluxo` (mesmo comportamento) e
+  `simularMensagem({ estado, texto, negocio, fluxo })` usa um estado que vem do navegador (só `no`,
+  `vars`, `aguardando`, `humano`, `setor`; `no` inexistente volta pro início) e devolve
+  `{ resposta, estado, eventos, no }`. Não toca no `Map` das conversas de verdade.
+- **Rotas** (`routes/fluxo.js`, permissão `editar_fluxo`): `POST /testar` (fluxo da tela + estado +
+  texto), `POST /conferir` (valida arquivo e lista setores que faltam), `GET /exportar`,
+  `GET /modelos`, `GET /modelos/:id`, `GET /versoes`, `GET /versoes/:id/baixar`,
+  `POST /versoes/:id/restaurar`. `POST /salvar?origem=modelo|importado&detalhe=…` grava a versão.
+- **`src/fluxo-versoes.js`** + tabela `fluxo_versoes` (fluxo inteiro em JSON, quem, origem; só as
+  últimas 100). Na 1ª vez guarda o fluxo que já estava em uso ("Como estava antes do histórico").
+- **`src/modelos-fluxo.js`**: os 5 fluxos prontos (gas, loja, clinica, provedor, delivery) em JS,
+  com `montarLayout` (colunas por distância do início) e `setoresQueFaltam`. Usam setor "Geral",
+  menos o provedor (Suporte, Financeiro, Vendas).
+- **Editor** (`views/fluxo/editor.ejs`, `public/js/editor-fluxo.js`): botão ▶ Testar (painel
+  `.simulador` no lugar do painel de edição; `.no-simulado` no bloco atual), menu **Mais ▾**
+  (Fluxos prontos em `<dialog>`, Importar de arquivo, Exportar, Versões), faixa `#faixa-editor`
+  com o aviso do fluxo carregado, `origemPendente` vai no Salvar.
+- **Painel de teste**: `painel-e2` agora tem `CHATDIGITAL_FLUXO` apontando para uma cópia (salvar no
+  editor não mexe no `config/fluxo.json` do repositório).
+- Testes: `test/e2-fluxo.test.js` (7 testes). Total: 85 passam; as 8 "falhas" são o `EPERM` antigo.
+- Não feito (fica para depois, se pedirem): desfazer/refazer e copiar/colar blocos no editor.
+
+## E2, 4ª parte (18/10/2026, branch `e2`): acesso e manutenção
+- **Banco**: `atendentes.grupo_id`, `acesso_horario` (JSON de janelas, NULL = qualquer hora),
+  `acesso_ips` (um por linha, NULL = qualquer IP); tabelas `grupos_permissao` (vem com Atendente e
+  Gerente) e `acessos` (evento: entrou, saiu, senha_errada, bloqueado_tentativas,
+  bloqueado_horario, bloqueado_ip, desconectado; IP e user-agent; 90 dias).
+- **Grupos** (`src/grupos-permissao.js`): as permissões do grupo são **copiadas** para
+  `atendentes.permissoes` (ao salvar o atendente com grupo e ao salvar o grupo), então
+  `temPermissao` não mudou. `permissoesComGrupo` em `atendentes.js`. Rotas
+  `/painel/atendentes/grupos` (POST só admin).
+- **Acesso** (`src/acesso.js`): `verificarAcesso(atendente, { ip })` (admin sempre passa; IP com
+  "::ffff:" limpo; regra terminada em "." ou "*" é faixa). Chamado no login (`routes/auth.js`, que
+  também grava o histórico) e em **toda requisição** em `carregarAtendenteLogado` (`sessao.js`):
+  fora do horário limpa o cookie e `exigirLogin` manda para `/login?fora=1`.
+  `horarioDoCorpo`/`horarioDasJanelas` saíram de `routes/setores.js` para `src/horario.js` (o
+  formulário de horário é o mesmo do setor). Página `/painel/atendentes/acessos`.
+- **Status do sistema** (`src/status-sistema.js`, `/painel/configuracoes/status`): WhatsApp,
+  `PRAGMA quick_check` + tamanho do banco (com -wal), `fs.statfsSync` do disco do banco, último
+  arquivo de `backups/`, versão do package + commit lido do `.git` (sem rodar git) + memória.
+- **Contatos por planilha** (`src/contatos-planilha.js`): `exportarCsv` (usa `listarContatos` com
+  `porPagina` alto; telefone como `="..."`), `lerPlanilha` (CSV com ";" ou ","; aspas; títulos
+  sem acento: nome, telefone/celular/whatsapp, email, documento/cpf/cnpj, endereco, observacoes/obs,
+  tags, consentimento), `conferir` (compara pela `formaCurtaNumeroBr`, acha repetidos e inválidos),
+  conferência guardada em memória por 30 min (token só do mesmo atendente, uma vez), `aplicar`
+  (completa vazios ou troca; tags somadas; consentimento só liga; novos via
+  `resolverNumeroNoWhatsApp`). Rotas `/painel/contatos/exportar.csv`, `/importar`,
+  `/importar/confirmar` (multer, 2 MB).
+- Testes: `test/e2-acesso.test.js` (7 testes). Total: 92 passam; as 8 "falhas" são o `EPERM` antigo.
+- Não feito (fica para depois, se pedirem): uma sessão por usuário (derrubar o login antigo ao
+  entrar em outro lugar).
+
+## Testes sem as 8 falhas de EPERM (19/10/2026)
+Os 8 testes antigos (atendimento-avancado, configuracoes, eventos, fila, fluxo-editor, painel,
+seguranca, whatsapp) não fechavam o banco antes de apagar a pasta temporária, e o Windows não
+deixava apagar. Agora o `after()` fecha o banco, se ele foi aberto. `npm test`: 92 de 92 no `e2`,
+**zero falhas** (as notas antigas que falam em "8 falhas de EPERM" ficaram para trás).
 
 ## Arquitetura rápida (pontos que mais confundem)
 - **`@lid` vs `@s.whatsapp.net`**: o WhatsApp às vezes identifica o mesmo contato por um ID
@@ -313,12 +441,20 @@ Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já u
 - `src/conversas.js` — banco: conversas, mensagens, notas internas, fila, finalizadas, busca, nome do contato.
 - `src/respostas-rapidas.js`, `src/motivos-encerramento.js`, `src/marcadores.js`, `src/contatos.js`,
   `src/feriados.js` — cadastros da E1. `src/horario.js` — regra das janelas de horário.
+- `src/relatorio.js` + `src/auditoria.js` + `src/routes/relatorio.js` + `src/views/relatorio*` —
+  menu Relatório (Resumo, Auditoria, Reincidências).
+- `src/equipe.js` (pausa, limite, situação da equipe), `src/alertas.js` (alertas de fila),
+  `src/routes/tv.js` + `src/views/tv.ejs` (painel da TV).
+- `src/fluxo-versoes.js` (versões do fluxo), `src/modelos-fluxo.js` (fluxos prontos),
+  `public/js/editor-fluxo.js` (editor, simulador, importar).
+- `src/grupos-permissao.js`, `src/acesso.js` (horário/IP de acesso e histórico),
+  `src/status-sistema.js`, `src/contatos-planilha.js` (exportar/importar contatos).
 - `src/routes/fila.js` + `src/views/fila/lista.ejs` + `public/js/fila-lista.js` /
   `fila-responder.js` / `notificacoes.js` — tela da Fila.
 - `src/routes/configuracoes.js` + `src/views/configuracoes/editar.ejs` + `src/negocio.js`
   (padrões dos campos novos em `PADROES`).
 - Jobs periódicos (setInterval, iniciados em `src/app.js`): `inatividade.js`,
-  `fechamento-automatico.js`, `avaliacao-vencida.js`, `backup.js` (diário, 30 dias),
+  `fechamento-automatico.js`, `avaliacao-vencida.js`, `alertas.js` (1 min), `backup.js` (diário, 30 dias),
   `retencao.js` (anonimiza conversa sem atividade há 12 meses).
 - `.env` (não commitado) — `PORTA`, `NUMEROS_TESTE`, `SESSION_SECRET`, `NUMERO_ATENDENTE`.
 - `config/negocio.json` — dados reais do negócio, **NUNCA fazer `git add` nele** (pra atualizar
@@ -331,7 +467,6 @@ Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já u
   no Trello (Nazagas). Consulta/registro de marca no INPI: card no board PAULO.
 - Campo em Configurações pro número de "chamar direto" (`{{negocio.numero_atendente_legivel}}`),
   que hoje só vem de `NUMERO_ATENDENTE` no `.env`.
-- Fechar o banco no `after()` dos testes pra sumir o `EPERM`.
 
 ## Como testar
 1. `npm start` (porta 3001); no painel, Configurações > WhatsApp pra escanear o QR se precisar.

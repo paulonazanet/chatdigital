@@ -7,6 +7,11 @@
     <p class="erro">⚠️ WhatsApp desconectado agora — o bot não está recebendo nem enviando mensagens. Reconecte em <a href="/painel/configuracoes/whatsapp">Configurações &gt; WhatsApp</a> (QR Code).</p>
   <% } %>
 
+  <% if (alertas.length) { %>
+    <ul class="faixa-alertas faixa-alertas-painel" aria-label="Alertas">
+      <% alertas.forEach((a) => { %><li class="alerta-<%= a.gravidade %>">⚠️ <%= a.texto %></li><% }) %>
+    </ul>
+  <% } %>
   <div class="cartoes">
     <div class="cartao"><span class="numero"><%= aguardando %></span><span class="rotulo">Aguardando resposta</span></div>
     <div class="cartao"><span class="numero"><%= atendendo %></span><span class="rotulo">Em atendimento</span></div>
@@ -16,13 +21,15 @@
     <div class="cartao"><span class="numero"><%= totalSetores %></span><span class="rotulo">Setores</span></div>
   </div>
 
-  <h2 class="subtitulo-painel">Atendentes online agora</h2>
-  <% if (atendentesOnline.length === 0) { %>
+  <h2 class="subtitulo-painel">Equipe agora</h2>
+  <% if (equipe.length === 0) { %>
     <p class="dica">Ninguém com o painel aberto no momento.</p>
   <% } else { %>
     <ul class="lista-online">
-      <% atendentesOnline.forEach((a) => { %>
-        <li><span class="ponto-online online"></span> <%= a.nome %></li>
+      <% equipe.forEach((p) => { %>
+        <li><span class="ponto-online <%= p.situacao === 'pausa' ? 'em-pausa' : p.online ? 'online' : '' %>"></span> <%= p.nome %>
+          <span class="selo selo-equipe selo-equipe-<%= p.situacao %><%= p.pausa && p.pausa.passou ? ' selo-equipe-passou' : '' %>"><%=
+            p.situacao === 'pausa' ? `Pausa: ${p.pausa.motivo} · ${p.pausa.minutos} min` : p.atendendo ? `${p.rotulo} · ${p.limite ? `${p.atendendo} de ${p.limite} conversas` : `${p.atendendo} conversa${p.atendendo === 1 ? '' : 's'}`}` : p.rotulo %></span></li>
       <% }) %>
     </ul>
   <% } %>

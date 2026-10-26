@@ -1,0 +1,105 @@
+<%- include('../partials/inicio', { titulo: 'Auditoria' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<%
+  const f = filtros;
+  const r = resultado;
+  const corDaNota = (n) => (n >= 9 ? 'nota-boa' : n >= 7 ? 'nota-media' : 'nota-ruim');
+  const linkPagina = (p) => `/painel/relatorio/auditoria?${query ? query + '&' : ''}pagina=${p}`;
+  const mostrarSetor = setores.length > 1; // com um setor só, a coluna não diz nada
+  const temFiltro = f.protocolo || f.cliente || f.atendente || f.setor || f.motivo || f.como || f.nota || f.marcador;
+%>
+<main class="conteudo pagina-relatorio">
+  <div class="relatorio-topo">
+    <h1>Relatório</h1>
+  </div>
+  <%- include('abas', { ativa: 'auditoria' }) %>
+  <p class="dica">Os atendimentos finalizados, para conferir depois: quem atendeu, quanto demorou, o motivo e a conversa inteira. Clique numa linha para ver os detalhes e exportar a conversa.</p>
+
+  <form method="get" action="/painel/relatorio/auditoria" class="filtros-auditoria">
+    <label>De<input type="date" name="de" value="<%= f.de %>"></label>
+    <label>Até<input type="date" name="ate" value="<%= f.ate %>"></label>
+    <label>Protocolo<input type="text" name="protocolo" value="<%= f.protocolo %>" inputmode="numeric" placeholder="Ex.: 202610180012"></label>
+    <label>Cliente<input type="text" name="cliente" value="<%= f.cliente %>" placeholder="Nome ou telefone"></label>
+    <label>Atendente
+      <select name="atendente">
+        <option value="">Todos</option>
+        <% atendentes.forEach((a) => { %><option value="<%= a.id %>" <%= f.atendente === a.id ? 'selected' : '' %>><%= a.nome %></option><% }) %>
+      </select>
+    </label>
+    <% if (mostrarSetor) { %>
+      <label>Setor
+        <select name="setor">
+          <option value="">Todos</option>
+          <% setores.forEach((s) => { %><option value="<%= s.id %>" <%= f.setor === s.id ? 'selected' : '' %>><%= s.nome %></option><% }) %>
+        </select>
+      </label>
+    <% } %>
+    <label>Motivo
+      <select name="motivo">
+        <option value="">Todos</option>
+        <option value="-" <%= f.motivo === '-' ? 'selected' : '' %>>Sem motivo</option>
+        <% motivos.forEach((m) => { %><option value="<%= m %>" <%= f.motivo === m ? 'selected' : '' %>><%= m %></option><% }) %>
+      </select>
+    </label>
+    <label>Finalizado
+      <select name="como">
+        <option value="">Todos</option>
+        <% finalizadoComo.forEach(([valor, rotulo]) => { %><option value="<%= valor %>" <%= f.como === valor ? 'selected' : '' %>><%= rotulo %></option><% }) %>
+      </select>
+    </label>
+    <label>Nota
+      <select name="nota">
+        <option value="">Todas</option>
+        <% faixasDeNota.forEach(([valor, rotulo]) => { %><option value="<%= valor %>" <%= f.nota === valor ? 'selected' : '' %>><%= rotulo %></option><% }) %>
+      </select>
+    </label>
+    <% if (marcadores.length) { %>
+      <label>Marcador
+        <select name="marcador">
+          <option value="">Todos</option>
+          <% marcadores.forEach((m) => { %><option value="<%= m.id %>" <%= f.marcador === m.id ? 'selected' : '' %>><%= m.nome %></option><% }) %>
+        </select>
+      </label>
+    <% } %>
+    <div class="filtros-auditoria-botoes">
+      <button type="submit">Filtrar</button>
+      <% if (temFiltro) { %><a href="/painel/relatorio/auditoria?de=<%= f.de %>&ate=<%= f.ate %>" class="botao-link">Limpar filtros</a><% } %>
+    </div>
+  </form>
+  <% if (f.protocolo) { %><p class="dica">Buscando pelo protocolo: as datas não contam.</p><% } %>
+
+  <div class="cabecalho-resultado">
+    <strong><%= r.total %> atendimento<%= r.total === 1 ? '' : 's' %></strong>
+    <% if (r.total) { %><a class="botao-secundario botao" href="/painel/relatorio/auditoria/exportar.csv?<%= query %>" download>Exportar lista (Excel)</a><% } %>
+  </div>
+
+  <div class="tabela-rolagem">
+    <table class="tabela tabela-notas tabela-auditoria">
+      <thead><tr><th>Finalizado</th><th>Protocolo</th><th>Cliente</th><th>Atendente</th><% if (mostrarSetor) { %><th>Setor</th><% } %><th>Duração</th><th>Motivo</th><th class="coluna-nota">Nota</th></tr></thead>
+      <tbody>
+        <% r.itens.forEach((i) => { const link = `/painel/relatorio/auditoria/${i.id}${query ? '?voltar=' + encodeURIComponent(query) : ''}`; %>
+          <tr onclick="location.href='<%= link %>'">
+            <td class="sem-quebra"><%= i.finalizadoEm %></td>
+            <td><a href="<%= link %>"><%= i.protocolo %></a></td>
+            <td><%= i.cliente %></td>
+            <td><%= i.atendente %></td>
+            <% if (mostrarSetor) { %><td><%= i.setor %></td><% } %>
+            <td class="sem-quebra"><%= i.duracao %></td>
+            <td><%= i.motivo %><% if (i.como !== 'Pelo atendente') { %> <span class="selo selo-pequeno"><%= i.como %></span><% } %></td>
+            <td class="coluna-nota"><% if (i.nota !== null) { %><span class="nota <%= corDaNota(i.nota) %>"><%= i.nota %></span><% } else { %>—<% } %></td>
+          </tr>
+        <% }) %>
+        <% if (!r.itens.length) { %><tr><td colspan="<%= mostrarSetor ? 8 : 7 %>" class="dica">Nenhum atendimento finalizado com esses filtros.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <% if (r.paginas > 1) { %>
+    <p class="paginacao">
+      <% if (r.pagina > 1) { %><a href="<%= linkPagina(r.pagina - 1) %>">← Anteriores</a><% } %>
+      <span>Página <%= r.pagina %> de <%= r.paginas %></span>
+      <% if (r.pagina < r.paginas) { %><a href="<%= linkPagina(r.pagina + 1) %>">Próximos →</a><% } %>
+    </p>
+  <% } %>
+</main>
+<%- include('../partials/fim-painel') %>
+<script src="/js/notificacoes.js" defer></script>

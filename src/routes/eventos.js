@@ -3,6 +3,8 @@ const router = express.Router();
 
 const { barramento } = require('../eventos');
 const presenca = require('../presenca');
+const { alertaParaAtendente } = require('../alertas');
+const { temPermissao } = require('../permissoes');
 
 const INTERVALO_PING_MS = 25000;
 
@@ -23,7 +25,8 @@ function idDoEvento(dados) {
 // evento "atencao" toda vez que uma conversa precisa de alguém (nova transferência ou nova
 // mensagem do cliente numa conversa já em atendimento humano), "presenca" com quem está online
 // (uma aba do painel aberta já conta como online), e "whatsapp-status" quando a conexão do
-// WhatsApp muda (novo QR Code, conectou, caiu) — usado pela tela Configurações > WhatsApp.
+// WhatsApp muda (novo QR Code, conectou, caiu) — usado pela tela Configurações > WhatsApp — e
+// "alerta" quando um alerta de fila aparece ou piora (só avisa, não recarrega a tela).
 router.get('/', (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
@@ -41,6 +44,15 @@ router.get('/', (req, res) => {
   const enviarStatusWhatsapp = (dados) => {
     res.write(`event: whatsapp-status\ndata: ${JSON.stringify(dados)}\n\n`);
   };
+  // alertas de fila (alertas.js): só os que são pra essa pessoa (pausa longa vai pra gestão e pro dono)
+  const enviarAlerta = (alerta) => {
+    if (!alertaParaAtendente(alerta, req.atendente, temPermissao)) return;
+    res.write(`event: alerta
+data: ${JSON.stringify({ texto: alerta.texto, gravidade: alerta.gravidade, id: idDoEvento(alerta) })}
+
+`);
+  };
+  barramento.on('alerta', enviarAlerta);
   barramento.on('atencao', enviarAtencao);
   barramento.on('presenca', enviarPresenca);
   barramento.on('whatsapp-status', enviarStatusWhatsapp);
@@ -49,6 +61,7 @@ router.get('/', (req, res) => {
   const manterViva = setInterval(() => res.write(': ping\n\n'), INTERVALO_PING_MS);
 
   req.on('close', () => {
+    barramento.off('alerta', enviarAlerta);
     barramento.off('atencao', enviarAtencao);
     barramento.off('presenca', enviarPresenca);
     barramento.off('whatsapp-status', enviarStatusWhatsapp);

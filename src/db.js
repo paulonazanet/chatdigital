@@ -299,6 +299,86 @@ if (!colunaExiste('setores', 'horario')) {
   db.exec('ALTER TABLE setores ADD COLUMN mensagem_fora_horario TEXT');
 }
 
+// E2, 2a parte: pausa do atendente com motivo (quem está em pausa não recebe conversa) e limite de
+// conversas ao mesmo tempo por atendente (0 = sem limite). limite_minutos do motivo: depois disso a
+// pausa vira alerta (0 = sem limite). A pausa guarda o nome e o limite do motivo como estavam.
+if (!colunaExiste('atendentes', 'limite_conversas')) {
+  db.exec('ALTER TABLE atendentes ADD COLUMN limite_conversas INTEGER NOT NULL DEFAULT 0');
+}
+const motivosPausaNovos = !db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'motivos_pausa'").get();
+db.exec(`
+  CREATE TABLE IF NOT EXISTS motivos_pausa (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    limite_minutos INTEGER NOT NULL DEFAULT 0,
+    ativo INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS pausas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    atendente_id INTEGER NOT NULL REFERENCES atendentes(id) ON DELETE CASCADE,
+    motivo_id INTEGER,
+    motivo_texto TEXT NOT NULL,
+    limite_minutos INTEGER NOT NULL DEFAULT 0,
+    inicio TEXT NOT NULL,
+    fim TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pausas_atendente ON pausas (atendente_id, fim);
+  CREATE INDEX IF NOT EXISTS idx_pausas_inicio ON pausas (inicio);
+`);
+if (motivosPausaNovos) {
+  const inserir = db.prepare('INSERT INTO motivos_pausa (nome, limite_minutos) VALUES (?, ?)');
+  for (const [nome, limite] of [['Almoço', 60], ['Lanche ou café', 15], ['Banheiro', 10], ['Reunião', 0], ['Outro', 0]]) inserir.run(nome, limite);
+}
+
+// E2, 3a parte: versões do fluxo do bot. Cada "Salvar" do editor (e cada volta para uma versão
+// antiga) guarda o fluxo inteiro aqui, pra poder voltar atrás. `origem` diz de onde veio (editor,
+// modelo pronto, arquivo importado, restaurada); fica só as últimas 100.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS fluxo_versoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    criado_em TEXT NOT NULL,
+    atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    atendente_nome TEXT,
+    origem TEXT NOT NULL,
+    conteudo TEXT NOT NULL
+  );
+`);
+
+// E2, 4a parte: grupos de permissão (ex.: "Gerente", "Atendente"): o atendente que está num grupo
+// tem as permissões do grupo (copiadas pra `atendentes.permissoes` quando o grupo ou o atendente é
+// salvo, então quem lê permissão não precisa saber de grupo). Horário de acesso (janelas no formato
+// do bloco Horário, JSON; NULL = qualquer hora) e IPs permitidos (um por linha; NULL = qualquer IP),
+// que não valem pra administrador. Histórico de acessos (entradas, tentativas e saídas).
+if (!colunaExiste('atendentes', 'grupo_id')) {
+  db.exec('ALTER TABLE atendentes ADD COLUMN grupo_id INTEGER');
+  db.exec('ALTER TABLE atendentes ADD COLUMN acesso_horario TEXT');
+  db.exec('ALTER TABLE atendentes ADD COLUMN acesso_ips TEXT');
+}
+const gruposNovos = !db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'grupos_permissao'").get();
+db.exec(`
+  CREATE TABLE IF NOT EXISTS grupos_permissao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    permissoes TEXT NOT NULL DEFAULT '[]'
+  );
+  CREATE TABLE IF NOT EXISTS acessos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    criado_em TEXT NOT NULL,
+    atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
+    email TEXT,
+    evento TEXT NOT NULL,
+    detalhe TEXT,
+    ip TEXT,
+    navegador TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_acessos_criado ON acessos (criado_em);
+`);
+if (gruposNovos) {
+  const inserir = db.prepare('INSERT INTO grupos_permissao (nome, permissoes) VALUES (?, ?)');
+  inserir.run('Atendente', JSON.stringify(['responder_conversas', 'finalizar_conversas']));
+  inserir.run('Gerente', JSON.stringify(['ver_painel', 'ver_fila_outros_setores', 'responder_conversas', 'finalizar_conversas', 'ver_relatorio', 'gerenciar_respostas_rapidas', 'gerenciar_contatos']));
+}
+
 // O fluxo padrão (config/fluxo.json) transfere para o setor "Geral" — garante que ele exista
 // sem sobrescrever setores que o cliente já tenha criado.
 db.prepare('INSERT OR IGNORE INTO setores (nome) VALUES (?)').run('Geral');
