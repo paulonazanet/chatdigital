@@ -238,6 +238,17 @@ test('alertas: fila parada, fila cheia, sem resposta e pausa longa; avisa uma ve
   await clienteNaFila('5581922220005@s.whatsapp.net'); // 2 na fila: fila cheia
   checarAlertas();
   assert.deepStrictEqual(avisos.slice(3), ['fila_cheia']);
+  // repetir o aviso: configurável (padrão 15 min)
+  let respRepetir = await post('/painel/configuracoes/pausas/alertas', { alerta_fila_minutos: '10', alerta_fila_quantidade: '2', alerta_sem_resposta_minutos: '5', alerta_repetir_minutos: '0' });
+  assert.match(await respRepetir.text(), /repetir o aviso tem que ser um número inteiro de 1 a 120/);
+  respRepetir = await post('/painel/configuracoes/pausas/alertas', { alerta_fila_minutos: '10', alerta_fila_quantidade: '2', alerta_sem_resposta_minutos: '5', alerta_repetir_minutos: '5' });
+  assert.strictEqual(respRepetir.status, 302);
+  assert.ok((await pagina('/painel/configuracoes/pausas')).includes('name="alerta_repetir_minutos" min="1" max="120" value="5"'));
+  const antesDeRepetir = avisos.length;
+  checarAlertas(Date.now() + 4 * 60000);
+  assert.strictEqual(avisos.length, antesDeRepetir, 'antes de 5 min não repete');
+  checarAlertas(Date.now() + 6 * 60000);
+  for (const chave of avisos.slice(0, antesDeRepetir)) assert.ok(avisos.slice(antesDeRepetir).includes(chave), `depois de 5 min avisa de novo: ${chave}`);
   barramento.off('alerta', ouvir);
 
   const filaBeto = await pagina('/painel/fila', cookieBeto);

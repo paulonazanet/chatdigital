@@ -333,6 +333,8 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Alertas de fila** (0 desliga cada um): cliente esperando na fila há mais de X min; fila com N
   clientes ou mais; atendente com cliente sem resposta há mais de X min. Vêm desligados.
 
+- **Repetir o aviso** (Pausas e alertas): enquanto um alerta continuar, o bipe e o aviso do Windows voltam a cada X
+  minutos (1 a 120; padrão 15). Se o alerta piora, avisa na hora.
 - **Som dos avisos** (Configurações > Pausas e alertas): liga/desliga o bipe de **mensagem nova** e o dos **alertas**
   e escolhe o volume (baixo, médio, alto), com botões para ouvir cada um. Mensagem nova toca um "dim-dom"; alerta toca
   um tom mais agudo, 3 vezes. Cada atendente pode desligar só no computador dele pelo botão **🔔 Som ligado / 🔕 Som

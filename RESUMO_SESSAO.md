@@ -261,6 +261,10 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Repetir o alerta: configurável (26/10/2026, no main)
+`alerta_repetir_minutos` (1 a 120, padrão 15) em Configurações > Pausas e alertas; `alertas.repetirAposMs(negocio)` no lugar
+do 15 fixo. Teste no `e2-equipe` (antes de 5 min não repete, depois avisa de novo). Nazagás: 5 min.
+
 ## Som dos avisos e Fila sem recarregar (26/10/2026, no main)
 Pedido do Paulo: o bipe quase não se ouvia e só tocava depois de um clique (a Fila recarregava e o navegador bloqueava o
 som de novo).

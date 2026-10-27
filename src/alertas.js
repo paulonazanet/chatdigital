@@ -13,7 +13,12 @@ const { barramento } = require('./eventos');
 
 const MINUTO = 60000;
 const INTERVALO_MS = 60 * 1000;
-const REPETIR_APOS_MS = 15 * MINUTO; // alerta que continua de pé avisa de novo depois disso
+// alerta que continua de pé avisa de novo depois disso: Configurações > Pausas e alertas
+// (alerta_repetir_minutos, de 1 a 120; padrão 15)
+function repetirAposMs(negocio = carregarNegocio()) {
+  const minutos = Number(negocio.alerta_repetir_minutos);
+  return (Number.isInteger(minutos) && minutos >= 1 && minutos <= 120 ? minutos : 15) * MINUTO;
+}
 
 const plural = (n, um, varios) => (n === 1 ? um : varios);
 
@@ -83,15 +88,17 @@ function alertaParaAtendente(alerta, atendente, temPermissao) {
   return alerta.para === 'gestao' && temPermissao(atendente, 'ver_painel');
 }
 
-// Avisa (evento "alerta" pro navegador) quando um alerta aparece, piora, ou continua de pé há 15 min.
+// Avisa (evento "alerta" pro navegador) quando um alerta aparece, piora, ou continua de pé há X min.
 const avisados = new Map(); // chave -> { nivel, em }
 function checarAlertas(agoraMs = Date.now()) {
-  const atuais = calcularAlertas({ agoraMs });
+  const negocio = carregarNegocio();
+  const atuais = calcularAlertas({ negocio, agoraMs });
+  const repetirApos = repetirAposMs(negocio);
   const chavesAtuais = new Set();
   for (const alerta of atuais) {
     chavesAtuais.add(alerta.chave);
     const anterior = avisados.get(alerta.chave);
-    if (!anterior || alerta.nivel > anterior.nivel || agoraMs - anterior.em >= REPETIR_APOS_MS) {
+    if (!anterior || alerta.nivel > anterior.nivel || agoraMs - anterior.em >= repetirApos) {
       avisados.set(alerta.chave, { nivel: alerta.nivel, em: agoraMs });
       barramento.emit('alerta', alerta);
     }
@@ -110,4 +117,4 @@ function iniciarChecagemAlertas() {
   }, INTERVALO_MS).unref();
 }
 
-module.exports = { inicioDaEspera, calcularAlertas, alertaParaAtendente, checarAlertas, iniciarChecagemAlertas };
+module.exports = { inicioDaEspera, calcularAlertas, alertaParaAtendente, checarAlertas, iniciarChecagemAlertas, repetirAposMs };

@@ -72,7 +72,8 @@
 
   <h2>Alertas de fila</h2>
   <p class="dica">Quando acontece, aparece uma faixa amarela no alto da Fila, do Painel e do painel da TV, e quem está com o
-    painel aberto ouve um bipe e recebe o aviso do Windows (de novo a cada 15 min, ou quando piora). <strong>0 desliga.</strong></p>
+    painel aberto ouve um bipe e recebe o aviso do Windows (de novo enquanto continuar, no tempo escolhido abaixo, ou na hora
+    se piorar). <strong>0 desliga.</strong></p>
   <form method="post" action="/painel/configuracoes/pausas/alertas" id="form-alertas">
     <fieldset>
       <legend>Avisar quando</legend>
@@ -87,6 +88,10 @@
       <label>Um atendente tiver cliente sem resposta há mais de (minutos)
         <input type="number" name="alerta_sem_resposta_minutos" min="0" max="1440" value="<%= valor('alerta_sem_resposta_minutos') %>" class="campo-curto">
         <span class="ajuda">A conversa está com alguém, mas o cliente escreveu e ninguém respondeu. Ex.: 10.</span>
+      </label>
+      <label>Repetir o aviso, enquanto o alerta continuar, a cada (minutos)
+        <input type="number" name="alerta_repetir_minutos" min="1" max="120" value="<%= Number(negocio.alerta_repetir_minutos) >= 1 ? negocio.alerta_repetir_minutos : 15 %>" class="campo-curto">
+        <span class="ajuda">Bipe e aviso do Windows de novo depois desse tempo. Padrão: 15.</span>
       </label>
     </fieldset>
     <div class="barra-salvar">
