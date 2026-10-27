@@ -241,7 +241,8 @@ router.post('/feriados/novo', (req, res) => {
   res.redirect('/painel/configuracoes/feriados');
 });
 router.get('/feriados/:id', (req, res) => {
-  const feriado = feriados.obterFeriado(Number(req.params.id));
+  // pela lista, que traz a próxima data (a de um feriado móvel muda todo ano)
+  const feriado = feriados.listarFeriados().find((f) => f.id === Number(req.params.id));
   if (!feriado) return res.redirect('/painel/configuracoes/feriados');
   renderizarFormFeriado(req, res, feriado);
 });
@@ -295,6 +296,7 @@ const CAMPOS_ALERTAS = [
   ['alerta_fila_minutos', 'O tempo de espera na fila'],
   ['alerta_fila_quantidade', 'A quantidade da fila cheia'],
   ['alerta_sem_resposta_minutos', 'O tempo sem resposta'],
+  ['alerta_repetir_minutos', 'O tempo para repetir o aviso', 1, 120],
 ];
 function renderizarPausas(req, res, extra = {}) {
   res.render('configuracoes/pausas', {
@@ -309,16 +311,27 @@ function renderizarPausas(req, res, extra = {}) {
 router.get('/pausas', (req, res) => renderizarPausas(req, res));
 router.post('/pausas/alertas', (req, res) => {
   const campos = {};
-  for (const [campo, rotulo] of CAMPOS_ALERTAS) {
+  for (const [campo, rotulo, minimo = 0, maximo = 1440] of CAMPOS_ALERTAS) {
     const texto = String(req.body[campo] ?? '').trim();
-    const valor = texto === '' ? 0 : Number(texto);
-    if (!Number.isInteger(valor) || valor < 0 || valor > 1440) {
-      return renderizarPausas(req, res, { erro: `${rotulo} tem que ser um número inteiro de 0 a 1440 (0 desliga).`, negocio: { ...carregarNegocio(), ...req.body } });
+    const valor = texto === '' ? (minimo ? 15 : 0) : Number(texto);
+    if (!Number.isInteger(valor) || valor < minimo || valor > maximo) {
+      const faixa = minimo ? `de ${minimo} a ${maximo}` : `de 0 a ${maximo} (0 desliga)`;
+      return renderizarPausas(req, res, { erro: `${rotulo} tem que ser um número inteiro ${faixa}.`, negocio: { ...carregarNegocio(), ...req.body } });
     }
     campos[campo] = valor;
   }
   salvarConfiguracoes(campos);
   res.redirect('/painel/configuracoes/pausas?salvo=1');
+});
+// Som dos avisos: liga/desliga o bipe de mensagem nova e o dos alertas, e o volume (cada atendente
+// ainda pode desligar só no computador dele, pelo botão 🔔 do menu)
+router.post('/pausas/som', (req, res) => {
+  salvarConfiguracoes({
+    som_mensagem: req.body.som_mensagem === '1',
+    som_alertas: req.body.som_alertas === '1',
+    som_volume: ['baixo', 'medio', 'alto'].includes(req.body.som_volume) ? req.body.som_volume : 'medio',
+  });
+  res.redirect('/painel/configuracoes/pausas?salvo=1#som');
 });
 router.post('/pausas', (req, res) => {
   const motivo = equipe.validarMotivoPausa(req.body.nome, req.body.limite_minutos);

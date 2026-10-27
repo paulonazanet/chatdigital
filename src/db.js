@@ -270,6 +270,27 @@ db.exec(`
   );
 `);
 
+// Feriados que mudam de data todo ano (calculados pela Páscoa): movel = 'carnaval_segunda',
+// 'carnaval_terca', 'sexta_santa' ou 'corpus_christi'. Um registro só por feriado, que vale todo ano.
+// Na 1a vez, junta os que a importação antiga criou com o ano no nome (fica com o do ano que vem, pra
+// manter o "abre/fecha" e a mensagem que a empresa escolheu) e apaga os outros.
+if (!colunaExiste('feriados', 'movel')) {
+  db.exec('ALTER TABLE feriados ADD COLUMN movel TEXT');
+  const TIPOS = [
+    ['carnaval_segunda', /^Carnaval \(segunda\)/, 'Carnaval (segunda), ponto facultativo'],
+    ['carnaval_terca', /^Carnaval \(terça\)/, 'Carnaval (terça), ponto facultativo'],
+    ['sexta_santa', /^Sexta-feira Santa/, 'Sexta-feira Santa'],
+    ['corpus_christi', /^Corpus Christi/, 'Corpus Christi, ponto facultativo'],
+  ];
+  const antigos = db.prepare('SELECT * FROM feriados WHERE repete_ano = 0').all();
+  for (const [chave, padrao, nome] of TIPOS) {
+    const doTipo = antigos.filter((f) => padrao.test(f.nome) && /\b20\d{2}\b/.test(f.nome)).sort((a, b) => b.data.localeCompare(a.data));
+    if (!doTipo.length) continue;
+    db.prepare('UPDATE feriados SET movel = ?, nome = ?, repete_ano = 1 WHERE id = ?').run(chave, nome, doTipo[0].id);
+    for (const f of doTipo.slice(1)) db.prepare('DELETE FROM feriados WHERE id = ?').run(f.id);
+  }
+}
+
 // Horário próprio do setor: lista de janelas no formato do bloco Horário do fluxo
 // ("1,2,3,4,5 08:00-12:00"), em JSON; NULL = sem horário (sempre aberto). Fora do horário (ou
 // em feriado), quem cai na fila do setor recebe a mensagem_fora_horario.

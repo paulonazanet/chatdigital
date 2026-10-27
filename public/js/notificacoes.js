@@ -1,30 +1,110 @@
 (function () {
   var ctxAudio = null;
 
+  // Som dos avisos: o que a empresa escolheu (Configurações > Pausas e alertas, vem do servidor) e
+  // o "🔕" de cada atendente, que vale só neste computador (guardado no navegador).
+  var SOM = window.CHATDIGITAL_SOM || { mensagem: true, alertas: true, volume: 'medio' };
+  var VOLUMES = { baixo: 0.25, medio: 0.5, alto: 0.9 };
+  var CHAVE_MUDO = 'chatdigital-som-mudo';
+  function estaMudo() {
+    try { return localStorage.getItem(CHAVE_MUDO) === '1'; } catch (e) { return false; }
+  }
+  function algumSomLigado() {
+    return (SOM.mensagem || SOM.alertas) && !estaMudo();
+  }
+
+  // O navegador só deixa tocar som depois de um clique (ou tecla) na página. A cada clique tenta
+  // liberar de novo; enquanto estiver bloqueado, aparece o aviso "🔇 Clique para ligar o som".
   function garantirContextoAudio() {
     if (!ctxAudio) {
       try {
         ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
       } catch (e) {}
-    } else if (ctxAudio.state === 'suspended') {
-      ctxAudio.resume();
     }
+    if (ctxAudio && ctxAudio.state === 'suspended') {
+      ctxAudio.resume().then(atualizarAvisoSomBloqueado, function () {});
+    }
+    atualizarAvisoSomBloqueado();
   }
 
-  function tocarBipe() {
-    if (!ctxAudio) return;
+  function atualizarAvisoSomBloqueado() {
+    var aviso = document.getElementById('aviso-som-bloqueado');
+    var bloqueado = algumSomLigado() && (!ctxAudio || ctxAudio.state !== 'running');
+    if (!bloqueado) {
+      if (aviso) aviso.remove();
+      return;
+    }
+    if (aviso) return;
+    var sair = document.querySelector('.barra-lateral .sair');
+    if (!sair) return;
+    aviso = document.createElement('button');
+    aviso.type = 'button';
+    aviso.id = 'aviso-som-bloqueado';
+    aviso.className = 'aviso-som-bloqueado';
+    aviso.textContent = '🔇 Clique para ligar o som dos avisos';
+    aviso.addEventListener('click', function () {
+      garantirContextoAudio();
+      tocarBipe('mensagem', true);
+    });
+    sair.parentNode.insertBefore(aviso, sair);
+  }
+
+  // Um "dim-dom" (dois tons) pra mensagem nova; nos alertas, um tom mais agudo, 3 vezes seguidas
+  function tocarTom(frequencia, inicio, duracao, volume) {
+    var osc = ctxAudio.createOscillator();
+    var ganho = ctxAudio.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = frequencia;
+    ganho.gain.setValueAtTime(0.0001, inicio);
+    ganho.gain.exponentialRampToValueAtTime(volume, inicio + 0.02);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + duracao);
+    osc.connect(ganho);
+    ganho.connect(ctxAudio.destination);
+    osc.start(inicio);
+    osc.stop(inicio + duracao);
+  }
+  // tipo: 'mensagem' ou 'alerta'; teste = true toca mesmo com o som desligado (botão "Ouvir")
+  function tocarBipe(tipo, teste) {
+    tipo = tipo === 'alerta' ? 'alerta' : 'mensagem';
+    if (!teste && (estaMudo() || !(tipo === 'alerta' ? SOM.alertas : SOM.mensagem))) return;
+    if (!ctxAudio || ctxAudio.state !== 'running') return;
     try {
-      var osc = ctxAudio.createOscillator();
-      var ganho = ctxAudio.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      ganho.gain.setValueAtTime(0.15, ctxAudio.currentTime);
-      ganho.gain.exponentialRampToValueAtTime(0.0001, ctxAudio.currentTime + 0.35);
-      osc.connect(ganho);
-      ganho.connect(ctxAudio.destination);
-      osc.start();
-      osc.stop(ctxAudio.currentTime + 0.35);
+      var volume = VOLUMES[SOM.volume] || VOLUMES.medio;
+      var agora = ctxAudio.currentTime + 0.01;
+      if (tipo === 'alerta') {
+        for (var i = 0; i < 3; i++) {
+          tocarTom(1175, agora + i * 0.6, 0.22, volume);
+          tocarTom(880, agora + i * 0.6 + 0.22, 0.3, volume);
+        }
+      } else {
+        tocarTom(988, agora, 0.25, volume);
+        tocarTom(740, agora + 0.25, 0.45, volume);
+      }
     } catch (e) {}
+  }
+
+  // Botão 🔔/🔕 no menu: desliga o som só neste computador
+  function configurarBotaoMudo() {
+    var sair = document.querySelector('.barra-lateral .sair');
+    if (!sair || document.getElementById('botao-som-mudo') || !(SOM.mensagem || SOM.alertas)) return;
+    var botao = document.createElement('button');
+    botao.type = 'button';
+    botao.id = 'botao-som-mudo';
+    botao.className = 'botao-som-mudo';
+    function desenhar() {
+      var mudo = estaMudo();
+      botao.innerHTML = '<span aria-hidden="true">' + (mudo ? '🔕' : '🔔') + '</span> <span class="recolhivel">' + (mudo ? 'Som desligado' : 'Som ligado') + '</span>';
+      botao.title = mudo ? 'Ligar o som dos avisos neste computador' : 'Desligar o som dos avisos neste computador';
+      botao.setAttribute('aria-pressed', mudo ? 'true' : 'false');
+    }
+    botao.addEventListener('click', function () {
+      try { localStorage.setItem(CHAVE_MUDO, estaMudo() ? '0' : '1'); } catch (e) {}
+      desenhar();
+      garantirContextoAudio();
+      if (!estaMudo()) tocarBipe('mensagem');
+    });
+    desenhar();
+    sair.parentNode.insertBefore(botao, sair);
   }
 
   function mostrarAvisoFlutuante(texto) {
@@ -80,7 +160,7 @@
     link.textContent = 'Atualizar';
     link.addEventListener('click', function (ev) {
       ev.preventDefault();
-      window.location.reload();
+      atualizarFila();
     });
     banner.appendChild(link);
 
@@ -91,7 +171,67 @@
   // qualquer clique já destrava o som, mas a notificação do sistema (a que aparece mesmo com a
   // aba minimizada) só é pedida de verdade por um botão explícito, senão a permissão pode nunca
   // ser concedida de fato (o navegador só pergunta uma vez).
-  document.addEventListener('click', garantirContextoAudio, { once: true });
+  document.addEventListener('click', garantirContextoAudio);
+  document.addEventListener('keydown', garantirContextoAudio);
+  // tenta já ao abrir: se o navegador deixar (o atendente usa o site todo dia), nem pede clique
+  garantirContextoAudio();
+  configurarBotaoMudo();
+  document.addEventListener('click', function (ev) {
+    var botao = ev.target.closest('[data-testar-som]');
+    if (botao) setTimeout(function () { tocarBipe(botao.getAttribute('data-testar-som'), true); }, 50);
+  });
+
+  // Atualiza a Fila sem recarregar a página: busca a página de novo por trás e troca só o conteúdo.
+  // Assim o som liberado por um clique continua valendo (recarregar bloqueava de novo até outro
+  // clique). Os scripts da Fila rodam de novo no conteúdo novo; se algo falhar, recarrega.
+  var atualizandoFila = false;
+  function atualizarFila() {
+    var atual = document.querySelector('main.conteudo-fila');
+    if (!atual || !window.fetch || !window.DOMParser || atualizandoFila) return window.location.reload();
+    atualizandoFila = true;
+    var historico = atual.querySelector('.fila-detalhe .historico');
+    var noFim = !historico || historico.scrollHeight - historico.scrollTop - historico.clientHeight < 40;
+    var rolagemHistorico = historico ? historico.scrollTop : 0;
+    var lista = atual.querySelector('.fila-lista');
+    var rolagemLista = lista ? lista.scrollTop : 0;
+    fetch(window.location.href, { credentials: 'same-origin' })
+      .then(function (resposta) {
+        if (!resposta.ok || resposta.url.indexOf('/painel/fila') === -1) throw new Error('fila');
+        return resposta.text();
+      })
+      .then(function (html) {
+        var pagina = new DOMParser().parseFromString(html, 'text/html');
+        var novo = pagina.querySelector('main.conteudo-fila');
+        if (!novo) throw new Error('fila');
+        var banner = document.querySelector('.banner-atualizar');
+        if (banner) banner.remove();
+        atual.replaceWith(novo);
+        // scripts que vêm dentro do conteúdo novo (DOMParser não roda) e os da Fila de novo
+        novo.querySelectorAll('script').forEach(function (velho) {
+          var script = document.createElement('script');
+          for (var i = 0; i < velho.attributes.length; i++) script.setAttribute(velho.attributes[i].name, velho.attributes[i].value);
+          script.textContent = velho.textContent;
+          velho.replaceWith(script);
+        });
+        ['/js/fila-responder.js', '/js/fila-lista.js', '/js/respostas-rapidas.js'].forEach(function (src) {
+          if (!document.querySelector('script[src="' + src + '"]')) return;
+          var script = document.createElement('script');
+          script.src = src;
+          document.body.appendChild(script);
+          script.onload = function () { script.remove(); };
+        });
+        var novoHistorico = novo.querySelector('.fila-detalhe .historico');
+        if (novoHistorico) novoHistorico.scrollTop = noFim ? novoHistorico.scrollHeight : rolagemHistorico;
+        var novaLista = novo.querySelector('.fila-lista');
+        if (novaLista) novaLista.scrollTop = rolagemLista;
+        if (pagina.title) document.title = pagina.title;
+        atualizandoFila = false;
+      })
+      .catch(function () {
+        window.location.reload();
+      });
+  }
+  window.ChatDigitalAtualizarFila = atualizarFila;
 
   function configurarBotaoAtivarNotificacoes() {
     if (!('Notification' in window) || Notification.permission !== 'default') return;
@@ -163,7 +303,7 @@
     if (!dados.texto) return;
     mostrarAvisoFlutuante('⚠️ ' + dados.texto);
     avisarUmaVezEntreAbas(dados.id, function () {
-      tocarBipe();
+      tocarBipe('alerta');
       if ('Notification' in window && Notification.permission === 'granted') {
         var notificacao = new Notification('ChatDigital: alerta', { body: dados.texto, tag: 'chatdigital-' + dados.id });
         notificacao.onclick = function () {
@@ -193,7 +333,7 @@
 
     mostrarAvisoFlutuante(texto);
     avisarUmaVezEntreAbas(dados.id, function () {
-      tocarBipe();
+      tocarBipe('mensagem');
       if ('Notification' in window && Notification.permission === 'granted') {
         // requireInteraction: fica na tela até o atendente clicar ou fechar, em vez de sumir
         // sozinha em poucos segundos — importante justamente pra quem está noutro programa.
@@ -216,7 +356,7 @@
     } else {
       setTimeout(function () {
         if (temRascunhoDeResposta()) mostrarBannerAtualizar();
-        else window.location.reload();
+        else atualizarFila();
       }, 1500);
     }
   });

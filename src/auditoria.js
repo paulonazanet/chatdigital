@@ -243,7 +243,9 @@ function conversaEmTexto(detalhe, nomeNegocio = '') {
     const midia = m.midiaTipo ? `${ROTULO_MIDIA[m.midiaTipo] || '[arquivo]'} ` : '';
     const prefixo = m.interna ? `${m.quem} (nota interna)` : m.quem;
     const extras = [m.falha ? '(não enviada)' : '', m.reacaoCliente ? `(reação do cliente: ${m.reacaoCliente})` : ''].filter(Boolean).join(' ');
-    linhas.push(`[${m.quando}] ${prefixo}: ${midia}${m.texto}${extras ? ` ${extras}` : ''}`);
+    // mensagem de várias linhas (ex.: menu do bot): continua recuada, sem linhas em branco soltas
+    const texto = String(m.texto || '').trim().replace(/\s*\r?\n\s*/g, '\r\n    ');
+    linhas.push(`[${m.quando}] ${prefixo}: ${midia}${texto}${extras ? ` ${extras}` : ''}`);
   }
   return linhas.join('\r\n') + '\r\n';
 }

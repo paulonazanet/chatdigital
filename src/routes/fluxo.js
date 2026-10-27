@@ -90,7 +90,7 @@ router.post('/conferir', express.json({ limit: '2mb' }), (req, res) => {
 });
 
 router.get('/exportar', (req, res) => {
-  const nome = String(carregarNegocio().nome || 'fluxo').normalize('NFD').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase() || 'fluxo';
+  const nome = String(carregarNegocio().nome || 'fluxo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase() || 'fluxo';
   const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const fluxoId = fluxoDaQuery(req);
   res.set('Content-Disposition', `attachment; filename="fluxo_${nome}${fluxoId === 1 ? '' : `_${fluxoId}`}_${hoje}.json"`);

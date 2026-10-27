@@ -395,8 +395,10 @@ desconectado, fora do horário, feriado ou limite do dia).
 
 ### Configurações > Feriados
 - **Importar feriados nacionais**: os de data fixa (todo ano) e Carnaval, Sexta-feira Santa e
-  Corpus Christi deste ano e do próximo (Carnaval e Corpus Christi entram como "abre normal", ponto
-  facultativo). Não repete os que já existem.
+  Corpus Christi, que também valem **todo ano**: a data muda e é calculada sozinha pela Páscoa (na
+  lista aparecem com "todo ano (muda a data)" e a próxima data; na edição só se escolhe abre/fecha e a
+  mensagem). Carnaval e Corpus Christi entram como "abre normal", ponto facultativo. Não repete os
+  que já existem.
 - Cada feriado: nome, data, repete todo ano, dia inteiro ou período, **tem expediente** (só
   registra), mensagem do feriado, ativo. Lista na ordem do próximo a acontecer.
 - Num feriado sem expediente: o bloco Horário do fluxo vai pelo "fora" e os setores ficam fechados.
@@ -418,6 +420,15 @@ desconectado, fora do horário, feriado ou limite do dia).
   pausas já feitas continuam no Relatório). Sem nenhum motivo ativo, o botão Pausar some.
 - **Alertas de fila** (0 desliga cada um): cliente esperando na fila há mais de X min; fila com N
   clientes ou mais; atendente com cliente sem resposta há mais de X min. Vêm desligados.
+
+- **Repetir o aviso** (Pausas e alertas): enquanto um alerta continuar, o bipe e o aviso do Windows voltam a cada X
+  minutos (1 a 120; padrão 15). Se o alerta piora, avisa na hora.
+- **Som dos avisos** (Configurações > Pausas e alertas): liga/desliga o bipe de **mensagem nova** e o dos **alertas**
+  e escolhe o volume (baixo, médio, alto), com botões para ouvir cada um. Mensagem nova toca um "dim-dom"; alerta toca
+  um tom mais agudo, 3 vezes. Cada atendente pode desligar só no computador dele pelo botão **🔔 Som ligado / 🔕 Som
+  desligado** no pé do menu. O navegador só deixa tocar som depois de um clique na página: enquanto estiver bloqueado,
+  aparece no menu o botão laranja **"🔇 Clique para ligar o som dos avisos"**. A Fila se atualiza sem recarregar a página
+  (troca só o conteúdo), então um clique vale o dia todo com a página aberta.
 
 ### Configurações > Painel da TV
 - **Ligar e gerar o link**: cria um link secreto (`/tv/<código>`) que abre **sem senha** uma tela

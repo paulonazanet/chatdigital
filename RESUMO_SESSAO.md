@@ -261,6 +261,47 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Repetir o alerta: configurável (26/10/2026, no main)
+`alerta_repetir_minutos` (1 a 120, padrão 15) em Configurações > Pausas e alertas; `alertas.repetirAposMs(negocio)` no lugar
+do 15 fixo. Teste no `e2-equipe` (antes de 5 min não repete, depois avisa de novo). Nazagás: 5 min.
+
+## Som dos avisos e Fila sem recarregar (26/10/2026, no main)
+Pedido do Paulo: o bipe quase não se ouvia e só tocava depois de um clique (a Fila recarregava e o navegador bloqueava o
+som de novo).
+- `public/js/notificacoes.js`: bipe novo (`tocarBipe(tipo)`, onda triangular, "dim-dom" na mensagem, alerta agudo 3x),
+  volume pelo `window.CHATDIGITAL_SOM` (vem de `res.locals.somAvisos` em `server.js`, escrito no `partials/nav.ejs`), botão
+  🔔/🔕 (localStorage `chatdigital-som-mudo`), aviso "🔇 Clique para ligar o som" quando o AudioContext está suspenso, e
+  `atualizarFila()`: busca a página por `fetch`, troca o `main.conteudo-fila`, roda de novo os scripts de dentro dele e os
+  da Fila (`fila-responder.js`, `fila-lista.js`, `respostas-rapidas.js`), mantém a rolagem; se falhar, recarrega.
+  `fila-lista.js`: o timer de 30 s não acumula (`window.__chatdigitalTimerFila`).
+- Configurações > Pausas e alertas: bloco "Som dos avisos" (`POST /painel/configuracoes/pausas/som`: `som_mensagem`,
+  `som_alertas`, `som_volume`).
+- Teste: `test/som-avisos.test.js` (3).
+
+## Feriados móveis todo ano (26/10/2026, no main)
+Pedido do Paulo: não ter que mexer nos feriados todo ano.
+- `feriados.movel` (coluna nova): 'carnaval_segunda', 'carnaval_terca', 'sexta_santa', 'corpus_christi'.
+  `dataDoMovel(chave, ano)` (dias a partir da Páscoa) e `dataNoAno(f, ano)`; `listarFeriados` e
+  `feriadoAgora` usam a data do ano em curso. `importarNacionais` cria um registro por feriado móvel
+  (repete_ano = 1), sem ano no nome. `atualizarFeriado` não muda a data de um móvel.
+- Migração em `db.js` (1a vez): junta os antigos "Carnaval (segunda) 2026/2027…" num só, ficando com o
+  mais novo (mantém o abre/fecha e a mensagem que a empresa escolheu) e apaga os outros.
+- Telas: lista com "todo ano (muda a data)" e a próxima data; edição mostra "Próxima data" só leitura.
+- Testes: `test/feriados-moveis.test.js` (3, inclusive a migração) e o de importação do `e1-final`.
+
+## Painel no celular (20/10/2026, no main, copiado do `e4`)
+Feito no `e4` (todas as telas) e trazido para o main sozinho para o Carlos já usar. Só CSS + 3 parciais, nada de rota.
+- `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e
+  `.fundo-menu` depois do `aside`. `public/js/barra-lateral.js`: até 760 px o ☰ abre/fecha a gaveta
+  (`html.menu-aberto`, `aria-expanded`), fecha no fundo, no Esc, ao escolher link e ao virar computador;
+  em qualquer tamanho marca `aria-current="page"` no link mais comprido que bate com o endereço.
+- `estilo.css` (bloco no fim, `@media (max-width: 760px)`): barra no topo de 56 px, gaveta fixa,
+  `.tabela` com `display: block; overflow-x: auto`, fieldset/linha-form/abas que não passam da tela,
+  campos com 16 px (sem zoom do iPhone), `.cartoes` em 2 colunas, `.form-transferir` como painel que sobe
+  do pé da tela, Fila mostrando lista ou conversa (`main[data-conversa-numero]`), editor de fluxo em
+  coluna (e o simulador por cima, quando existir). `fila/lista.ejs`: link `.voltar-lista`; `fluxo/editor.ejs`: `.aviso-so-celular`.
+- Conferido em 375 px: nenhuma tela rola para o lado; computador sem mudança (fora o traço laranja da
+  página atual).
 ## E2, 1ª parte (18/10/2026, branch `e2`): Auditoria, metas e reincidências
 A E2 ("Gestão e confiança") está no branch **`e2`**, separado do `main` enquanto o Carlos testa a
 E1. Ordem aprovada pelo Paulo: 1ª Auditoria e relatórios; 2ª Equipe ao vivo (pausa, limite, alertas,
@@ -497,20 +538,6 @@ precisa de uma API do lado dela.
 - Textos para a Meta (Instagram): `instagram_textos_meta.md` no OneDrive (privacidade, uso em inglês,
   roteiro do vídeo).
 - Testes: `e4-botoes` (5), `e4-custos` (3), `e4-misto` (3). Total: 140 passam, zero falhas.
-
-## Painel no celular (20/10/2026, branch `e4`)
-Feito no `e4` porque ele tem todas as telas (E1 a E4). Só CSS + 3 parciais, nada de rota.
-- `partials/nav.ejs`: `nav` + `form.sair` dentro de `.menu-gaveta` (`display: contents` no computador) e
-  `.fundo-menu` depois do `aside`. `public/js/barra-lateral.js`: até 760 px o ☰ abre/fecha a gaveta
-  (`html.menu-aberto`, `aria-expanded`), fecha no fundo, no Esc, ao escolher link e ao virar computador;
-  em qualquer tamanho marca `aria-current="page"` no link mais comprido que bate com o endereço.
-- `estilo.css` (bloco no fim, `@media (max-width: 760px)`): barra no topo de 56 px, gaveta fixa,
-  `.tabela` com `display: block; overflow-x: auto`, fieldset/linha-form/abas que não passam da tela,
-  campos com 16 px (sem zoom do iPhone), `.cartoes` em 2 colunas, `.form-transferir` como painel que sobe
-  do pé da tela, Fila mostrando lista ou conversa (`main[data-conversa-numero]`), editor de fluxo em
-  coluna e simulador por cima. `fila/lista.ejs`: link `.voltar-lista`; `fluxo/editor.ejs`: `.aviso-so-celular`.
-- Conferido em 375 px: nenhuma das ~35 telas rola para o lado; computador sem mudança (fora o traço
-  laranja da página atual). 129 testes passam.
 
 ## E4: central do Instagram (19/10/2026, branch `e4`)
 Decisão do Paulo: **um app só na Meta** ("ChatDigital"), no portfólio da Nazanet até sair o CNPJ da Eu no

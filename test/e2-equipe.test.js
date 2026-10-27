@@ -238,6 +238,17 @@ test('alertas: fila parada, fila cheia, sem resposta e pausa longa; avisa uma ve
   await clienteNaFila('5581922220005@s.whatsapp.net'); // 2 na fila: fila cheia
   checarAlertas();
   assert.deepStrictEqual(avisos.slice(3), ['fila_cheia']);
+  // repetir o aviso: configurável (padrão 15 min)
+  let respRepetir = await post('/painel/configuracoes/pausas/alertas', { alerta_fila_minutos: '10', alerta_fila_quantidade: '2', alerta_sem_resposta_minutos: '5', alerta_repetir_minutos: '0' });
+  assert.match(await respRepetir.text(), /repetir o aviso tem que ser um número inteiro de 1 a 120/);
+  respRepetir = await post('/painel/configuracoes/pausas/alertas', { alerta_fila_minutos: '10', alerta_fila_quantidade: '2', alerta_sem_resposta_minutos: '5', alerta_repetir_minutos: '5' });
+  assert.strictEqual(respRepetir.status, 302);
+  assert.ok((await pagina('/painel/configuracoes/pausas')).includes('name="alerta_repetir_minutos" min="1" max="120" value="5"'));
+  const antesDeRepetir = avisos.length;
+  checarAlertas(Date.now() + 4 * 60000);
+  assert.strictEqual(avisos.length, antesDeRepetir, 'antes de 5 min não repete');
+  checarAlertas(Date.now() + 6 * 60000);
+  for (const chave of avisos.slice(0, antesDeRepetir)) assert.ok(avisos.slice(antesDeRepetir).includes(chave), `depois de 5 min avisa de novo: ${chave}`);
   barramento.off('alerta', ouvir);
 
   const filaBeto = await pagina('/painel/fila', cookieBeto);
@@ -288,4 +299,19 @@ test('permissão: telas novas de Configurações só com "Ver e editar Configura
     assert.strictEqual((await fetch(`${baseUrl}${caminho}`, { headers: { cookie: cookieBeto } })).status, 403, caminho);
   }
   assert.strictEqual((await post('/painel/configuracoes/painel-tv/gerar', {}, cookieBeto)).status, 403);
+});
+
+test('Fila: quem volta depois de finalizado conta a espera do atendimento novo, não de uma mensagem antiga sem resposta', async () => {
+  const numero = '5581922220009@s.whatsapp.net';
+  const antiga = await clienteNaFila(numero);
+  const ha = (min) => new Date(Date.now() - min * 60000).toISOString();
+  db.prepare("UPDATE mensagens SET criado_em = ? WHERE conversa_id = ? AND remetente = 'cliente'").run(ha(70), antiga.id);
+  await post(`/painel/fila/${antiga.id}/finalizar`);
+  assert.strictEqual(conversa(antiga.id).status, 'finalizado');
+
+  const nova = await clienteNaFila(numero);
+  assert.strictEqual(nova.id, antiga.id, 'a mesma conversa volta para a fila');
+  const html = await pagina('/painel/fila?filtro=fila');
+  const item = html.slice(html.indexOf(`href="/painel/fila/${nova.id}"`));
+  assert.match(item.slice(0, 1500), /class="item-tempo"[^>]*>agora</);
 });
