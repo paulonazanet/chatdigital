@@ -43,6 +43,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(cookieParser(SEGREDO || 'segredo-so-para-desenvolvimento-local'));
 app.use(carregarAtendenteLogado);
+// Som dos avisos (Configurações > Pausas e alertas): vai pra toda página do painel, que repassa ao
+// notificacoes.js. Padrão: mensagem nova e alertas com som, volume médio.
+app.use('/painel', (req, res, next) => {
+  const negocio = require('./negocio').carregarNegocio();
+  res.locals.somAvisos = {
+    mensagem: negocio.som_mensagem !== false,
+    alertas: negocio.som_alertas !== false,
+    volume: ['baixo', 'medio', 'alto'].includes(negocio.som_volume) ? negocio.som_volume : 'medio',
+  };
+  next();
+});
 
 // painel ao vivo para TV: sem login, pelo link secreto de Configurações > Painel da TV
 app.use('/tv', rotasTv.router);

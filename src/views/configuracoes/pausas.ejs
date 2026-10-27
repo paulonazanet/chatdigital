@@ -45,6 +45,31 @@
     <button type="submit">Adicionar</button>
   </form>
 
+  <h2 id="som">Som dos avisos</h2>
+  <p class="dica">O bipe toca quando chega mensagem nova e quando acontece um alerta (os alertas tocam 3 vezes, pra
+    diferenciar). O navegador só deixa tocar som depois de um clique na página: se aparecer o aviso "🔇 Clique para ligar o
+    som", é só clicar nele. Com a página aberta, o som continua ligado o dia todo. Cada atendente também pode desligar só no
+    computador dele, pelo botão 🔔 no menu.</p>
+  <form method="post" action="/painel/configuracoes/pausas/som">
+    <fieldset>
+      <legend>Tocar som</legend>
+      <label class="linha"><input type="checkbox" name="som_mensagem" value="1" <%= somAvisos.mensagem ? 'checked' : '' %>> Quando chega mensagem nova ou conversa nova na fila</label>
+      <label class="linha"><input type="checkbox" name="som_alertas" value="1" <%= somAvisos.alertas ? 'checked' : '' %>> Nos alertas (cliente esperando demais, sem resposta, fila cheia, pausa longa)</label>
+      <label>Volume
+        <select name="som_volume" class="campo-curto">
+          <option value="baixo" <%= somAvisos.volume === 'baixo' ? 'selected' : '' %>>Baixo</option>
+          <option value="medio" <%= somAvisos.volume === 'medio' ? 'selected' : '' %>>Médio</option>
+          <option value="alto" <%= somAvisos.volume === 'alto' ? 'selected' : '' %>>Alto</option>
+        </select>
+      </label>
+      <p class="acoes-topo">
+        <button type="button" class="botao-secundario" data-testar-som="mensagem">▶ Ouvir som de mensagem</button>
+        <button type="button" class="botao-secundario" data-testar-som="alerta">▶ Ouvir som de alerta</button>
+      </p>
+      <p><button type="submit">Salvar som</button></p>
+    </fieldset>
+  </form>
+
   <h2>Alertas de fila</h2>
   <p class="dica">Quando acontece, aparece uma faixa amarela no alto da Fila, do Painel e do painel da TV, e quem está com o
     painel aberto ouve um bipe e recebe o aviso do Windows (de novo a cada 15 min, ou quando piora). <strong>0 desliga.</strong></p>

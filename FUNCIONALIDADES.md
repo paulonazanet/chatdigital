@@ -333,6 +333,13 @@ fica guardado na aba: se a tela recarregar ou você trocar de conversa e voltar,
 - **Alertas de fila** (0 desliga cada um): cliente esperando na fila há mais de X min; fila com N
   clientes ou mais; atendente com cliente sem resposta há mais de X min. Vêm desligados.
 
+- **Som dos avisos** (Configurações > Pausas e alertas): liga/desliga o bipe de **mensagem nova** e o dos **alertas**
+  e escolhe o volume (baixo, médio, alto), com botões para ouvir cada um. Mensagem nova toca um "dim-dom"; alerta toca
+  um tom mais agudo, 3 vezes. Cada atendente pode desligar só no computador dele pelo botão **🔔 Som ligado / 🔕 Som
+  desligado** no pé do menu. O navegador só deixa tocar som depois de um clique na página: enquanto estiver bloqueado,
+  aparece no menu o botão laranja **"🔇 Clique para ligar o som dos avisos"**. A Fila se atualiza sem recarregar a página
+  (troca só o conteúdo), então um clique vale o dia todo com a página aberta.
+
 ### Configurações > Painel da TV
 - **Ligar e gerar o link**: cria um link secreto (`/tv/<código>`) que abre **sem senha** uma tela
   grande para deixar numa TV: clientes esperando, maior espera, em atendimento, com o bot, a equipe

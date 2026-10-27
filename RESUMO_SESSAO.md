@@ -261,6 +261,19 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Som dos avisos e Fila sem recarregar (26/10/2026, no main)
+Pedido do Paulo: o bipe quase não se ouvia e só tocava depois de um clique (a Fila recarregava e o navegador bloqueava o
+som de novo).
+- `public/js/notificacoes.js`: bipe novo (`tocarBipe(tipo)`, onda triangular, "dim-dom" na mensagem, alerta agudo 3x),
+  volume pelo `window.CHATDIGITAL_SOM` (vem de `res.locals.somAvisos` em `server.js`, escrito no `partials/nav.ejs`), botão
+  🔔/🔕 (localStorage `chatdigital-som-mudo`), aviso "🔇 Clique para ligar o som" quando o AudioContext está suspenso, e
+  `atualizarFila()`: busca a página por `fetch`, troca o `main.conteudo-fila`, roda de novo os scripts de dentro dele e os
+  da Fila (`fila-responder.js`, `fila-lista.js`, `respostas-rapidas.js`), mantém a rolagem; se falhar, recarrega.
+  `fila-lista.js`: o timer de 30 s não acumula (`window.__chatdigitalTimerFila`).
+- Configurações > Pausas e alertas: bloco "Som dos avisos" (`POST /painel/configuracoes/pausas/som`: `som_mensagem`,
+  `som_alertas`, `som_volume`).
+- Teste: `test/som-avisos.test.js` (3).
+
 ## Feriados móveis todo ano (26/10/2026, no main)
 Pedido do Paulo: não ter que mexer nos feriados todo ano.
 - `feriados.movel` (coluna nova): 'carnaval_segunda', 'carnaval_terca', 'sexta_santa', 'corpus_christi'.

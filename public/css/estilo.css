@@ -1656,3 +1656,26 @@ input.campo-tabela { margin-top: 0; width: 6rem; padding: 0.5rem 0.6rem; border:
 @media (prefers-reduced-motion: reduce) {
   .menu-gaveta, html.menu-aberto .menu-gaveta { transition: none; }
 }
+
+/* Som dos avisos: botão 🔔/🔕 e o aviso de som bloqueado pelo navegador, no pé do menu */
+.botao-som-mudo,
+.aviso-som-bloqueado {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 1rem 0.5rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--branco);
+  background: transparent;
+  border: 1px solid #4d6c85;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.botao-som-mudo:hover { background: rgba(255, 255, 255, 0.08); }
+.aviso-som-bloqueado { background: var(--marca-laranja); border-color: var(--marca-laranja); font-weight: 600; }
+.aviso-som-bloqueado:hover { filter: brightness(1.05); }
+html.menu-recolhido .botao-som-mudo { justify-content: center; margin: 0 0.5rem 0.5rem; }
+html.menu-recolhido .aviso-som-bloqueado { font-size: 0; margin: 0 0.5rem 0.5rem; justify-content: center; }
+html.menu-recolhido .aviso-som-bloqueado::before { content: "🔇"; font-size: 1rem; }

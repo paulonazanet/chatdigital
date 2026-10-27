@@ -309,6 +309,16 @@ router.post('/pausas/alertas', (req, res) => {
   salvarConfiguracoes(campos);
   res.redirect('/painel/configuracoes/pausas?salvo=1');
 });
+// Som dos avisos: liga/desliga o bipe de mensagem nova e o dos alertas, e o volume (cada atendente
+// ainda pode desligar só no computador dele, pelo botão 🔔 do menu)
+router.post('/pausas/som', (req, res) => {
+  salvarConfiguracoes({
+    som_mensagem: req.body.som_mensagem === '1',
+    som_alertas: req.body.som_alertas === '1',
+    som_volume: ['baixo', 'medio', 'alto'].includes(req.body.som_volume) ? req.body.som_volume : 'medio',
+  });
+  res.redirect('/painel/configuracoes/pausas?salvo=1#som');
+});
 router.post('/pausas', (req, res) => {
   const motivo = equipe.validarMotivoPausa(req.body.nome, req.body.limite_minutos);
   if (motivo.erro) return renderizarPausas(req, res, { erro: motivo.erro });

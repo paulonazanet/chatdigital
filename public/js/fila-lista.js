@@ -36,7 +36,9 @@
     });
   }
 
-  setInterval(atualizar, 30000);
+  // quando a Fila se atualiza sem recarregar (notificacoes.js), este script roda de novo: um timer só
+  clearInterval(window.__chatdigitalTimerFila);
+  window.__chatdigitalTimerFila = setInterval(atualizar, 30000);
 
   // Menu de setor e lápis do nome são <details>: fecham sozinhos ao clicar fora, como um menu normal
   document.addEventListener('click', function (ev) {
