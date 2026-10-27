@@ -300,3 +300,18 @@ test('permissão: telas novas de Configurações só com "Ver e editar Configura
   }
   assert.strictEqual((await post('/painel/configuracoes/painel-tv/gerar', {}, cookieBeto)).status, 403);
 });
+
+test('Fila: quem volta depois de finalizado conta a espera do atendimento novo, não de uma mensagem antiga sem resposta', async () => {
+  const numero = '5581922220009@s.whatsapp.net';
+  const antiga = await clienteNaFila(numero);
+  const ha = (min) => new Date(Date.now() - min * 60000).toISOString();
+  db.prepare("UPDATE mensagens SET criado_em = ? WHERE conversa_id = ? AND remetente = 'cliente'").run(ha(70), antiga.id);
+  await post(`/painel/fila/${antiga.id}/finalizar`);
+  assert.strictEqual(conversa(antiga.id).status, 'finalizado');
+
+  const nova = await clienteNaFila(numero);
+  assert.strictEqual(nova.id, antiga.id, 'a mesma conversa volta para a fila');
+  const html = await pagina('/painel/fila?filtro=fila');
+  const item = html.slice(html.indexOf(`href="/painel/fila/${nova.id}"`));
+  assert.match(item.slice(0, 1500), /class="item-tempo"[^>]*>agora</);
+});

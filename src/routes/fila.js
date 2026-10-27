@@ -37,7 +37,7 @@ const { temPermissao } = require('../permissoes');
 const { barramento } = require('../eventos');
 const { tipoPorMimetype, salvarBufferDeMidia, converterParaOggOpus, lerArquivoDeMidia } = require('../midia');
 const equipe = require('../equipe');
-const { calcularAlertas, alertaParaAtendente } = require('../alertas');
+const { calcularAlertas, alertaParaAtendente, inicioDaEspera } = require('../alertas');
 
 const LEGENDA_PADRAO = { imagem: '[imagem enviada]', video: '[vídeo enviado]', audio: '[áudio enviado]' };
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
@@ -137,7 +137,9 @@ function montarListaFila(atendente, fluxo, { filtro, setor, marcador, busca }) {
   const contagens = Object.fromEntries(['minhas', 'fila', 'bot', 'todas'].map((f) => [f, porFiltro[f].filter(passa).length]));
   const fixadas = marcadores.idsFixados(atendente.id);
 
-  const desde = (c) => (c.esperandoResposta ? c.esperando_desde || c.ultima_mensagem_em : c.ultima_mensagem_em) || c.atualizado_em;
+  // esperando: nunca antes de o atendimento atual abrir (uma mensagem sem resposta de um atendimento
+  // antigo da mesma conversa não conta, senão quem acabou de chegar aparecia "há 1 h")
+  const desde = (c) => (c.esperandoResposta ? inicioDaEspera({ ...c, esperando_desde: c.esperando_desde || c.ultima_mensagem_em }) : c.ultima_mensagem_em) || c.atualizado_em;
   const itens = porFiltro[filtro].filter(passa).filter((c) => conversaCasaComBusca(c, busca)).sort((a, b) => {
     // fixadas pelo atendente ficam no topo (entre elas, a mesma ordem de sempre)
     if (fixadas.has(a.id) !== fixadas.has(b.id)) return fixadas.has(a.id) ? -1 : 1;
