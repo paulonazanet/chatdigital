@@ -181,6 +181,20 @@ test('avaliação vencida: manda o aviso de encerramento automático uma vez, e 
   console.log('OK: avaliação vencida manda o aviso de encerramento uma vez e não trava a conversa');
 });
 
+test('pesquisa pendente: mensagem que não é nota segue o atendimento e encerra a espera', async () => {
+  const numero = '5511900000078@s.whatsapp.net';
+  await simularMensagemDoCliente(numero, 'oi');
+
+  aguardarAvaliacao(numero, fluxo);
+  const { resposta } = await simularMensagemDoCliente(numero, 'quanto custa?');
+  assert.doesNotMatch(resposta || '', /[Oo]brigado pela sua avaliação/, 'pedido do cliente não é nota');
+  assert.strictEqual(obterEstadoConversa(numero, fluxo).aguardandoAvaliacao, false, 'não espera mais a nota');
+
+  aguardarAvaliacao(numero, fluxo);
+  const comNota = await simularMensagemDoCliente(numero, 'nota 9');
+  assert.match(comNota.resposta, /[Oo]brigado pela sua avaliação/, 'a nota continua sendo agradecida');
+});
+
 test('inatividade configurável: tempos de Configurações, lembrete em branco ainda conta, e "transferir" manda pra fila do setor escolhido', async () => {
   const { salvarConfiguracoes } = require('../src/negocio');
   const suporte = criarSetor('Suporte Inatividade');

@@ -21,7 +21,7 @@ const { processarMensagem } = require('../src/flow-engine');
 const { registrarMensagem, sincronizarConversa, obterOuCriarConversa } = require('../src/conversas');
 const { carregarFluxo } = require('../src/fluxo');
 const { definirSocket } = require('../src/socket-atual');
-const { lerNota, reconstruirAtendimentosAntigos } = require('../src/atendimentos');
+const { lerNota, ehRespostaDeNota, reconstruirAtendimentosAntigos } = require('../src/atendimentos');
 const { montarRelatorio, intervaloDoPeriodo, mediana, formatarDuracao } = require('../src/relatorio');
 
 const fluxo = carregarFluxo();
@@ -59,6 +59,15 @@ after(async () => {
   await new Promise((resolve) => servidor.close(resolve));
   db.close(); // sem isso o Windows não deixa apagar a pasta (EPERM)
   fs.rmSync(diretorioTeste, { recursive: true, force: true });
+});
+
+test('ehRespostaDeNota separa a nota de um pedido do cliente', () => {
+  for (const texto of ['10', ' 0 ', 'nota 9!', 'Dez', 'três', 'um', '10/10', '9 de 10', 'dou 8', 'minha nota é 7']) {
+    assert.strictEqual(ehRespostaDeNota(texto), true, texto);
+  }
+  for (const texto of ['quanto custa?', 'quero um botijão', '2 botijões', 'ótimo atendimento', '100', 'Sair', '']) {
+    assert.strictEqual(ehRespostaDeNota(texto), false, texto);
+  }
 });
 
 test('lerNota entende o jeito que o cliente responde a pesquisa', () => {

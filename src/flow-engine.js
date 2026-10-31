@@ -1,5 +1,5 @@
 const { salvarRegistro } = require('./registros');
-const { registrarNota } = require('./atendimentos');
+const { registrarNota, ehRespostaDeNota } = require('./atendimentos');
 const { dentroDasJanelas } = require('./horario');
 const { feriadoAgora } = require('./feriados');
 
@@ -293,12 +293,13 @@ async function processarMensagem({ numero, texto, negocio, fluxo }) {
   // do fluxo de verdade, então sem isso essa mensagem cairia direto no "estado.no = fluxo.inicio"
   // logo abaixo e mostraria o menu de novo, em vez de agradecer a nota. Só vale dentro do prazo —
   // passado isso, tratamos como mensagem normal (senão quem volta dias depois com uma pergunta
-  // de verdade só ouviria "obrigado pela avaliação").
+  // de verdade só ouviria "obrigado pela avaliação"). Mensagem que não é uma nota também segue
+  // normal e encerra a espera: é um pedido novo do cliente.
   if (estado.aguardandoAvaliacao) {
     const dentroDoPrazo = Date.now() - estado.aguardandoAvaliacaoDesde <= MINUTOS_LIMITE_AVALIACAO * 60000;
     estado.aguardandoAvaliacao = false;
     estado.aguardandoAvaliacaoDesde = null;
-    if (dentroDoPrazo) {
+    if (dentroDoPrazo && ehRespostaDeNota(msg)) {
       salvarRegistro('avaliacoes', { numero, nota: msg });
       registrarNota(numero, msg);
       return 'Muito obrigado pela sua avaliação! 🙏';

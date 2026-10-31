@@ -110,6 +110,16 @@ function lerNota(texto) {
   return palavra ? NUMEROS_POR_EXTENSO[palavra[1]] : null;
 }
 
+// A mensagem inteira é a nota ("10", "nota 9", "dez!", "10/10")? Com a pesquisa pendente, só isso é
+// tratado como avaliação: "quanto custa?" ou "quero um botijão" são pedidos e seguem o atendimento.
+const NOTA_SOZINHA = new RegExp(
+  `^(?:(?:minha )?nota(?: e)? |dou(?: nota)? )?(?:10|\\d|${Object.keys(NUMEROS_POR_EXTENSO).join('|')})(?: (?:de )?10)?$`,
+);
+function ehRespostaDeNota(texto) {
+  const limpo = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return NOTA_SOZINHA.test(limpo.replace(/[^a-z0-9]+/g, ' ').trim());
+}
+
 // A nota é da pesquisa mandada ao finalizar: vai pro último atendimento finalizado dessa conversa
 // (o motor de fluxo já só aceita a nota dentro do prazo).
 function registrarNota(numero, texto) {
@@ -283,5 +293,6 @@ module.exports = {
   fecharAtendimento,
   registrarNota,
   lerNota,
+  ehRespostaDeNota,
   reconstruirAtendimentosAntigos,
 };

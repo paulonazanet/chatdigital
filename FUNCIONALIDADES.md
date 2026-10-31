@@ -192,7 +192,7 @@ Os atendimentos **finalizados**, para conferir depois.
 - **Escrever nota interna** (embaixo da conversa quando ela não está com você: na fila, no bot ou
   finalizada).
 - **Finalizar**: pede o **motivo do encerramento** (lista em grupos, ex.: "Resolvido › Pedido
-  feito"; obrigatório se ligado em Configurações), manda a mensagem de encerramento e, se configurada, a pesquisa de satisfação.
+  feito"; obrigatório se ligado em Configurações), manda a mensagem de encerramento e, se configurada, a pesquisa de satisfação. Só uma resposta que seja a nota ("10", "nota 9") conta como avaliação; qualquer outra mensagem do cliente segue o atendimento normal.
   A nota que o cliente mandar em até 30 min é agradecida e registrada.
 
 **+ Nova conversa** (topo da página): chama um cliente que ainda não escreveu. Confere se o número

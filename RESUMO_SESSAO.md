@@ -261,6 +261,11 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Pesquisa pendente só aceita nota (31/10/2026, no main)
+Achado no roteiro da E3: logo depois de finalizar, "quanto custa?" recebia "obrigado pela avaliação". Agora só a mensagem que é
+inteira uma nota (`ehRespostaDeNota` em `atendimentos.js`: "10", "nota 9", "dez!", "10/10") é tratada como avaliação; o resto
+segue o fluxo e encerra a espera da nota. Comentário solto ("ótimo atendimento") também segue o fluxo e não vai mais para `registros`.
+
 ## Repetir o alerta: configurável (26/10/2026, no main)
 `alerta_repetir_minutos` (1 a 120, padrão 15) em Configurações > Pausas e alertas; `alertas.repetirAposMs(negocio)` no lugar
 do 15 fixo. Teste no `e2-equipe` (antes de 5 min não repete, depois avisa de novo). Nazagás: 5 min.
