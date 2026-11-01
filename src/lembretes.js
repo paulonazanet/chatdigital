@@ -7,15 +7,49 @@ const { substituirVariaveis } = require('./flow-engine');
 // estar acabando, quer pedir?". Enquanto a GásDigital não está ligada, "compra" é o que o próprio
 // ChatDigital sabe: pedido salvo pelo bot (registros, coleção "pedidos") ou atendimento finalizado com
 // um dos motivos marcados (ex.: "Resolvido › Pedido feito"). O envio sai pela fila de envios
-// (devagar, no horário, com limite por dia).
+// (devagar, no horário, com limite por dia). Com a recuperação ligada, quem não respondeu nem comprou
+// recebe mais mensagens (etapas) em dias contados a partir do prazo do lembrete.
 
 const DIA_MS = 86400000;
+const INTERVALO_MINIMO_ETAPAS_DIAS = 7; // lembrete que saiu atrasado não emenda na etapa seguinte
 const TEXTO_PADRAO =
   'Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. 🔥 Já faz {{dias}} dias do seu último pedido. Seu gás deve estar acabando: quer que a gente leve outro? É só responder *SIM*.\n\n(Para não receber estes avisos, responda SAIR.)';
+const RODAPE_SAIR = '\n\n(Para não receber estes avisos, responda SAIR.)';
+const ETAPAS_PADRAO = [
+  {
+    etapa: 2,
+    nome: 'Segundo lembrete',
+    dias: 15,
+    texto: `Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. Quando precisar de gás, é só responder *SIM* que a gente leva até você. 🔥${RODAPE_SAIR}`,
+    nota: '',
+  },
+  {
+    etapa: 3,
+    nome: 'Recuperação',
+    dias: 45,
+    texto: `Oi, {{cliente.nome}}! Sentimos sua falta aqui na {{negocio.nome}}. Se o gás acabou num dia em que estávamos fechados, a gente entende. Quer deixar o próximo com a gente? É só responder *SIM*.${RODAPE_SAIR}`,
+    nota: '',
+  },
+  {
+    etapa: 4,
+    nome: 'Última tentativa',
+    dias: 90,
+    texto: `Oi, {{cliente.nome}}! Queremos você de volta na {{negocio.nome}}: *R$ 5 de desconto* no seu gás, sobre o preço do dia. Quer aproveitar? É só responder *SIM*.${RODAPE_SAIR}`,
+    nota: 'Oferta enviada: R$ 5 de desconto sobre o preço do dia.',
+  },
+];
+
+// As etapas com o que a empresa mudou (dias, texto, aviso ao atendente) por cima do padrão
+function etapasDe(negocio) {
+  const salvas = Array.isArray(negocio.recompra_etapas) ? negocio.recompra_etapas : [];
+  return ETAPAS_PADRAO.map((padrao) => ({ ...padrao, ...salvas.find((e) => e.etapa === padrao.etapa) }));
+}
 
 function regrasDeRecompra(negocio = carregarNegocio()) {
   const dias = Number(negocio.recompra_dias);
   return {
+    recuperacao: !!negocio.recompra_recuperacao,
+    etapas: etapasDe(negocio),
     ligado: !!negocio.recompra_ligado,
     dias: Number.isInteger(dias) && dias >= 3 && dias <= 365 ? dias : 30,
     texto: negocio.recompra_texto || TEXTO_PADRAO,
@@ -82,10 +116,28 @@ function diasDoCliente(conversa, datas, regras) {
 }
 
 /**
- * Quem está na hora do lembrete agora: última compra + dias já passou, ainda não recebeu lembrete
- * depois dessa compra, e a compra não é velha demais (mais de 30 dias de atraso = cliente que sumiu;
- * não manda pra não disparar pra todo mundo antigo de uma vez quando ligar).
+ * Qual mensagem da sequência vai agora para essa compra (1 = o lembrete; null = nenhuma). O 1o lembrete
+ * só sai até 30 dias depois do prazo, pra não disparar pra todo mundo antigo de uma vez quando ligar.
+ * As etapas seguintes só saem depois da anterior, e param se o cliente respondeu (comprar de novo muda
+ * a última compra, então a sequência recomeça sozinha).
  */
+function proximaEtapa(conversaId, ultima, vence, regras, agoraMs) {
+  const feitos = db
+    .prepare("SELECT etapa, status, enviado_em, respondido_em FROM envios WHERE conversa_id = ? AND tipo = 'lembrete' AND criado_em >= ?")
+    .all(conversaId, new Date(ultima).toISOString());
+  if (feitos.some((e) => e.status === 'pendente' || e.respondido_em)) return null;
+  const enviados = feitos.filter((e) => e.status === 'enviado');
+  if (!enviados.length) return agoraMs - vence > 30 * DIA_MS ? null : { etapa: 1 };
+  if (!regras.recuperacao) return null;
+  const atual = Math.max(...enviados.map((e) => e.etapa));
+  const proxima = regras.etapas.find((e) => e.etapa > atual);
+  if (!proxima) return null;
+  const ultimoEnvio = Math.max(...enviados.map((e) => Date.parse(e.enviado_em)));
+  const libera = Math.max(vence + proxima.dias * DIA_MS, ultimoEnvio + INTERVALO_MINIMO_ETAPAS_DIAS * DIA_MS);
+  return libera > agoraMs ? null : proxima;
+}
+
+/** Quem está na hora de uma mensagem agora: última compra + dias já passou e há etapa para mandar. */
 function candidatos({ agoraMs = Date.now(), negocio = carregarNegocio() } = {}) {
   const regras = regrasDeRecompra(negocio);
   const compras = comprasPorConversa(regras);
@@ -96,18 +148,16 @@ function candidatos({ agoraMs = Date.now(), negocio = carregarNegocio() } = {}) 
     const ultima = datas[datas.length - 1];
     const dias = diasDoCliente(conversa, datas, regras);
     const vence = ultima + dias * DIA_MS;
-    if (vence > agoraMs || agoraMs - vence > 30 * DIA_MS) continue;
-    const jaTem = db
-      .prepare("SELECT 1 FROM envios WHERE conversa_id = ? AND tipo = 'lembrete' AND status IN ('pendente', 'enviado') AND criado_em >= ?")
-      .get(conversaId, new Date(ultima).toISOString());
-    if (jaTem) continue;
-    lista.push({ conversa, ultima, dias, diasDesde: Math.floor((agoraMs - ultima) / DIA_MS), compras: datas.length });
+    if (vence > agoraMs) continue;
+    const etapa = proximaEtapa(conversaId, ultima, vence, regras, agoraMs);
+    if (!etapa) continue;
+    lista.push({ conversa, ultima, dias, diasDesde: Math.floor((agoraMs - ultima) / DIA_MS), compras: datas.length, etapa });
   }
   return lista;
 }
 
-function montarTexto(regras, negocio, conversa, diasDesde) {
-  const texto = substituirVariaveis(regras.texto, {
+function montarTexto(regras, negocio, conversa, diasDesde, modelo = regras.texto) {
+  const texto = substituirVariaveis(modelo, {
     negocio,
     cliente: { nome: conversa.nome_contato || '' },
     dias: String(diasDesde),
@@ -123,7 +173,7 @@ function gerarLembretes({ agoraMs = Date.now(), negocio = carregarNegocio(), mes
   let total = 0;
   for (const c of candidatos({ agoraMs, negocio })) {
     if (envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false })) continue;
-    const modelo = regras.modelo
+    const modelo = regras.modelo && c.etapa.etapa === 1
       ? {
           nome: regras.modelo.nome,
           idioma: regras.modelo.idioma || 'pt_BR',
@@ -131,8 +181,8 @@ function gerarLembretes({ agoraMs = Date.now(), negocio = carregarNegocio(), mes
         }
       : null;
     const { textoDoModelo } = require('./whatsapp-oficial');
-    const texto = modelo ? textoDoModelo(modelo, modelo.parametros) : montarTexto(regras, negocio, c.conversa, c.diasDesde);
-    envios.enfileirar({ tipo: 'lembrete', conversaId: c.conversa.id, texto, modelo });
+    const texto = modelo ? textoDoModelo(modelo, modelo.parametros) : montarTexto(regras, negocio, c.conversa, c.diasDesde, c.etapa.texto);
+    envios.enfileirar({ tipo: 'lembrete', conversaId: c.conversa.id, texto, modelo, etapa: c.etapa.etapa });
     total += 1;
   }
   return total;

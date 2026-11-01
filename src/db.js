@@ -435,6 +435,10 @@ db.exec(`
     concluida_em TEXT
   );
 `);
+if (!colunaExiste('envios', 'etapa')) {
+  // qual mensagem da sequência do lembrete de recompra (1 = o lembrete; 2 em diante = recuperação)
+  db.exec('ALTER TABLE envios ADD COLUMN etapa INTEGER NOT NULL DEFAULT 1');
+}
 if (!colunaExiste('conversas', 'recompra_dias')) {
   // dias até o lembrete de recompra deste cliente (NULL = o padrão de Configurações)
   db.exec('ALTER TABLE conversas ADD COLUMN recompra_dias INTEGER');

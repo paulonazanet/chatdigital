@@ -504,6 +504,10 @@ desconectado, fora do horário, feriado ou limite do dia).
 - **Aviso de avaliação não respondida** 30 min depois da pesquisa.
 - **Fila de envios automáticos**: a cada 10 s manda no máximo um lembrete/campanha, dentro das regras de envio.
 - **Lembrete de recompra**: de hora em hora põe na fila quem venceu (se estiver ligado).
+- **Recuperação de quem não voltou** (Campanhas > Lembretes, vem desligada): quem não respondeu nem comprou recebe mais três
+  mensagens, editáveis: segundo lembrete (15 dias depois do prazo), recuperação (45) e última tentativa (90, com oferta de
+  R$ 5 de desconto sobre o preço do dia). Para quando o cliente responde, compra ou pede para sair, e há pelo menos 7 dias
+  entre as mensagens. Quando o cliente responde, a nota interna mostra o aviso da etapa para o atendente dar o desconto.
 - **Retornos agendados**: a cada minuto faz os que chegaram na hora.
 - **Alertas de fila**: confere a cada minuto e avisa quem está com o painel aberto — ver Configurações > Pausas e alertas.
 - **Depois de reiniciar o servidor**: quem estava com atendente continua com atendente (o bot não

@@ -54,6 +54,7 @@ const PADROES = {
   recompra_resposta: 'atendente', // 'atendente' (vai pra fila do setor) ou 'bot' (segue o fluxo)
   recompra_setor: 'Geral',
   recompra_usar_media: true, // com 3 compras ou mais, usa a média do cliente
+  recompra_recuperacao: false, // mais mensagens para quem não respondeu nem comprou (etapas em lembretes.js)
 };
 
 function carregarNegocio() {

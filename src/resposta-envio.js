@@ -28,7 +28,8 @@ function tratarRespostaAEnvio(numero, texto, { negocio = carregarNegocio(), flux
 
   if (resultado.envio.tipo === 'lembrete') {
     const regras = regrasDeRecompra(negocio);
-    registrarNotaInterna(conversa.id, '🔁 Respondeu ao lembrete de recompra.');
+    const etapa = regras.etapas.find((e) => e.etapa === resultado.envio.etapa);
+    registrarNotaInterna(conversa.id, `🔁 Respondeu ao lembrete de recompra.${etapa && etapa.nota ? ` ${etapa.nota}` : ''}`);
     if (regras.resposta !== 'atendente') return null;
     transferirParaHumano(numero, fluxo, regras.setor);
     return { transferiu: true };

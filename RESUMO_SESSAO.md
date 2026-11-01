@@ -261,6 +261,14 @@ Etapa E1 do plano Syntor → ChatDigital (ver `OneDrive\Documentos\claude\ChatDi
   Windows ao apagar a pasta temporária dos testes antigos (já existia).
 - **Produção**: `git pull` + reiniciar na VM; as migrações rodam sozinhas no boot.
 
+## Recuperação de quem não voltou (31/10/2026)
+Pedido do Paulo: não tratar como "sumiu" quem não recomprou. `envios.etapa` (1 = lembrete; 2 a 4 = recuperação), `ETAPAS_PADRAO`
+e `proximaEtapa` em `lembretes.js`: `recompra_recuperacao` liga (vem desligada), `recompra_etapas` guarda dias, texto e nota. Dias
+contam do prazo (vence), mínimo 7 dias entre mensagens; a etapa só sai depois da anterior, e quem respondeu sai da sequência.
+Compra nova muda a última compra e recomeça. O limite de 30 dias vale só para o 1º lembrete. API oficial: o modelo aprovado
+vale só para a etapa 1 (as outras precisam de modelo próprio, ainda não feito; fora das 24 h ficam 'pulado'). O desconto não é
+calculado: a mensagem fala "R$ 5 sobre o preço do dia" e `resposta-envio.js` põe a nota da etapa para o atendente.
+
 ## Pesquisa pendente só aceita nota (31/10/2026, no main)
 Achado no roteiro da E3: logo depois de finalizar, "quanto custa?" recebia "obrigado pela avaliação". Agora só a mensagem que é
 inteira uma nota (`ehRespostaDeNota` em `atendimentos.js`: "10", "nota 9", "dez!", "10/10") é tratada como avaliação; o resto

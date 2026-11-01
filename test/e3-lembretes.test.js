@@ -157,6 +157,61 @@ test('lembrete de recompra: quem venceu, média do cliente, prazo da ficha, uma 
   assert.ok(tela.includes('Resolvido › Pedido feito'));
 });
 
+test('recuperação: etapas depois do prazo, uma por vez, e para quando o cliente responde ou compra', async () => {
+  const lia = obterOuCriarConversa('5581900000021@s.whatsapp.net');
+  compraHa(lia.id, 31);
+  const etapaDaLia = (agoraMs) => lembretes.candidatos({ agoraMs }).find((c) => c.conversa.id === lia.id)?.etapa.etapa;
+  const depois = (dias) => Date.now() + dias * DIA;
+  const marcarEnviado = (dias) => db.prepare("UPDATE envios SET status = 'enviado', enviado_em = ? WHERE conversa_id = ? AND status = 'pendente'").run(new Date(depois(dias)).toISOString(), lia.id);
+
+  assert.strictEqual(etapaDaLia(depois(0)), 1);
+  envios.enfileirar({ tipo: 'lembrete', conversaId: lia.id, texto: 'lembrete' });
+  assert.strictEqual(etapaDaLia(depois(20)), undefined, 'com pendente, nada novo');
+  marcarEnviado(0);
+  assert.strictEqual(etapaDaLia(depois(20)), undefined, 'desligada, a sequência não anda');
+
+  salvarConfiguracoes({ recompra_recuperacao: true });
+  assert.strictEqual(etapaDaLia(depois(10)), undefined, 'antes de 15 dias do prazo');
+  assert.strictEqual(etapaDaLia(depois(15)), 2);
+  assert.strictEqual(etapaDaLia(depois(100)), 2, 'não pula etapa, mesmo com muito atraso');
+
+  envios.enfileirar({ tipo: 'lembrete', conversaId: lia.id, texto: 'segundo', etapa: 2 });
+  marcarEnviado(60);
+  assert.strictEqual(etapaDaLia(depois(62)), undefined, 'pelo menos 7 dias depois da anterior');
+  assert.strictEqual(etapaDaLia(depois(67)), 3);
+  envios.enfileirar({ tipo: 'lembrete', conversaId: lia.id, texto: 'terceiro', etapa: 3 });
+  marcarEnviado(67);
+
+  const texto = lembretes.regrasDeRecompra().etapas.find((e) => e.etapa === 4);
+  assert.strictEqual(etapaDaLia(depois(90)), 4);
+  assert.match(texto.texto, /R\$ 5 de desconto/);
+  envios.enfileirar({ tipo: 'lembrete', conversaId: lia.id, texto: 'oferta', etapa: 4 });
+  marcarEnviado(90);
+  assert.strictEqual(etapaDaLia(depois(200)), undefined, 'depois da última, para');
+
+  db.prepare("UPDATE envios SET respondido_em = ? WHERE conversa_id = ? AND etapa = 2").run(new Date().toISOString(), lia.id);
+  db.prepare("DELETE FROM envios WHERE conversa_id = ? AND etapa > 2").run(lia.id);
+  assert.strictEqual(etapaDaLia(depois(100)), undefined, 'quem respondeu sai da sequência');
+
+  compraHa(lia.id, 0);
+  assert.strictEqual(etapaDaLia(depois(30)), 1, 'compra nova recomeça do lembrete');
+
+  const resp = await post('/painel/campanhas/lembretes', {
+    recompra_dias: 30, recompra_texto: 'Oi', recompra_setor: 'Geral', recompra_recuperacao: '1',
+    etapa_dias_2: 15, etapa_texto_2: 'dois', etapa_dias_3: 10, etapa_texto_3: 'tres', etapa_dias_4: 90, etapa_texto_4: 'quatro',
+  });
+  assert.ok((await resp.text()).includes('cada etapa depois da anterior'));
+  await post('/painel/campanhas/lembretes', {
+    recompra_ligado: '1', recompra_dias: 30, recompra_texto: lembretes.TEXTO_PADRAO, recompra_setor: 'Geral', recompra_motivos: 'Resolvido › Pedido feito', recompra_usar_media: '1',
+    etapa_dias_2: 15, etapa_texto_2: 'dois', etapa_dias_3: 45, etapa_texto_3: 'tres', etapa_dias_4: 90, etapa_texto_4: 'quatro', etapa_nota_4: 'Oferta X',
+  });
+  const regras = lembretes.regrasDeRecompra();
+  assert.strictEqual(regras.recuperacao, false);
+  assert.strictEqual(regras.etapas[2].nota, 'Oferta X');
+  assert.ok((await pagina('/painel/campanhas/lembretes')).includes('Recuperação de quem não voltou'));
+  db.prepare('DELETE FROM atendimentos WHERE conversa_id = ?').run(lia.id);
+});
+
 test('respostas: responder o lembrete passa para atendente; SAIR tira das mensagens automáticas', async () => {
   const numero = '5581900000014@s.whatsapp.net'; // o "regular", que já está na fila de lembretes
   db.prepare("UPDATE envios SET status = 'cancelado' WHERE status = 'pendente' AND conversa_id <> (SELECT id FROM conversas WHERE numero = ?)").run(numero);

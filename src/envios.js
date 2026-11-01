@@ -53,12 +53,12 @@ function situacaoDaFila(agora = new Date(), negocio = carregarNegocio()) {
 }
 
 // `modelo` (API oficial): { nome, idioma, parametros } do modelo aprovado que vai no lugar do texto
-function enfileirar({ tipo, referenciaId = null, conversaId, texto, agendadoPara = new Date(), modelo = null }) {
+function enfileirar({ tipo, referenciaId = null, conversaId, texto, agendadoPara = new Date(), modelo = null, etapa = 1 }) {
   const agora = new Date().toISOString();
   return Number(
     db
-      .prepare('INSERT INTO envios (tipo, referencia_id, conversa_id, texto, agendado_para, criado_em, modelo) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(tipo, referenciaId, conversaId, texto, new Date(agendadoPara).toISOString(), agora, modelo ? JSON.stringify(modelo) : null).lastInsertRowid,
+      .prepare('INSERT INTO envios (tipo, referencia_id, conversa_id, texto, agendado_para, criado_em, modelo, etapa) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(tipo, referenciaId, conversaId, texto, new Date(agendadoPara).toISOString(), agora, modelo ? JSON.stringify(modelo) : null, etapa).lastInsertRowid,
   );
 }
 

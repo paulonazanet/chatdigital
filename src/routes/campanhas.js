@@ -183,6 +183,7 @@ function renderizarLembretes(req, res, extra = {}) {
     dias: c.dias,
     diasDesde: c.diasDesde,
     compras: c.compras,
+    mensagem: c.etapa.nome || 'Lembrete',
     motivo: envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false }),
   }));
   const ultimos = db
@@ -191,7 +192,13 @@ function renderizarLembretes(req, res, extra = {}) {
        WHERE e.tipo = 'lembrete' ORDER BY e.id DESC LIMIT 50`,
     )
     .all()
-    .map((e) => ({ ...e, cliente: nomeDoCliente(e), quando: formatarDataHoraCompleta(e.enviado_em || e.criado_em), rotulo: ROTULO_STATUS[e.status] }));
+    .map((e) => ({
+      ...e,
+      cliente: nomeDoCliente(e),
+      quando: formatarDataHoraCompleta(e.enviado_em || e.criado_em),
+      rotulo: ROTULO_STATUS[e.status],
+      mensagem: regras.etapas.find((etapa) => etapa.etapa === e.etapa)?.nome || 'Lembrete',
+    }));
   const trintaDias = new Date(Date.now() - 30 * 86400000).toISOString();
   res.render('campanhas/lembretes', base(req, 'lembretes', {
     negocio,
@@ -215,9 +222,21 @@ router.post('/lembretes', (req, res) => {
   if (!Number.isInteger(dias) || dias < 3 || dias > 365) return renderizarLembretes(req, res, { erro: 'Os dias até o lembrete têm que ser um número inteiro de 3 a 365.' });
   const texto = String(req.body.recompra_texto || '').trim();
   if (!texto) return renderizarLembretes(req, res, { erro: 'Escreva a mensagem do lembrete.' });
+  const etapas = lembretes.regrasDeRecompra().etapas.map((e) => ({
+    etapa: e.etapa,
+    dias: Number(req.body[`etapa_dias_${e.etapa}`]),
+    texto: String(req.body[`etapa_texto_${e.etapa}`] || '').trim().slice(0, 1000),
+    nota: String(req.body[`etapa_nota_${e.etapa}`] || '').trim().slice(0, 200),
+  }));
+  if (etapas.some((e, i) => !Number.isInteger(e.dias) || e.dias < 1 || e.dias > 365 || (i > 0 && e.dias <= etapas[i - 1].dias))) {
+    return renderizarLembretes(req, res, { erro: 'Os dias da recuperação têm que ser inteiros de 1 a 365, cada etapa depois da anterior.' });
+  }
+  if (etapas.some((e) => !e.texto)) return renderizarLembretes(req, res, { erro: 'Escreva a mensagem de cada etapa da recuperação.' });
   const setores = listarSetores().map((s) => s.nome);
   salvarConfiguracoes({
     recompra_ligado: req.body.recompra_ligado === '1',
+    recompra_recuperacao: req.body.recompra_recuperacao === '1',
+    recompra_etapas: etapas,
     recompra_dias: dias,
     recompra_texto: texto.slice(0, 1000),
     recompra_resposta: req.body.recompra_resposta === 'bot' ? 'bot' : 'atendente',
