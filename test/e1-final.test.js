@@ -324,6 +324,8 @@ test('feriados: importar nacionais (com Páscoa certa), não repetir, e valer no
   };
   const hoje = new Date();
   const dataHoje = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  // se hoje for um dos feriados importados (ex.: Finados), desliga ele pra ter um dia comum
+  for (let f = feriados.feriadoAgora(); f; f = feriados.feriadoAgora()) feriados.atualizarFeriado(f.id, { ...f, ativo: 0 });
   assert.strictEqual(await processar({ numero: 'feriado-1', texto: 'oi', negocio, fluxo: fluxoHorario }), 'Estamos abertos');
   const idHoje = feriados.criarFeriado({ nome: 'Hoje', data: dataHoje, repete_ano: 0, dia_inteiro: 1, hora_inicio: null, hora_fim: null, tem_expediente: 0, mensagem: 'Feriado hoje!', ativo: 1 });
   assert.strictEqual(await processar({ numero: 'feriado-2', texto: 'oi', negocio, fluxo: fluxoHorario }), 'Feriado hoje!\n\nEstamos fechados');

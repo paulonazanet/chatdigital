@@ -67,9 +67,9 @@ function textoComSair(texto) {
   return /\bSAIR\b/.test(limpo) ? limpo : `${limpo}\n\n${AVISO_SAIR}`;
 }
 
-function textoParaCliente(campanha, conversa, negocio = carregarNegocio()) {
-  const texto = substituirVariaveis(textoComSair(campanha.texto), { negocio, cliente: { nome: conversa.nome_contato || '' } });
-  return texto.replace(/,\s*([!?.])/g, '$1').replace(/[ \t]+([!?.,])/g, '$1');
+function textoParaCliente(campanha, conversa, negocio = carregarNegocio(), sorteio = Math.random) {
+  const texto = substituirVariaveis(textoComSair(envios.sortearVersao(campanha.texto, sorteio)), { negocio, cliente: { nome: conversa.nome_contato || '' } });
+  return texto.replace(/,\s*,/g, ',').replace(/,\s*([!?.])/g, '$1').replace(/[ \t]+([!?.,])/g, '$1');
 }
 
 /** Confere os campos. Devolve { campos } ou { erro } */
@@ -78,7 +78,7 @@ function validar(corpo, { blocosDoFluxo = [], setores = [] } = {}) {
   const texto = String(corpo.texto || '').trim();
   if (!nome) return { erro: 'Dê um nome para a campanha (só a equipe vê).' };
   if (!texto) return { erro: 'Escreva a mensagem da campanha.' };
-  if (texto.length > 1000) return { erro: 'A mensagem pode ter até 1000 letras.' };
+  if (texto.length > 3000 || envios.versoesDoTexto(texto).some((v) => v.length > 1000)) return { erro: 'Cada versão da mensagem pode ter até 1000 letras (até 3000 no total).' };
   const frase = String(corpo.frase_chave || '').trim().slice(0, 30);
   if (frase && normalizar(frase).split(' ').length > 3) return { erro: 'A frase-chave tem que ser curta (até 3 palavras), ex.: PROMO.' };
   if (frase && ['sair', 'parar', 'stop', 'cancelar', 'menu', 'oi'].includes(normalizar(frase))) return { erro: 'Essa frase-chave não pode: ela já tem outro uso. Escolha outra, ex.: PROMO.' };

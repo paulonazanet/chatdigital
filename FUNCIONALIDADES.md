@@ -268,13 +268,17 @@ desconectado, fora do horário, feriado ou limite do dia).
   de cada cliente pode ser mudado na ficha (Contatos). Só lembra até 30 dias depois do prazo
   (cliente sumido não recebe) e uma vez por compra.
 - **Mensagem** com `{{cliente.nome}}`, `{{negocio.nome}}` e `{{dias}}`, com exemplo na tela.
+- **Versões da mensagem**: várias versões separadas por uma linha só com `---`; cada cliente recebe
+  uma sorteada, pra os envios não saírem todos iguais (vale também para as etapas da recuperação e
+  para as campanhas). O texto padrão já vem com 3 versões em cada mensagem.
 - **Quando o cliente responder**: passa para um atendente (no setor escolhido, com nota "Respondeu
   ao lembrete") ou segue o bot.
 - **API oficial**: escolher o modelo aprovado do lembrete (pode usar `{{cliente.nome}}`, `{{negocio.nome}}`
   e `{{dias}}` em cada {{n}}).
 - Números dos últimos 30 dias (enviados, lidos, responderam, pediram para sair, na fila), lista de
-  **quem está na hora agora** (com o motivo se não for receber) e **Pôr na fila agora**, e os
-  últimos lembretes.
+  **quem está na hora agora** (com o motivo se não for receber) e **Pôr na fila agora**, os
+  **próximos 30 dias** (dia do lembrete de cada cliente, para conferir antes de ligar) e os últimos
+  lembretes.
 
 ### Campanhas > Retornos agendados
 - Os retornos marcados na conversa (**Ações ▾ › Agendar retorno**: dia, hora, para quem, motivo e,

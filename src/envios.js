@@ -62,6 +62,22 @@ function enfileirar({ tipo, referenciaId = null, conversaId, texto, agendadoPara
   );
 }
 
+// Versões da mensagem (lembrete, etapas, campanha): o texto pode ter várias, separadas por uma linha só
+// com ---. Cada cliente recebe uma sorteada, pra os envios não saírem todos iguais (o WhatsApp não
+// oficial desconfia de muitas mensagens idênticas).
+const SEPARADOR_VERSOES = /^[ 	]*-{3,}[ 	]*$/m;
+function versoesDoTexto(texto) {
+  return String(texto || '')
+    .split(SEPARADOR_VERSOES)
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+function sortearVersao(texto, sorteio = Math.random) {
+  const versoes = versoesDoTexto(texto);
+  if (!versoes.length) return '';
+  return versoes[Math.floor(sorteio() * versoes.length) % versoes.length];
+}
+
 // Quem pediu pra sair: tirou o consentimento (optout_em preenchido e consentimento 0)
 const saiuDasMensagens = (c) => !!c.optout_em && !c.consentimento;
 
@@ -231,5 +247,7 @@ module.exports = {
   enviadosHoje,
   zerarIntervalo,
   PALAVRAS_SAIR,
+  versoesDoTexto,
+  sortearVersao,
   MENSAGEM_SAIU,
 };

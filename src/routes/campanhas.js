@@ -83,7 +83,7 @@ function renderizarCampanha(req, res, campanha, extra = {}) {
     })(),
     semConsentimento: calculado.semConsentimento,
     amostra: calculado.lista.slice(0, 8).map(nomeDoCliente),
-    exemplo: campanha && campanha.texto ? campanhas.textoParaCliente(campanha, { nome_contato: 'Maria' }, negocio) : '',
+    exemplo: campanha && campanha.texto ? campanhas.textoParaCliente(campanha, { nome_contato: 'Maria' }, negocio, () => 0) : '',
     tags: contatos.listarTags(),
     setores: listarSetores(),
     blocos: blocosDoFluxo(),
@@ -186,6 +186,15 @@ function renderizarLembretes(req, res, extra = {}) {
     mensagem: c.etapa.nome || 'Lembrete',
     motivo: envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false }),
   }));
+  const futuros = lembretes.previsao({ negocio }).map((c) => ({
+    conversaId: c.conversa.id,
+    cliente: nomeDoCliente(c.conversa),
+    ultima: formatarDataHoraCompleta(new Date(c.ultima).toISOString()).slice(0, 10),
+    quando: formatarDataHoraCompleta(new Date(c.vence).toISOString()).slice(0, 10),
+    dias: c.dias,
+    compras: c.compras,
+    motivo: envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false }),
+  }));
   const ultimos = db
     .prepare(
       `SELECT e.*, c.nome_contato, c.numero, c.numero_exibicao FROM envios e JOIN conversas c ON c.id = e.conversa_id
@@ -207,9 +216,11 @@ function renderizarLembretes(req, res, extra = {}) {
     motivosAtivos,
     setores: listarSetores(),
     proximos,
+    futuros,
     ultimos,
     numeros: envios.resumoDeEnvios("tipo = 'lembrete' AND criado_em >= ?", [trintaDias]),
-    exemplo: lembretes.montarTexto(regras, negocio, { nome_contato: 'Maria' }, regras.dias),
+    exemplo: lembretes.montarTexto(regras, negocio, { nome_contato: 'Maria' }, regras.dias, regras.texto, () => 0),
+    versoes: envios.versoesDoTexto(regras.texto).length,
     erro: null,
     salvo: !!req.query.salvo,
     gerados: req.query.gerados !== undefined ? Number(req.query.gerados) : null,
@@ -225,7 +236,7 @@ router.post('/lembretes', (req, res) => {
   const etapas = lembretes.regrasDeRecompra().etapas.map((e) => ({
     etapa: e.etapa,
     dias: Number(req.body[`etapa_dias_${e.etapa}`]),
-    texto: String(req.body[`etapa_texto_${e.etapa}`] || '').trim().slice(0, 1000),
+    texto: String(req.body[`etapa_texto_${e.etapa}`] || '').trim().slice(0, 3000),
     nota: String(req.body[`etapa_nota_${e.etapa}`] || '').trim().slice(0, 200),
   }));
   if (etapas.some((e, i) => !Number.isInteger(e.dias) || e.dias < 1 || e.dias > 365 || (i > 0 && e.dias <= etapas[i - 1].dias))) {
@@ -238,7 +249,7 @@ router.post('/lembretes', (req, res) => {
     recompra_recuperacao: req.body.recompra_recuperacao === '1',
     recompra_etapas: etapas,
     recompra_dias: dias,
-    recompra_texto: texto.slice(0, 1000),
+    recompra_texto: texto.slice(0, 3000),
     recompra_resposta: req.body.recompra_resposta === 'bot' ? 'bot' : 'atendente',
     recompra_setor: setores.includes(req.body.recompra_setor) ? req.body.recompra_setor : 'Geral',
     recompra_usar_media: req.body.recompra_usar_media === '1',

@@ -136,6 +136,9 @@ test('lembrete de recompra: quem venceu, média do cliente, prazo da ficha, uma 
 
   const ids = () => lembretes.candidatos().map((c) => c.conversa.id).sort((a, b) => a - b);
   assert.deepStrictEqual(ids(), [maria.id, regular.id, bot.id].sort((a, b) => a - b));
+  const futuro = lembretes.previsao();
+  assert.deepStrictEqual(futuro.map((c) => c.conversa.id), [joao.id], 'previsão: só quem ainda não venceu');
+  assert.strictEqual(Math.round((futuro[0].vence - Date.now()) / DIA), 20);
   db.prepare('UPDATE conversas SET recompra_dias = 7 WHERE id = ?').run(joao.id);
   assert.ok(ids().includes(joao.id), 'prazo da ficha do cliente');
 
@@ -144,9 +147,10 @@ test('lembrete de recompra: quem venceu, média do cliente, prazo da ficha, uma 
   assert.strictEqual(lembretes.gerarLembretes(), 4);
   assert.strictEqual(lembretes.gerarLembretes(), 0, 'não repete para a mesma compra');
   const textoMaria = db.prepare("SELECT texto FROM envios WHERE conversa_id = ? AND tipo = 'lembrete'").get(maria.id).texto;
-  assert.match(textoMaria, /^Oi, Maria! Aqui é da Gás Exemplo\. 🔥 Já faz 31 dias/);
+  assert.match(textoMaria, /^(Oi|Olá), Maria![\s\S]*Gás Exemplo[\s\S]*31 dias/);
   const textoBot = db.prepare("SELECT texto FROM envios WHERE conversa_id = ? AND tipo = 'lembrete'").get(bot.id).texto;
-  assert.match(textoBot, /^Oi! Aqui é da Gás Exemplo/, 'sem nome não fica "Oi, !"');
+  assert.match(textoBot, /^(Oi|Olá)[!,] /, 'sem nome não fica "Oi, !"');
+  assert.ok(!/,\s*[,!?.]/.test(textoBot), 'sem vírgula sobrando');
 
   // compra nova depois do lembrete: volta a valer o prazo
   compraHa(maria.id, 0);
@@ -155,6 +159,7 @@ test('lembrete de recompra: quem venceu, média do cliente, prazo da ficha, uma 
   const tela = await pagina('/painel/campanhas/lembretes');
   assert.ok(tela.includes('Lembrete de recompra'));
   assert.ok(tela.includes('Resolvido › Pedido feito'));
+  assert.ok(tela.includes('Próximos 30 dias'));
 });
 
 test('recuperação: etapas depois do prazo, uma por vez, e para quando o cliente responde ou compra', async () => {

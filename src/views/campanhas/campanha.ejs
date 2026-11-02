@@ -36,8 +36,8 @@
       <legend>Mensagem</legend>
       <label>Nome da campanha (só a equipe vê)<input type="text" name="nome" maxlength="80" value="<%= k.nome %>" placeholder="Ex.: Promoção do P13 em novembro" required></label>
       <label>Mensagem
-        <textarea name="texto" rows="5" maxlength="1000" required placeholder="Ex.: Oi, {{cliente.nome}}! Esta semana o P13 está com R$ 5 de desconto na {{negocio.nome}}. Responda PROMO para pedir."><%= k.texto %></textarea>
-        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code> e <code>{{negocio.nome}}</code>. Se a mensagem não falar em SAIR, o sistema põe no fim: "<%= 'Para não receber mais mensagens como esta, responda SAIR.' %>"</span>
+        <textarea name="texto" rows="6" maxlength="3000" required placeholder="Ex.: Oi, {{cliente.nome}}! Esta semana o P13 está com R$ 5 de desconto na {{negocio.nome}}. Responda PROMO para pedir."><%= k.texto %></textarea>
+        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code> e <code>{{negocio.nome}}</code>. Para variar, escreva mais de uma versão separadas por uma linha só com <code>---</code>: cada cliente recebe uma sorteada. Se a mensagem não falar em SAIR, o sistema põe no fim: "<%= 'Para não receber mais mensagens como esta, responda SAIR.' %>"</span>
       </label>
       <% if (exemplo) { %><p class="dica">Como chega para a Maria:</p><p class="balao-exemplo"><%= exemplo %></p><% } %>
     </fieldset>

@@ -12,29 +12,47 @@ const { substituirVariaveis } = require('./flow-engine');
 
 const DIA_MS = 86400000;
 const INTERVALO_MINIMO_ETAPAS_DIAS = 7; // lembrete que saiu atrasado não emenda na etapa seguinte
-const TEXTO_PADRAO =
-  'Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. 🔥 Já faz {{dias}} dias do seu último pedido. Seu gás deve estar acabando: quer que a gente leve outro? É só responder *SIM*.\n\n(Para não receber estes avisos, responda SAIR.)';
+// Cada texto tem versões separadas por uma linha com --- (envios.sortearVersao): cada cliente recebe uma
+// sorteada, pra os envios não saírem todos iguais.
 const RODAPE_SAIR = '\n\n(Para não receber estes avisos, responda SAIR.)';
+const versoes = (...textos) => textos.map((t) => `${t}${RODAPE_SAIR}`).join('\n---\n');
+const TEXTO_PADRAO = versoes(
+  'Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. 🔥 Já faz {{dias}} dias do seu último pedido. Seu gás deve estar acabando: quer que a gente leve outro? É só responder *SIM*.',
+  'Olá, {{cliente.nome}}! Tudo bem? Aqui é da {{negocio.nome}}. Seu último gás foi há {{dias}} dias, então ele pode estar perto do fim. Quer que a gente entregue um novo? Responda *SIM*. 🔥',
+  'Oi, {{cliente.nome}}, tudo certo por aí? Passando para lembrar: já são {{dias}} dias desde o seu último pedido aqui na {{negocio.nome}}. Se o gás estiver no fim, é só responder *SIM* que a gente leva.',
+);
 const ETAPAS_PADRAO = [
   {
     etapa: 2,
     nome: 'Segundo lembrete',
     dias: 15,
-    texto: `Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. Quando precisar de gás, é só responder *SIM* que a gente leva até você. 🔥${RODAPE_SAIR}`,
+    texto: versoes(
+      'Oi, {{cliente.nome}}! Aqui é da {{negocio.nome}}. Quando precisar de gás, é só responder *SIM* que a gente leva até você. 🔥',
+      'Olá, {{cliente.nome}}! A {{negocio.nome}} está por aqui: se o gás acabar, responda *SIM* e a gente entrega na sua casa.',
+      'Oi, {{cliente.nome}}, tudo bem? Lembrando que a {{negocio.nome}} entrega gás pertinho de você. Precisando, responda *SIM*. 🔥',
+    ),
     nota: '',
   },
   {
     etapa: 3,
     nome: 'Recuperação',
     dias: 45,
-    texto: `Oi, {{cliente.nome}}! Sentimos sua falta aqui na {{negocio.nome}}. Se o gás acabou num dia em que estávamos fechados, a gente entende. Quer deixar o próximo com a gente? É só responder *SIM*.${RODAPE_SAIR}`,
+    texto: versoes(
+      'Oi, {{cliente.nome}}! Sentimos sua falta aqui na {{negocio.nome}}. Se o gás acabou num dia em que estávamos fechados, a gente entende. Quer deixar o próximo com a gente? É só responder *SIM*.',
+      'Olá, {{cliente.nome}}! Faz tempo que você não pede com a gente aqui na {{negocio.nome}}. Se o gás acabou fora do nosso horário, tudo bem! Quer que o próximo seja nosso? Responda *SIM*.',
+      'Oi, {{cliente.nome}}, tudo bem? A {{negocio.nome}} sentiu sua falta. Quando precisar de gás de novo, é só responder *SIM* que a gente leva rapidinho.',
+    ),
     nota: '',
   },
   {
     etapa: 4,
     nome: 'Última tentativa',
     dias: 90,
-    texto: `Oi, {{cliente.nome}}! Queremos você de volta na {{negocio.nome}}: *R$ 5 de desconto* no seu gás, sobre o preço do dia. Quer aproveitar? É só responder *SIM*.${RODAPE_SAIR}`,
+    texto: versoes(
+      'Oi, {{cliente.nome}}! Queremos você de volta na {{negocio.nome}}: *R$ 5 de desconto* no seu gás, sobre o preço do dia. Quer aproveitar? É só responder *SIM*.',
+      'Olá, {{cliente.nome}}! Preparamos um presente para você voltar à {{negocio.nome}}: *R$ 5 a menos* no seu próximo gás, sobre o preço do dia. Responda *SIM* para pedir.',
+      'Oi, {{cliente.nome}}, tudo bem? Para você voltar a pedir com a gente, a {{negocio.nome}} dá *R$ 5 de desconto* no gás, sobre o preço do dia. Quer? Responda *SIM*.',
+    ),
     nota: 'Oferta enviada: R$ 5 de desconto sobre o preço do dia.',
   },
 ];
@@ -156,14 +174,33 @@ function candidatos({ agoraMs = Date.now(), negocio = carregarNegocio() } = {}) 
   return lista;
 }
 
-function montarTexto(regras, negocio, conversa, diasDesde, modelo = regras.texto) {
-  const texto = substituirVariaveis(modelo, {
+/**
+ * Quem recebe o 1º lembrete nos próximos `dias` dias (ainda não venceu): pra conferir antes de ligar.
+ * Em ordem de data. O envio sai no primeiro horário de envio a partir do dia do prazo.
+ */
+function previsao({ agoraMs = Date.now(), negocio = carregarNegocio(), dias = 30 } = {}) {
+  const regras = regrasDeRecompra(negocio);
+  const lista = [];
+  for (const [conversaId, datas] of comprasPorConversa(regras)) {
+    const conversa = db.prepare('SELECT * FROM conversas WHERE id = ?').get(conversaId);
+    if (!conversa) continue;
+    const ultima = datas[datas.length - 1];
+    const prazo = diasDoCliente(conversa, datas, regras);
+    const vence = ultima + prazo * DIA_MS;
+    if (vence <= agoraMs || vence > agoraMs + dias * DIA_MS) continue;
+    lista.push({ conversa, ultima, dias: prazo, vence, compras: datas.length });
+  }
+  return lista.sort((a, b) => a.vence - b.vence);
+}
+
+function montarTexto(regras, negocio, conversa, diasDesde, modelo = regras.texto, sorteio = Math.random) {
+  const texto = substituirVariaveis(envios.sortearVersao(modelo, sorteio), {
     negocio,
     cliente: { nome: conversa.nome_contato || '' },
     dias: String(diasDesde),
   });
   // "Oi, !" quando o cliente não tem nome: tira a vírgula/espaço que sobrou
-  return texto.replace(/,\s*([!?.])/g, '$1').replace(/[ \t]+([!?.,])/g, '$1');
+  return texto.replace(/,\s*,/g, ',').replace(/,\s*([!?.])/g, '$1').replace(/[ \t]+([!?.,])/g, '$1');
 }
 
 /** Põe na fila de envios os lembretes que venceram. Devolve quantos entraram. */
@@ -200,4 +237,4 @@ function iniciarLembretesDeRecompra() {
   setInterval(rodar, 60 * 60 * 1000).unref(); // de hora em hora
 }
 
-module.exports = { regrasDeRecompra, motivosDeCompra, comprasPorConversa, candidatos, gerarLembretes, montarTexto, iniciarLembretesDeRecompra, TEXTO_PADRAO };
+module.exports = { regrasDeRecompra, motivosDeCompra, comprasPorConversa, candidatos, previsao, gerarLembretes, montarTexto, iniciarLembretesDeRecompra, TEXTO_PADRAO };

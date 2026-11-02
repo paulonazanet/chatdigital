@@ -28,10 +28,10 @@
       </label>
       <label class="linha"><input type="checkbox" name="recompra_usar_media" value="1" <%= r.usarMedia ? 'checked' : '' %>> Para quem já comprou 3 vezes ou mais, usar o tempo médio entre as compras dele</label>
       <label>Mensagem
-        <textarea name="recompra_texto" rows="4" maxlength="1000"><%= r.texto %></textarea>
-        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code>, <code>{{negocio.nome}}</code> e <code>{{dias}}</code> (dias desde a última compra). Deixe o "responda SAIR": é o jeito de o cliente parar de receber (LGPD).</span>
+        <textarea name="recompra_texto" rows="8" maxlength="3000"><%= r.texto %></textarea>
+        <span class="ajuda">Dá para usar <code>{{cliente.nome}}</code>, <code>{{negocio.nome}}</code> e <code>{{dias}}</code> (dias desde a última compra). Deixe o "responda SAIR": é o jeito de o cliente parar de receber (LGPD). <strong>Versões:</strong> escreva mais de uma, separadas por uma linha só com <code>---</code>, e cada cliente recebe uma sorteada (as mensagens não saem todas iguais).</span>
       </label>
-      <p class="dica">Exemplo: <em><%= exemplo %></em></p>
+      <p class="dica">Exemplo<%= versoes > 1 ? ` (1ª de ${versoes} versões)` : '' %>: <em><%= exemplo %></em></p>
       <div class="grupo-opcoes">
         <span class="grupo-opcoes-titulo">Quando o cliente responder</span>
         <label class="linha"><input type="radio" name="recompra_resposta" value="atendente" <%= r.resposta === 'atendente' ? 'checked' : '' %>> Passar para um atendente, no setor
@@ -51,7 +51,7 @@
     <fieldset>
       <legend>Recuperação de quem não voltou</legend>
       <label class="linha"><input type="checkbox" name="recompra_recuperacao" value="1" <%= r.recuperacao ? 'checked' : '' %>> <strong>Ligada</strong> (só funciona com o lembrete ligado)</label>
-      <p class="dica">Depois do lembrete, quem não respondeu nem comprou recebe estas mensagens. A sequência para quando o cliente responde, compra ou pede para sair, e sempre há pelo menos 7 dias entre uma mensagem e outra.</p>
+      <p class="dica">Depois do lembrete, quem não respondeu nem comprou recebe estas mensagens (cada uma também aceita versões separadas por <code>---</code>). A sequência para quando o cliente responde, compra ou pede para sair, e sempre há pelo menos 7 dias entre uma mensagem e outra.</p>
       <% r.etapas.forEach((e) => { %>
         <div class="grupo-opcoes">
           <span class="grupo-opcoes-titulo"><%= e.nome %></span>
@@ -60,7 +60,7 @@
             <span class="ajuda">Com o prazo de <%= r.dias %> dias: <%= r.dias + e.dias %> dias depois da última compra.</span>
           </label>
           <label>Mensagem
-            <textarea name="etapa_texto_<%= e.etapa %>" rows="3" maxlength="1000"><%= e.texto %></textarea>
+            <textarea name="etapa_texto_<%= e.etapa %>" rows="6" maxlength="3000"><%= e.texto %></textarea>
           </label>
           <label>Aviso para o atendente quando o cliente responder (opcional)
             <input type="text" name="etapa_nota_<%= e.etapa %>" maxlength="200" value="<%= e.nota %>">
@@ -98,6 +98,27 @@
     </table>
   </div>
   <% if (!r.ligado && proximos.length) { %><p class="dica">O lembrete está desligado: ninguém recebe até você ligar.</p><% } %>
+
+  <h2 class="subtitulo-painel">Próximos 30 dias</h2>
+  <p class="dica">Quem recebe o lembrete quando chegar o prazo (sai no primeiro horário de envio a partir desse dia). Se o cliente comprar antes, o prazo recomeça.</p>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Dia do lembrete</th><th>Cliente</th><th>Última compra</th><th>Prazo</th><th>Compras</th><th></th></tr></thead>
+      <tbody>
+        <% futuros.forEach((p) => { %>
+          <tr>
+            <td class="sem-quebra"><%= p.quando %></td>
+            <td><a href="/painel/fila/<%= p.conversaId %>"><%= p.cliente %></a></td>
+            <td><%= p.ultima %></td>
+            <td><%= p.dias %> dias</td>
+            <td><%= p.compras %></td>
+            <td><% if (p.motivo) { %><span class="selo selo-situacao-bloqueado">Não vai: <%= p.motivo %></span><% } %></td>
+          </tr>
+        <% }) %>
+        <% if (!futuros.length) { %><tr><td colspan="6" class="dica">Ninguém com prazo nos próximos 30 dias.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
 
   <h2 class="subtitulo-painel">Últimos lembretes</h2>
   <div class="tabela-rolagem">
