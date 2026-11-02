@@ -8,16 +8,28 @@ const { encerrarPausa } = require('../equipe');
 const { obterAtendentePorEmail } = require('../atendentes');
 const acesso = require('../acesso');
 
+// Cliente novo da E5 (CHATDIGITAL_CODIGO_SETUP no .env): o administrador só é criado pelo link com o
+// código que o comando de criar cliente mostra; sem ele, quem abrisse o endereço primeiro virava dono.
+function codigoDoSetupConfere(codigo) {
+  const esperado = process.env.CHATDIGITAL_CODIGO_SETUP;
+  if (!esperado) return true;
+  const a = Buffer.from(String(codigo || ''));
+  const b = Buffer.from(esperado);
+  return a.length === b.length && require('crypto').timingSafeEqual(a, b);
+}
+
 router.get('/setup', (req, res) => {
   if (contarAtendentes() > 0) return res.redirect('/login');
-  res.render('setup', { erro: null });
+  if (!codigoDoSetupConfere(req.query.codigo)) return res.status(403).render('setup', { erro: 'Use o link de primeiro acesso que veio com a instalação.', codigo: null, bloqueado: true });
+  res.render('setup', { erro: null, codigo: req.query.codigo || null, bloqueado: false });
 });
 
 router.post('/setup', (req, res) => {
   if (contarAtendentes() > 0) return res.redirect('/login');
+  if (!codigoDoSetupConfere(req.body.codigo)) return res.status(403).render('setup', { erro: 'Use o link de primeiro acesso que veio com a instalação.', codigo: null, bloqueado: true });
   const { nome, email, senha } = req.body;
   if (!nome || !email || !senha) {
-    return res.render('setup', { erro: 'Preencha todos os campos.' });
+    return res.render('setup', { erro: 'Preencha todos os campos.', codigo: req.body.codigo || null, bloqueado: false });
   }
   const admin = criarAtendente({ nome, email, senha, papel: 'admin' });
   registrarUltimoLogin(admin.id);

@@ -1,0 +1,23 @@
+# Um ChatDigital por cliente (E5): chatdigital@<nome> roda o código de /opt/chatdigital/app com os
+# dados e o .env de /opt/chatdigital/clientes/<nome>. Instalado pelo deploy/criar-cliente.sh.
+[Unit]
+Description=ChatDigital (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chatdigital
+Group=chatdigital
+WorkingDirectory=/opt/chatdigital/app
+EnvironmentFile=/opt/chatdigital/clientes/%i/.env
+ExecStart=/usr/bin/node src/app.js
+Restart=always
+RestartSec=5
+# endurecimento básico (o mesmo do chatdigital.service da Nazagás)
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

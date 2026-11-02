@@ -43,6 +43,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
+// cliente da E5: as mídias ficam na pasta de dados dele (sem ela, em public/uploads, pela linha de baixo)
+if (require('./caminhos').pastaDeDados()) app.use('/uploads', express.static(require('./caminhos').pastaUploads()));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(cookieParser(SEGREDO || 'segredo-so-para-desenvolvimento-local'));
 app.use(carregarAtendenteLogado);
@@ -58,6 +60,12 @@ app.use('/painel', (req, res, next) => {
   next();
 });
 
+// monitoramento (Zabbix): o nível de cada peça, sem login e sem dados de clientes. Responde 200 mesmo
+// com problema, pra o Zabbix separar "site fora" de "WhatsApp desconectado" pelo texto.
+app.get('/saude', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(require('./status-sistema').resumoSaude());
+});
 // painel ao vivo para TV: sem login, pelo link secreto de Configurações > Painel da TV
 app.use('/tv', rotasTv.router);
 // API oficial do WhatsApp: a Meta entrega mensagens e recibos aqui (sem login, assinado pela Meta)

@@ -1,0 +1,89 @@
+{
+  "inicio": "inicio",
+  "reinicio_palavras": ["menu", "oi", "ola", "olá", "começar", "comecar"],
+  "nos": {
+    "inicio": {
+      "tipo": "inicio",
+      "proximo": "menu"
+    },
+    "menu": {
+      "tipo": "pergunta",
+      "texto": "Olá! Aqui é o atendimento automático da *{{negocio.nome}}*. 🔥\n\nO que você precisa?\n1. Fazer um pedido\n2. Dúvidas frequentes (preço, horário, entrega)\n3. Falar com um atendente\n\nResponda só com o número da opção.",
+      "variavel": "opcao_menu",
+      "opcoes": [
+        { "quando": "1", "proximo": "pedido_produto" },
+        { "quando": "2", "proximo": "faq" },
+        { "quando": "3", "proximo": "atendente" }
+      ]
+    },
+    "pedido_produto": {
+      "tipo": "pergunta",
+      "texto": "Qual produto você quer?",
+      "variavel": "produto_id",
+      "opcoes_dinamicas": {
+        "fonte": "negocio.produtos",
+        "rotulo_campo": "nome",
+        "preco_campo": "preco",
+        "valor_campo": "id",
+        "guardar_item_em": "produto"
+      },
+      "opcao_extra": { "quando": "0", "rotulo": "0. Voltar ao menu", "proximo": "menu" },
+      "proximo": "pedido_endereco"
+    },
+    "pedido_endereco": {
+      "tipo": "pergunta",
+      "texto": "Show! Qual o endereço de entrega? (rua, número, bairro, referência)",
+      "variavel": "endereco",
+      "proximo": "pedido_pagamento"
+    },
+    "pedido_pagamento": {
+      "tipo": "pergunta",
+      "texto": "Anotado. Como vai ser o pagamento? ({{negocio.formas_pagamento}})",
+      "variavel": "pagamento",
+      "proximo": "pedido_confirmar"
+    },
+    "pedido_confirmar": {
+      "tipo": "pergunta",
+      "texto": "Confere aí:\nProduto: {{vars.produto.nome}}\nEndereço: {{vars.endereco}}\nPagamento: {{vars.pagamento}}\n\nResponda *1* para confirmar ou *0* para voltar ao menu.",
+      "opcoes": [
+        { "quando": "1", "proximo": "pedido_salvar" },
+        { "quando": "0", "proximo": "menu" }
+      ]
+    },
+    "pedido_salvar": {
+      "tipo": "salvar",
+      "colecao": "pedidos",
+      "campos": {
+        "produto_id": "vars.produto.id",
+        "produto_nome": "vars.produto.nome",
+        "endereco": "vars.endereco",
+        "pagamento": "vars.pagamento"
+      },
+      "proximo": "pedido_fim"
+    },
+    "pedido_fim": {
+      "tipo": "mensagem",
+      "texto": "Pedido registrado! ✅ Já vamos providenciar a entrega.\n\nPosso te ajudar em mais alguma coisa? (digite *menu* para ver as opções, ou é só isso)",
+      "proximo": "_fim"
+    },
+    "faq": {
+      "tipo": "pergunta",
+      "texto_dinamico": {
+        "fonte": "negocio.faq",
+        "campo_titulo": "pergunta",
+        "campo_corpo": "resposta",
+        "rodape": "0. Voltar ao menu"
+      },
+      "opcoes": [{ "quando": "0", "proximo": "menu" }],
+      "padrao": "faq"
+    },
+    "atendente": {
+      "tipo": "transferir",
+      "texto": "Combinado! Encaminhando para um atendente humano.\nSe preferir já chamar direto: {{negocio.numero_atendente_legivel}}.",
+      "setor": "geral"
+    },
+    "_fim": {
+      "tipo": "fim"
+    }
+  }
+}

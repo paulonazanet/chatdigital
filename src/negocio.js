@@ -1,8 +1,7 @@
 const fs = require('fs');
-const path = require('path');
 
 function caminhoArquivo() {
-  return process.env.CHATDIGITAL_NEGOCIO || path.join(__dirname, '..', 'config', 'negocio.json');
+  return require('./caminhos').arquivoNegocio();
 }
 
 // Valores usados quando o negocio.json ainda não tem o campo (instalações de antes dele existir).

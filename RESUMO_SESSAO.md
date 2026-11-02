@@ -631,6 +631,24 @@ número com o seu fluxo).
   pelo celular e pela API oficial na mesma instalação fica para depois.
 - Testes: `test/e4-numeros.test.js` (6 testes). Total: 116 passam, zero falhas.
 
+## E5, 1ª parte (02/11/2026, branch `e5`): um código só, uma pasta de dados por cliente
+- **`src/caminhos.js`**: com `CHATDIGITAL_DADOS`, banco (`data/`), `config/negocio.json`, `config/fluxo.json`,
+  pastas `auth*` do WhatsApp e `uploads/` ficam na pasta do cliente; sem ela, tudo como antes (pasta do código,
+  `public/uploads`). `CHATDIGITAL_DB/_NEGOCIO/_FLUXO/_BACKUP_DIR` continuam valendo por cima. Cliente novo começa
+  de **`config/modelos/`** (nunca editados), porque no servidor `config/negocio.json`/`fluxo.json` são os da Nazagás.
+  `db.js` chama `prepararPastaDeDados()` antes de abrir o banco; `server.js` serve `/uploads` da pasta do cliente.
+- **Primeiro acesso com código** (`CHATDIGITAL_CODIGO_SETUP`): sem ele no link, `/setup` responde 403 e não cria
+  administrador (antes, quem abrisse o endereço primeiro virava dono).
+- **`/saude`** (sem login): `{ whatsapp, banco, disco, backup, versao }`, só níveis (`ok`/`atencao`/`problema`),
+  sempre 200; o Zabbix procura `"whatsapp":"ok"`.
+- **`deploy/`**: `chatdigital@.service` (EnvironmentFile do cliente), `criar-cliente.sh` (porta livre a partir de
+  3101, `.env` 600 com segredo e código, serviço, Caddy em `/etc/caddy/clientes/<nome>.caddy` importado pelo
+  Caddyfile, valida antes de recarregar, espera o `/saude`), `listar-clientes.sh`, `atualizar-todos.sh`.
+  Passo a passo: Parte Q do `INSTALACAO_eunodigital.md`.
+- Testes: `test/e5-instalacoes.test.js` (4) + dois clientes de mentira lado a lado no Windows (portas 3201/3202:
+  pastas separadas, código de um não abre o outro). Total 157, zero falhas. Os scripts `deploy/` ainda não rodaram
+  num Linux de verdade.
+
 ## Testes sem as 8 falhas de EPERM (19/10/2026)
 Os 8 testes antigos (atendimento-avancado, configuracoes, eventos, fila, fluxo-editor, painel,
 seguranca, whatsapp) não fechavam o banco antes de apagar a pasta temporária, e o Windows não

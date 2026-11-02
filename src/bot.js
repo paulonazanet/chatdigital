@@ -1,4 +1,3 @@
-const path = require('path');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 const {
@@ -27,7 +26,7 @@ const whatsappStatus = require('./whatsapp-status');
 const { numeroPermitido, construirVerificadorNumeroPermitido } = require('./modo-teste');
 
 // pasta de login de cada número: o Principal usa "auth" (a de sempre), os outros "auth-numero-<id>"
-const pastaDoCanal = (canal) => path.join(__dirname, '..', canal.pasta || 'auth');
+const pastaDoCanal = (canal) => require('./caminhos').pastaAuth(canal.pasta || 'auth');
 const canaisParados = new Set(); // números desligados na tela: não reconectam
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 

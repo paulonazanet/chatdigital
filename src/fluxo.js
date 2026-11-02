@@ -1,10 +1,9 @@
 const fs = require('fs');
-const path = require('path');
 
 const TIPOS_VALIDOS = ['inicio', 'mensagem', 'pergunta', 'condicao', 'salvar', 'api', 'transferir', 'transferir_atendente', 'horario', 'aguardar', 'nota', 'fim'];
 
 function caminhoArquivo() {
-  return process.env.CHATDIGITAL_FLUXO || path.join(__dirname, '..', 'config', 'fluxo.json');
+  return require('./caminhos').arquivoFluxo();
 }
 
 function carregarFluxo() {

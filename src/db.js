@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
-const ARQUIVO_DB = process.env.CHATDIGITAL_DB || path.join(__dirname, '..', 'data', 'chatdigital.db');
+const caminhos = require('./caminhos');
+
+caminhos.prepararPastaDeDados(); // cliente novo (E5): configuração e fluxo modelo na pasta dele
+const ARQUIVO_DB = caminhos.arquivoDb();
 const DIRETORIO = path.dirname(ARQUIVO_DB);
 if (!fs.existsSync(DIRETORIO)) fs.mkdirSync(DIRETORIO, { recursive: true });
 

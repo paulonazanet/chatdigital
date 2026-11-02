@@ -4,12 +4,15 @@
     <h1>ChatDigital</h1>
     <p class="subtitulo">Crie o administrador do sistema</p>
     <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+    <% if (!(typeof bloqueado !== 'undefined' && bloqueado)) { %>
     <form method="post" action="/setup">
+      <% if (typeof codigo !== 'undefined' && codigo) { %><input type="hidden" name="codigo" value="<%= codigo %>"><% } %>
       <label>Nome<input type="text" name="nome" required autofocus></label>
       <label>E-mail<input type="email" name="email" required></label>
       <label>Senha<input type="password" name="senha" required minlength="6"></label>
       <button type="submit">Criar administrador</button>
     </form>
+    <% } %>
   </div>
 </main>
 <%- include('partials/fim') %>

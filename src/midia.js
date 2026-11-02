@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 // Arquivos de mídia do chat (fotos/vídeos/áudios recebidos do cliente ou mandados pelo
 // atendente) ficam em public/uploads, servidos como estáticos pelo Express — igual a
 // public/img, public/css etc. Runtime data, como data/ e auth/, não entra no git.
-const DIRETORIO_UPLOADS = path.join(__dirname, '..', 'public', 'uploads');
+const DIRETORIO_UPLOADS = require('./caminhos').pastaUploads();
 if (!fs.existsSync(DIRETORIO_UPLOADS)) fs.mkdirSync(DIRETORIO_UPLOADS, { recursive: true });
 
 const EXTENSAO_POR_MIMETYPE = {

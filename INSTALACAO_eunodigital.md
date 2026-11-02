@@ -582,6 +582,38 @@ configuração do servidor).
 
 ---
 
+## Parte Q — Clientes novos no mesmo servidor (E5)
+
+Um código só (`/opt/chatdigital/app`), uma pasta por cliente (`/opt/chatdigital/clientes/<nome>`: `.env`,
+banco, configuração, fluxo, sessão do WhatsApp, mídias e backups diários). Cada cliente é o serviço
+`chatdigital@<nome>` e um arquivo em `/etc/caddy/clientes/<nome>.caddy`. A Nazagás de antes da E5 continua
+como está (`chatdigital.service`, porta 3001) até ser mudada para esse formato.
+
+**Q1. Antes:** snapshot da VM no ESXi; o endereço do cliente apontando no DNS para o IP da VM (um registro
+`*.eunodigital.com` resolve todos de uma vez).
+
+**Q2. Criar o cliente:**
+```bash
+cd /opt/chatdigital/app && sudo -u chatdigital git pull
+sudo /opt/chatdigital/app/deploy/criar-cliente.sh novanet novanet.eunodigital.com
+```
+✔ Ele mostra o **link do primeiro acesso** (`https://<endereço>/setup?codigo=...`). Abra, crie o administrador
+e conecte o WhatsApp em Configurações › WhatsApp. Sem o código, ninguém consegue criar o administrador.
+
+**Q3. Ver como estão todos:** `/opt/chatdigital/app/deploy/listar-clientes.sh` (serviço e `/saude` de cada um).
+
+**Q4. Atualizar todos** (no lugar da Parte P): `sudo /opt/chatdigital/app/deploy/atualizar-todos.sh`
+(cópia do banco de cada um, `git pull`, `npm ci` se mudou o package-lock, reinicia todos e lista).
+
+**Q5. Zabbix:** um host para o servidor (CPU, memória, disco) e, por cliente, um cenário web em
+`https://<endereço>/saude` com o texto obrigatório `"whatsapp":"ok"` (avisa se o site cair **ou** se o WhatsApp
+desconectar). `/saude` não tem login e só mostra o nível de cada peça e a versão.
+
+**Q6. Backup fora da VM:** o `backup-chat.sh` (Parte N) ainda só copia a Nazagás; incluir
+`/opt/chatdigital/clientes/*` antes de ter cliente de verdade.
+
+---
+
 ## Problemas comuns
 
 | Sintoma | O que fazer |

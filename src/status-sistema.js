@@ -178,4 +178,19 @@ function montarStatus(agoraMs = Date.now()) {
   };
 }
 
-module.exports = { montarStatus, formatarBytes, commitAtual };
+/**
+ * Resumo para o monitoramento (Zabbix), sem login: só o nível de cada peça e a versão, nada de nomes,
+ * números ou conversas. `whatsapp` é 'ok' só se todos os números ligados estão conectados.
+ */
+function resumoSaude(agoraMs = Date.now()) {
+  const whatsapp = itensWhatsapp();
+  return {
+    whatsapp: whatsapp.every((i) => i.nivel === 'ok') ? 'ok' : 'problema',
+    banco: itemBanco().nivel,
+    disco: itemDisco().nivel,
+    backup: itemBackup(agoraMs).nivel,
+    versao: commitAtual(),
+  };
+}
+
+module.exports = { montarStatus, resumoSaude, formatarBytes, commitAtual };
