@@ -64,6 +64,7 @@ $ENDERECO {
 	}
 }
 CADDY
+chmod 644 "/etc/caddy/clientes/$NOME.caddy" # o umask 077 do .env deixaria o arquivo só para o root, e o Caddy roda como caddy
 if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   rm -f "/etc/caddy/clientes/$NOME.caddy"
   erro "o Caddy recusou a configuração (nada foi recarregado). Veja: caddy validate --config /etc/caddy/Caddyfile"
