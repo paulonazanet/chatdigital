@@ -516,6 +516,10 @@ sudo rclone copyto /opt/chatdigital/app/.env dropcrypt:env/.env -v
 `sudo rclone ls dropbox:chatdigital-backup` (nomes embaralhados).
 
 **N5. Agendar todo dia às 3h:** ver o script `/usr/local/bin/backup-chat.sh` e o `cron` abaixo.
+> Desde a E5 o script fica no código (`deploy/backup-chat.sh`, copia também cada cliente de
+> `/opt/chatdigital/clientes` para `dropcrypt:clientes/<nome>/`). Instalar/atualizar:
+> `sudo install -m 700 /opt/chatdigital/app/deploy/backup-chat.sh /usr/local/bin/backup-chat.sh`.
+> O texto abaixo é a versão antiga, só da Nazagás.
 
 ```bash
 sudo tee /usr/local/bin/backup-chat.sh >/dev/null <<'EOS'
@@ -609,8 +613,8 @@ e conecte o WhatsApp em Configurações › WhatsApp. Sem o código, ninguém co
 `https://<endereço>/saude` com o texto obrigatório `"whatsapp":"ok"` (avisa se o site cair **ou** se o WhatsApp
 desconectar). `/saude` não tem login e só mostra o nível de cada peça e a versão.
 
-**Q6. Backup fora da VM:** o `backup-chat.sh` (Parte N) ainda só copia a Nazagás; incluir
-`/opt/chatdigital/clientes/*` antes de ter cliente de verdade.
+**Q6. Backup fora da VM:** `deploy/backup-chat.sh` copia a Nazagás e todos os clientes (Parte N5). Depois de
+`git pull`, reinstale: `sudo install -m 700 /opt/chatdigital/app/deploy/backup-chat.sh /usr/local/bin/backup-chat.sh`.
 
 ---
 
