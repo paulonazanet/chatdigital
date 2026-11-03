@@ -83,7 +83,7 @@
           <span class="recolhivel">Contatos</span>
         </a>
       <% } %>
-      <% if (podeAcessar('gerenciar_campanhas')) { %>
+      <% if (podeAcessar('gerenciar_campanhas') && (temRecurso('campanhas') || temRecurso('lembretes'))) { %>
         <a href="/painel/campanhas">
           <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8a3 3 0 0 1 0 6"></path>
@@ -101,7 +101,7 @@
           <span class="recolhivel">Respostas rápidas</span>
         </a>
       <% } %>
-      <% if (podeAcessar('ver_relatorio')) { %>
+      <% if (podeAcessar('ver_relatorio') && temRecurso('relatorios')) { %>
         <a href="/painel/relatorio">
           <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="4" y1="20" x2="20" y2="20"></line>
@@ -110,6 +110,14 @@
             <rect x="16" y="9" width="3" height="8"></rect>
           </svg>
           <span class="recolhivel">Relatório</span>
+        </a>
+      <% } %>
+      <% if (temCentral && atendenteLogado.papel === 'admin') { %>
+        <a href="/painel/clientes">
+          <svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"></path>
+          </svg>
+          <span class="recolhivel">Clientes</span>
         </a>
       <% } %>
       <% if (podeAcessar('gerenciar_configuracoes')) { %>

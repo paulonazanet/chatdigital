@@ -207,6 +207,7 @@ function montarTexto(regras, negocio, conversa, diasDesde, modelo = regras.texto
 function gerarLembretes({ agoraMs = Date.now(), negocio = carregarNegocio(), mesmoDesligado = false } = {}) {
   const regras = regrasDeRecompra(negocio);
   if (!regras.ligado && !mesmoDesligado) return 0;
+  if (!require('./planos').temRecurso('lembretes')) return 0;
   let total = 0;
   for (const c of candidatos({ agoraMs, negocio })) {
     if (envios.motivoParaNaoMandar(c.conversa, { emAtendimentoConta: false })) continue;

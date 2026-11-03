@@ -14,6 +14,7 @@ const contatos = require('../contatos');
 const { carregarFluxo } = require('../fluxo');
 const oficial = require('../whatsapp-oficial');
 const { modoAtual } = require('../socket-atual');
+const { exigirRecurso, temRecurso } = require('../planos');
 
 // Menu Campanhas (permissão "gerenciar_campanhas"): Campanhas, Lembretes (recompra), Retornos
 // agendados, Envios (a fila e o histórico) e Regras de envio.
@@ -35,7 +36,9 @@ function base(req, ativa, extra = {}) {
   };
 }
 
-router.get('/', (req, res) => res.redirect('/painel/campanhas/lista'));
+router.use(['/lista', '/nova', '/campanha'], exigirRecurso('campanhas'));
+router.use('/lembretes', exigirRecurso('lembretes'));
+router.get('/', (req, res) => res.redirect(`/painel/campanhas/${temRecurso('campanhas') ? 'lista' : 'lembretes'}`));
 
 // ---- Campanhas ----
 const ROTULO_CAMPANHA = { rascunho: 'Rascunho', enviando: 'Enviando', pausada: 'Pausada', concluida: 'Concluída', cancelada: 'Cancelada' };

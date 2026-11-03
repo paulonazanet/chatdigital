@@ -23,7 +23,7 @@ function codigoValido(recebido) {
 }
 
 function exigirCodigo(req, res, next) {
-  if (!codigoValido(req.params.codigo)) return res.status(404).send('Painel não encontrado. Peça o link novo para quem cuida do sistema.');
+  if (!codigoValido(req.params.codigo) || !require('../planos').temRecurso('painel_tv')) return res.status(404).send('Painel não encontrado. Peça o link novo para quem cuida do sistema.');
   res.set('X-Robots-Tag', 'noindex');
   res.set('Referrer-Policy', 'no-referrer');
   next();

@@ -15,5 +15,10 @@
       </li>
     <% }) %>
   </ul>
+  <% if (!plano.semLimites) { %>
+    <h2>Seu plano: <%= plano.nome %></h2>
+    <p>Atendentes ativos: <%= uso.atendentes %> de <%= plano.atendentes %>. Números de WhatsApp: <%= uso.numeros %><%= plano.numeros === null ? '' : ` de ${plano.numeros}` %>.</p>
+    <p class="dica">Inclui: <%= plano.recursos.map((r) => rotulosRecursos[r]).join(', ') %>.</p>
+  <% } %>
 </main>
 <%- include('../partials/fim-painel') %>

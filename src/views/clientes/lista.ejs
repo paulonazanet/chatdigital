@@ -1,0 +1,33 @@
+<%- include('../partials/inicio', { titulo: 'Clientes' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo">
+  <div class="cabecalho-lista">
+    <h1>Clientes</h1>
+    <p class="dica">Por mês: <strong><%= totalMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) %></strong></p>
+  </div>
+  <p class="dica">Clique no plano para trocar. Vale na hora, sem reiniciar. Baixar de plano não apaga nada: só impede criar ou ligar mais do que o plano permite.</p>
+  <% if (erro) { %><p class="erro"><%= erro %></p><% } %>
+  <table class="tabela">
+    <thead><tr><th>Cliente</th><th>Plano</th><th>Limites</th><th>Por mês</th><th></th></tr></thead>
+    <tbody>
+      <% clientes.forEach((c) => { %>
+        <tr data-cliente="<%= c.id %>">
+          <td><%= c.nome %></td>
+          <td class="planos-cliente">
+            <form method="post" action="/painel/clientes/<%= c.id %>/plano" class="form-inline">
+              <% Object.entries(planos).forEach(([chave, p]) => { %>
+                <button type="submit" name="plano" value="<%= chave %>" class="botao-pequeno <%= c.plano.plano === chave ? '' : 'botao-secundario' %>"><%= p.nome %></button>
+              <% }) %>
+              <button type="submit" name="plano" value="" class="botao-pequeno <%= c.plano.semLimites ? '' : 'botao-secundario' %>">Sem limites</button>
+            </form>
+          </td>
+          <td><% if (c.plano.semLimites) { %>-<% } else { %><%= c.plano.atendentes %> atendentes, <%= c.plano.numeros === null ? 'números à vontade' : `${c.plano.numeros} número${c.plano.numeros === 1 ? '' : 's'}` %>
+            <% if (c.plano.recursosExtras.length || c.plano.valorExtra) { %><span class="selo" title="<%= c.plano.obs %>">negociado à parte</span><% } %><% } %></td>
+          <td><%= c.plano.semLimites ? '-' : c.plano.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) %></td>
+          <td><% if (!c.plano.semLimites) { %><a href="/painel/clientes/<%= c.id %>">Editar</a><% } %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</main>
+<%- include('../partials/fim-painel') %>

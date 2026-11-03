@@ -17,6 +17,7 @@ const { modoAtual, ligarCanal } = require('../socket-atual');
 const canais = require('../canais');
 const { listarFluxos } = require('../fluxo');
 const instagram = require('../instagram');
+const planos = require('../planos');
 
 function paraFormasPagamentoArray(texto) {
   return String(texto || '')
@@ -82,6 +83,12 @@ function renderizar(req, res, extra) {
     ...extra,
   });
 }
+
+// funções que dependem do plano do cliente
+router.use('/metas', planos.exigirRecurso('metas'));
+router.use('/painel-tv', planos.exigirRecurso('painel_tv'));
+router.use('/instagram', planos.exigirRecurso('instagram'));
+router.use(['/whatsapp/oficial', '/whatsapp/custos'], planos.exigirRecurso('api_oficial'));
 
 router.get('/', (req, res) => renderizar(req, res, { negocio: carregarNegocio() }));
 
@@ -373,7 +380,7 @@ router.post('/painel-tv/desligar', (req, res) => {
 
 // Status do sistema: WhatsApp, banco, disco, backup e versão (só leitura)
 router.get('/status', (req, res) => {
-  res.render('configuracoes/status', { atendenteLogado: req.atendente, status: montarStatus() });
+  res.render('configuracoes/status', { atendenteLogado: req.atendente, status: montarStatus(), plano: planos.planoAtual(), uso: planos.resumoDoUso(), rotulosRecursos: planos.RECURSOS });
 });
 
 // WhatsApp: a conexão escolhida (celular por QR Code ou API oficial da Meta) e, na oficial, os dados
@@ -403,6 +410,8 @@ router.get('/whatsapp', (req, res) => renderizarWhatsapp(req, res));
 // Números pelo celular: adicionar (liga na hora, se o sistema estiver rodando de verdade), renomear,
 // escolher o fluxo, ligar/desligar
 router.post('/whatsapp/numeros', async (req, res) => {
+  const limite = planos.podeLigarNumero();
+  if (limite.erro) return renderizarWhatsapp(req, res, { erro: limite.erro });
   const canal = canais.criarCanal(req.body.nome);
   if (canal.erro) return renderizarWhatsapp(req, res, { erro: canal.erro });
   const ligou = modoAtual() !== 'oficial' && (await ligarCanal(canal));
@@ -420,6 +429,8 @@ router.post('/whatsapp/numeros/:id', (req, res) => {
 router.post('/whatsapp/numeros/:id/ativo', async (req, res) => {
   const canal = canais.obterCanal(Number(req.params.id));
   if (!canal) return res.redirect('/painel/configuracoes/whatsapp');
+  const limite = !canal.ativo && canal.tipo === 'celular' ? planos.podeLigarNumero() : {};
+  if (limite.erro) return renderizarWhatsapp(req, res, { erro: limite.erro });
   const resultado = canais.definirAtivo(canal.id, !canal.ativo);
   if (resultado.erro) return renderizarWhatsapp(req, res, { erro: resultado.erro });
   if (canal.ativo) require('../bot').pararBot(canal.id);
@@ -456,6 +467,7 @@ router.post('/whatsapp/custos', (req, res) => {
   res.redirect('/painel/configuracoes/whatsapp/custos?aviso=precos');
 });
 router.post('/whatsapp/conexao', (req, res) => {
+  if (req.body.whatsapp_conexao !== 'celular' && !planos.temRecurso('api_oficial')) return renderizarWhatsapp(req, res, { erro: 'A API oficial não faz parte do seu plano. Fale com a Eu no Digital.' });
   salvarConfiguracoes({ whatsapp_conexao: ['oficial', 'misto'].includes(req.body.whatsapp_conexao) ? req.body.whatsapp_conexao : 'celular' });
   res.redirect('/painel/configuracoes/whatsapp?aviso=conexao');
 });

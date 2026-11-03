@@ -373,6 +373,11 @@ desconectado, fora do horário, feriado ou limite do dia).
   onde veio (editor, fluxo pronto, arquivo, volta de versão). **Voltar para esta versão** passa a
   valer na hora para o bot (e o fluxo de antes também fica guardado). **Baixar** cada versão.
 
+## Menu: Clientes (só na instalação da Eu no Digital, só administrador)
+Lista os clientes do servidor com plano, limites e valor por mês. Um clique troca o plano (Essencial, Profissional, Empresa ou
+Sem limites) e vale na hora. **Editar** soma o que foi negociado à parte: atendentes, números, funções, valor a mais por mês e uma
+anotação. Baixar de plano não apaga nem desliga nada: só impede criar ou ligar mais. O cliente vê o plano em Status do sistema.
+
 ## Menu: Configurações
 - **Cartões no topo**: WhatsApp (conectado ou não), Motivos de encerramento, Marcadores, Feriados
   (com quantos ativos) e Metas (quantas definidas), e atalhos para cada quadro. Botão **Salvar alterações** fixo no pé da tela,

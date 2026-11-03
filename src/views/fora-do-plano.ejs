@@ -1,0 +1,7 @@
+<%- include('partials/inicio', { titulo: 'Fora do plano' }) %>
+<%- include('partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config">
+  <h1><%= recurso %></h1>
+  <p class="aviso">Esta função não faz parte do plano <%= plano.nome %>. Para incluir, fale com a Eu no Digital.</p>
+</main>
+<%- include('partials/fim-painel') %>

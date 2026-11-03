@@ -1,0 +1,34 @@
+<%- include('../partials/inicio', { titulo: 'Editar cliente' }) %>
+<%- include('../partials/nav', { atendenteLogado }) %>
+<main class="conteudo pagina-config">
+  <p class="trilha-config"><a href="/painel/clientes">Clientes</a> › <%= cliente.nome %></p>
+  <h1><%= cliente.nome %></h1>
+  <p class="dica">Plano <%= cliente.plano.nome %>: <%= base.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) %> por mês, <%= base.atendentes %> atendentes, <%= base.numeros === null ? 'números à vontade' : `${base.numeros} número${base.numeros === 1 ? '' : 's'}` %>. Aqui entra só o que você negociou a mais com este cliente.</p>
+  <form method="post" action="/painel/clientes/<%= cliente.id %>" class="formulario">
+    <label>Atendentes a mais
+      <input type="number" name="atendentes_extras" min="0" value="<%= cliente.plano.atendentesExtras %>">
+    </label>
+    <% if (base.numeros !== null) { %>
+      <label>Números de WhatsApp a mais
+        <input type="number" name="numeros_extras" min="0" value="<%= cliente.plano.numerosExtras %>">
+      </label>
+    <% } %>
+    <fieldset>
+      <legend>Funções a mais</legend>
+      <% const fora = Object.entries(recursos).filter(([chave]) => !base.recursos.includes(chave)); %>
+      <% if (!fora.length) { %><p class="dica">Este plano já tem todas as funções.</p><% } %>
+      <% fora.forEach(([chave, rotulo]) => { %>
+        <label class="linha-checkbox"><input type="checkbox" name="recursos_extras" value="<%= chave %>" <%= cliente.plano.recursosExtras.includes(chave) ? 'checked' : '' %>> <%= rotulo %></label>
+      <% }) %>
+    </fieldset>
+    <label>Valor a mais por mês (R$)
+      <input type="text" inputmode="decimal" name="valor_extra" value="<%= cliente.plano.valorExtra %>">
+    </label>
+    <label>Anotação (o que foi combinado)
+      <input type="text" name="obs" maxlength="300" value="<%= cliente.plano.obs %>">
+    </label>
+    <button type="submit" class="botao">Salvar</button>
+    <a class="botao botao-secundario" href="/painel/clientes">Voltar</a>
+  </form>
+</main>
+<%- include('../partials/fim-painel') %>

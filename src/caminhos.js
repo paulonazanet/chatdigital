@@ -21,6 +21,7 @@ function base() {
 const arquivoDb = () => process.env.CHATDIGITAL_DB || path.join(base(), 'data', 'chatdigital.db');
 const arquivoNegocio = () => process.env.CHATDIGITAL_NEGOCIO || path.join(base(), 'config', 'negocio.json');
 const arquivoFluxo = () => process.env.CHATDIGITAL_FLUXO || path.join(base(), 'config', 'fluxo.json');
+const arquivoPlano = () => process.env.CHATDIGITAL_PLANO || path.join(base(), 'config', 'plano.json');
 // pasta de login de um número do WhatsApp ("auth", "auth-numero-2"...)
 const pastaAuth = (nome = 'auth') => path.join(base(), nome);
 // fotos, áudios e documentos da conversa (servidos em /uploads)
@@ -43,4 +44,4 @@ function prepararPastaDeDados() {
   fs.mkdirSync(pastaUploads(), { recursive: true });
 }
 
-module.exports = { RAIZ_CODIGO, pastaDeDados, arquivoDb, arquivoNegocio, arquivoFluxo, pastaAuth, pastaUploads, prepararPastaDeDados };
+module.exports = { RAIZ_CODIGO, pastaDeDados, arquivoDb, arquivoNegocio, arquivoFluxo, arquivoPlano, pastaAuth, pastaUploads, prepararPastaDeDados };

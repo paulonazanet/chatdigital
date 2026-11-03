@@ -20,6 +20,7 @@ const grupos = require('../grupos-permissao');
 const acesso = require('../acesso');
 const { horarioDoCorpo, horarioDasJanelas } = require('../horario');
 const { formatarDataHoraCompleta } = require('../relatorio');
+const { podeAtivarAtendente } = require('../planos');
 
 function dadosComuns(req) {
   return { atendenteLogado: req.atendente, chavesPermissao: CHAVES, rotulosPermissao: ROTULOS, grupos: grupos.listarGrupos() };
@@ -79,6 +80,8 @@ router.post('/', (req, res) => {
 
   if (!nome || !email || !senha || !papel) return reexibir('Preencha todos os campos obrigatórios.');
   if (obterAtendentePorEmail(email)) return reexibir('Já existe um atendente com esse e-mail.');
+  const limite = podeAtivarAtendente();
+  if (limite.erro) return reexibir(limite.erro);
   const lido = lerAcessoDoFormulario(req);
   if (lido.erro) return reexibir(lido.erro);
 
@@ -150,6 +153,8 @@ router.post('/:id', (req, res) => {
   if (eraAdminAtivo && !continuaAdminAtivo && contarAdminsAtivos(id) === 0) {
     return reexibir('Não é possível remover o último administrador ativo do sistema.');
   }
+  const limite = ativo && !alvoAtual.ativo ? podeAtivarAtendente(id) : {};
+  if (limite.erro) return reexibir(limite.erro);
   const lido = lerAcessoDoFormulario(req);
   if (lido.erro) return reexibir(lido.erro);
 
@@ -174,6 +179,9 @@ router.post('/:id/alternar-ativo', (req, res) => {
   if (alvo.papel === 'admin' && alvo.ativo && contarAdminsAtivos(id) === 0) {
     return res.status(400).send('Não é possível desativar o último administrador ativo do sistema.');
   }
+
+  const limite = alvo.ativo ? {} : podeAtivarAtendente(id);
+  if (limite.erro) return res.status(400).send(limite.erro);
 
   alternarAtivo(id);
   res.redirect('/painel/atendentes');

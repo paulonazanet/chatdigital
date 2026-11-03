@@ -593,6 +593,13 @@ banco, configuração, fluxo, sessão do WhatsApp, mídias e backups diários). 
 `chatdigital@<nome>` e um arquivo em `/etc/caddy/clientes/<nome>.caddy`. A Nazagás de antes da E5 continua
 como está (`chatdigital.service`, porta 3001) até ser mudada para esse formato.
 
+**Tela Clientes (planos):** só a Eu no Digital tem. Uma vez, depois de atualizar o código:
+```bash
+echo 'CHATDIGITAL_CENTRAL=/opt/chatdigital/clientes' | sudo tee -a /opt/chatdigital/clientes/eunodigital/.env
+sudo systemctl restart chatdigital@eunodigital
+```
+Sem plano escolhido, o cliente fica sem limites. A Nazagás de antes da E5 não aparece na lista.
+
 **Q1. Antes:** snapshot da VM no ESXi; o endereço do cliente apontando no DNS para o IP da VM (um registro
 `*.eunodigital.com` resolve todos de uma vez).
 

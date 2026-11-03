@@ -723,3 +723,7 @@ deixava apagar. Agora o `after()` fecha o banco, se ele foi aberto. `npm test`: 
    dados de exemplo em `public/_previa/`, abrir no navegador e apagar a pasta depois.
 5. Quando o Claude roda o servidor em segundo plano, o log vai pra
    `%TEMP%\chatdigital-server.log` (e `.err.log`).
+
+## E5, 3ª parte: planos e limites (02/11/2026)
+`src/planos.js` (planos, funções, limites), `src/routes/clientes.js` e views `clientes/`. O plano fica em `config/plano.json` da pasta
+do cliente, escrito só pela tela Clientes (instalação com `CHATDIGITAL_CENTRAL`); sem arquivo, sem limites. Testes: `test/e5-planos.test.js`.
